@@ -4,7 +4,8 @@
   <img src="public/images/deepseek-color.png" alt="DeepSeek Logo" width="128" height="128">
   
   <h3>方便快捷打开网页内容的桌面应用程序</h3>
-  
+  <p align="center">English | <a href="./docs/README.zh.md">中文</a>  
+
   ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
   ![License](https://img.shields.io/badge/license-MIT-green.svg)
   ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
@@ -70,10 +71,10 @@ npm start
 
 # 打包应用（仅 Windows）
 npm run make
-
+```
 ### 项目结构
 
-```
+```text
 DeepSeek/
 ├── main.js              # 主进程文件
 ├── renderer.js          # 渲染进程文件
@@ -492,4 +493,3 @@ in the Software without restriction...
 <div align="center">
   如果这个项目对您有帮助，请考虑给一个 ⭐ Star！
 </div>
-```
