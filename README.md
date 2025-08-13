@@ -1,6 +1,4 @@
-# <div align="center">
-  DeepSeek-desktop-client
-</div>
+# DeepSeek-desktop-client
 
 <div align="center">
   <img src="public/images/deepseek-color.png" alt="DeepSeek Logo" width="128" height="128">
