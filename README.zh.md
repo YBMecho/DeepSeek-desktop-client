@@ -16,7 +16,14 @@
 
 DeepSeek 是一个基于 Electron 开发的桌面应用程序，旨在为用户提供方便快捷的网页内容访问体验。应用采用现代化的界面设计，集成了丰富的功能特性，让您的网页浏览更加高效便捷。
 
+## 窗口展示：
 <img width="1266" height="723" alt="image" src="https://github.com/user-attachments/assets/97c93ebc-cc63-4b18-abe1-840ab1c5f737" />
+
+## 窗口多开：
+<img width="1491" height="891" alt="image" src="https://github.com/user-attachments/assets/2a6dd31d-9160-422a-9f0b-4b25c0492320" />
+
+## 窗口复制：
+<img width="1480" height="881" alt="image" src="https://github.com/user-attachments/assets/2820d59b-51c9-49e0-9544-188fbd104f27" />
 
 ## ✨ 功能特性
 
