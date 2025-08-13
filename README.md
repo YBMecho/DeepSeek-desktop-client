@@ -466,16 +466,6 @@ npm run make
 
 本项目基于 [MIT 许可证](LICENSE) 开源。
 
-```
-MIT License
-
-Copyright (c) 2025 YBMecho
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction...
-```
-
 ## 🙏 致谢
 
 - [Electron](https://electronjs.org/) - 跨平台桌面应用开发框架
