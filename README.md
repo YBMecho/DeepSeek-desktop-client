@@ -4,7 +4,7 @@
   <img src="public/images/deepseek-color.png" alt="DeepSeek Logo" width="128" height="128">
   
   <h3>方便快捷打开网页内容的桌面应用程序</h3>
-  <p align="center">English | <a href="./docs/README.zh.md">中文</a>  
+  <p align="center">English | <a href="./README.zh.md">中文</a>  
 
   ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
   ![License](https://img.shields.io/badge/license-MIT-green.svg)
