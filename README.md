@@ -3,8 +3,8 @@
 <div align="center">
   <img src="public/images/deepseek-color.png" alt="DeepSeek Logo" width="128" height="128">
   
-  <h3>方便快捷打开网页内容的桌面应用程序</h3>
-  <p align="center">English | <a href="./README.zh.md">中文</a>  
+  <h3>Desktop application for quick and convenient web content access</h3>
+  <p align="center">English | <a href="./docs/README.zh.md">中文</a>  
 
   ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
   ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -12,104 +12,105 @@
   ![Electron](https://img.shields.io/badge/Electron-37.2.6-9feaf9.svg)
 </div>
 
-## 📖 项目介绍
+## 📖 Project Introduction
 
-DeepSeek 是一个基于 Electron 开发的桌面应用程序，旨在为用户提供方便快捷的网页内容访问体验。应用采用现代化的界面设计，集成了丰富的功能特性，让您的网页浏览更加高效便捷。
+DeepSeek is a desktop application developed based on Electron, designed to provide users with quick and convenient web content access experience. The application features a modern interface design and integrates rich functionality to make your web browsing more efficient and convenient.
 
-## ✨ 功能特性
+## ✨ Features
 
-- 🚀 **快速启动** - 基于 Electron 框架，启动速度快
-- 🎨 **现代界面** - 简洁美观的用户界面设计
-- 🔧 **自定义设置** - 支持个性化配置选项
-- 📱 **响应式设计** - 适应不同屏幕尺寸
-- 🛡️ **安全可靠** - 内置安全预加载脚本
-- 🎯 **右键菜单** - 集成 electron-context-menu 增强用户体验
-- 🔄 **自动更新** - 支持 Squirrel 自动更新机制
-- 🪟 **多窗口支持** - 支持新开窗口和复制当前窗口
-- 🌐 **外链处理** - 自动在系统默认浏览器中打开外部链接
+- 🚀 **Fast Launch** - Built on Electron framework with quick startup
+- 🎨 **Modern Interface** - Clean and beautiful UI design
+- 🔧 **Custom Settings** - Supports personalized configuration options
+- 📱 **Responsive Design** - Adapts to different screen sizes
+- 🛡️ **Secure & Reliable** - Built-in secure preload scripts
+- 🎯 **Context Menu** - Integrated electron-context-menu for enhanced user experience
+- 🔄 **Auto Update** - Supports Squirrel auto-update mechanism
+- 🪟 **Multi-Window Support** - Supports opening new windows and duplicating current window
+- 🌐 **External Link Handling** - Automatically opens external links in system default browser
 
-## 📦 下载安装
+## 📦 Download & Installation
 
-**系统要求：**
-- Windows 10 或更高版本
-- x64 架构
+**System Requirements:**
+- Windows 10 or later
+- x64 architecture
 
-**安装步骤：**
-1. 下载安装包
-2. 双击运行安装程序
-3. 按照安装向导完成安装
-4. 启动应用开始使用
+**Installation Steps:**
+1. Download the installation package
+2. Double-click to run the installer
+3. Complete installation following the wizard
+4. Launch the application to start using
 
-### 其他平台说明
+### Platform Notes
 
-**🍎 macOS** 和 **🐧 Linux** 版本暂未提供：
+**🍎 macOS** and **🐧 Linux** versions are currently unavailable:
 
-由于开发环境限制，目前只能在 Windows 系统上进行打包构建。Electron 的跨平台打包需要在对应的操作系统环境中进行，因此：
+Due to development environment limitations, currently only Windows builds are available. Cross-platform builds for Electron require corresponding operating system environments:
 
-- **macOS 版本**：需要在 macOS 系统上使用 Xcode 进行构建
-- **Linux 版本**：需要在 Linux 环境中进行打包
+- **macOS Version**: Requires building with Xcode on macOS system
+- **Linux Version**: Requires building in Linux environment
 
-如果您有 macOS 或 Linux 环境，欢迎：
-- Fork 本项目进行跨平台构建
-- 提交 Pull Request 贡献其他平台的构建版本
-- 在 Issues 中提出跨平台需求
+If you have macOS or Linux environment, welcome to:
+- Fork this project for cross-platform building
+- Submit Pull Requests for other platform builds
+- Submit cross-platform requests in Issues
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 开发环境
+### Development Environment
 
 ```bash
-# 克隆项目
+# Clone project
 git clone https://github.com/YBMecho/DeepSeek.git
 cd DeepSeek
 
-# 安装依赖
+# Install dependencies
 npm install
 
-# 启动开发模式
+# Start development mode
 npm start
 
-# 打包应用（仅 Windows）
+# Package application (Windows only)
 npm run make
 ```
-### 项目结构
+
+### Project Structure
 
 ```text
 DeepSeek/
-├── main.js              # 主进程文件
-├── renderer.js          # 渲染进程文件
-├── package.json         # 项目配置
-├── forge.config.js      # 打包配置
-├── public/              # 静态资源
-│   ├── css/            # 样式文件
-│   ├── icons/          # 应用图标
-│   ├── images/         # 图片资源
-│   └── license.txt     # 许可协议
-└── README.md           # 项目说明
+├── main.js              # Main process file
+├── renderer.js          # Renderer process file
+├── package.json         # Project configuration
+├── forge.config.js      # Build configuration
+├── public/              # Static resources
+│   ├── css/            # Style files
+│   ├── icons/          # Application icons
+│   ├── images/         # Image resources
+│   └── license.txt     # License agreement
+└── README.md           # Project documentation
 ```
 
-## 🛠️ 技术栈
+## 🛠️ Tech Stack
 
-- **框架**: [Electron](https://electronjs.org/) 37.2.6
-- **打包工具**: [Electron Forge](https://www.electronforge.io/) 7.8.3
-- **UI组件**: electron-context-menu 4.1.0
-- **自动更新**: electron-squirrel-startup 1.0.1
-- **开发语言**: JavaScript (Node.js)
+- **Framework**: [Electron](https://electronjs.org/) 37.2.6
+- **Build Tool**: [Electron Forge](https://www.electronforge.io/) 7.8.3
+- **UI Components**: electron-context-menu 4.1.0
+- **Auto Update**: electron-squirrel-startup 1.0.1
+- **Development Language**: JavaScript (Node.js)
 
-## ⚙️ 开发自定义指南
+## ⚙️ Customization Guide
 
-### 📝 修改应用信息 (`package.json`)
+### 📝 Modify App Info (`package.json`)
 
-您可以通过修改 `package.json` 文件来自定义应用的基本信息：
+You can customize basic app information by modifying `package.json`:
 
 ```json
 {
-  "name": "DeepSeek",           // 应用名称
-  "version": "1.0.0",           // 应用版本
-  "description": "方便快捷打开网页内容。", // 应用描述
-  "author": "YBMecho",          // 作者信息
-  "license": "MIT",             // 许可证类型
-  "keywords": [                 // 关键词
+  "name": "DeepSeek",           // App name
+  "version": "1.0.0",           // App version
+  "description": "Quick and convenient web content access.", // App description
+  "author": "YBMecho",          // Author info
+  "license": "MIT",             // License type
+  "keywords": [                 // Keywords
     "DeepSeek-app",
     "electron",
     "desktop"
@@ -117,76 +118,76 @@ DeepSeek/
 }
 ```
 
-### 🔧 主要功能配置 (`main.js`)
+### 🔧 Main Function Configuration (`main.js`)
 
-#### 1. 修改默认网站
+#### 1. Modify Default Website
 
 ```javascript
-// 在 createWindow() 函数中修改默认加载的网站
-mainWindow.loadURL('https://your-website.com/'); // 替换为您的网站
+// Modify default loaded website in createWindow()
+mainWindow.loadURL('https://your-website.com/'); // Replace with your website
 
-// 在 createNewWindow() 函数中修改新窗口的默认网站
+// Modify new window default website in createNewWindow()
 function createNewWindow(url = 'https://your-website.com/') {
   // ...
 }
 ```
 
-#### 2. 自定义窗口尺寸和外观
+#### 2. Customize Window Size and Appearance
 
 ```javascript
 const newWindow = new BrowserWindow({
-  width: 1280,              // 窗口宽度
-  height: 730,              // 窗口高度
-  title: 'Your App Name',   // 窗口标题
-  icon: path.join(__dirname, 'public/images/your-icon.png'), // 窗口图标
-  // 其他配置...
+  width: 1280,              // Window width
+  height: 730,              // Window height
+  title: 'Your App Name',   // Window title
+  icon: path.join(__dirname, 'public/images/your-icon.png'), // Window icon
+  // Other configurations...
 });
 ```
 
-#### 3. 自定义右键菜单
+#### 3. Customize Context Menu
 
 ```javascript
 contextMenu({
   labels: {
-    cut: '剪切',           // 自定义菜单项文本
-    copy: '复制',
-    paste: '粘贴',
-    // 添加更多自定义标签...
+    cut: 'Cut',           // Custom menu item text
+    copy: 'Copy',
+    paste: 'Paste',
+    // Add more custom labels...
   },
   prepend: (defaultActions, parameters, browserWindow) => [
     {
-      label: '自定义功能',     // 添加自定义菜单项
+      label: 'Custom Feature',     // Add custom menu item
       click: () => {
-        // 自定义功能代码
+        // Custom function code
       }
     },
-    // 添加更多自定义菜单项...
+    // Add more custom menu items...
   ]
 });
 ```
 
-#### 4. 修改应用信息对话框
+#### 4. Modify App Info Dialog
 
 ```javascript
 {
-  label: '关于',
+  label: 'About',
   click: () => {
     dialog.showMessageBox(browserWindow, {
       type: 'info',
-      title: '关于 Your App',        // 修改标题
-      message: 'Your App 桌面应用',   // 修改消息
-      detail: '版本: 2.0.0\n\n您的应用描述\n\n作者: Your Name', // 修改详细信息
-      buttons: ['确定'],
+      title: 'About Your App',        // Modify title
+      message: 'Your App Desktop',   // Modify message
+      detail: 'Version: 2.0.0\n\nYour app description\n\nAuthor: Your Name', // Modify details
+      buttons: ['OK'],
       defaultId: 0
     });
   }
 }
 ```
 
-#### 5. 自定义域名限制
+#### 5. Custom Domain Restrictions
 
 ```javascript
-// 修改允许的域名范围
+// Modify allowed domains
 mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
   const allowedDomains = [
     'your-domain.com',
@@ -203,25 +204,25 @@ mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
 });
 ```
 
-### 🎨 界面样式自定义
+### 🎨 UI Customization
 
-#### 1. 修改 CSS 样式
+#### 1. Modify CSS Styles
 
-在 `public/css/main.css` 中添加自定义样式：
+Add custom styles in `public/css/main.css`:
 
 ```css
-/* 自定义应用样式 */
+/* Custom app styles */
 body {
   font-family: 'Microsoft YaHei', sans-serif;
   background-color: #f5f5f5;
 }
 
-/* 隐藏特定元素 */
+/* Hide specific elements */
 .unwanted-element {
   display: none !important;
 }
 
-/* 自定义滚动条 */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -236,10 +237,10 @@ body {
 }
 ```
 
-#### 2. 动态注入样式
+#### 2. Dynamic Style Injection
 
 ```javascript
-// 在页面加载完成后注入自定义样式
+// Inject custom styles after page load
 mainWindow.once('ready-to-show', () => {
   const customCSS = `
     .custom-style {
@@ -251,24 +252,24 @@ mainWindow.once('ready-to-show', () => {
 });
 ```
 
-### 🔐 安全配置
+### 🔐 Security Configuration
 
-#### 1. Web 安全设置
+#### 1. Web Security Settings
 
 ```javascript
 webPreferences: {
-  nodeIntegration: false,        // 禁用 Node.js 集成
-  contextIsolation: true,        // 启用上下文隔离
-  webSecurity: true,             // 启用 Web 安全
-  allowRunningInsecureContent: false, // 禁止不安全内容
-  experimentalFeatures: false    // 禁用实验性功能
+  nodeIntegration: false,        // Disable Node.js integration
+  contextIsolation: true,        // Enable context isolation
+  webSecurity: true,             // Enable web security
+  allowRunningInsecureContent: false, // Prohibit insecure content
+  experimentalFeatures: false    // Disable experimental features
 }
 ```
 
-#### 2. 内容安全策略
+#### 2. Content Security Policy
 
 ```javascript
-// 在页面加载前设置 CSP
+// Set CSP before page load
 mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
   callback({
     responseHeaders: {
@@ -279,9 +280,9 @@ mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) 
 });
 ```
 
-### 📱 多窗口管理
+### 📱 Multi-Window Management
 
-#### 1. 自定义新窗口行为
+#### 1. Custom New Window Behavior
 
 ```javascript
 function createCustomWindow(options = {}) {
@@ -289,9 +290,9 @@ function createCustomWindow(options = {}) {
     width: 1280,
     height: 730,
     title: 'Custom Window',
-    parent: mainWindow,  // 设置父窗口
-    modal: true,         // 模态窗口
-    // 其他自定义选项...
+    parent: mainWindow,  // Set parent window
+    modal: true,         // Modal window
+    // Other custom options...
   };
   
   const windowOptions = { ...defaultOptions, ...options };
@@ -301,9 +302,9 @@ function createCustomWindow(options = {}) {
 }
 ```
 
-### 🚀 构建和发布配置
+### 🚀 Build & Release Configuration
 
-#### 1. 修改打包配置 (`forge.config.js`)
+#### 1. Modify Build Configuration (`forge.config.js`)
 
 ```javascript
 module.exports = {
@@ -312,7 +313,7 @@ module.exports = {
     icon: 'public/icons/your-icon',
     appBundleId: 'com.yourcompany.yourapp',
     appCategoryType: 'public.app-category.productivity',
-    // 其他打包选项...
+    // Other build options...
   },
   makers: [
     {
@@ -321,14 +322,14 @@ module.exports = {
         name: 'YourApp',
         authors: 'Your Name',
         description: 'Your app description',
-        // 其他配置...
+        // Other configurations...
       }
     }
   ]
 };
 ```
 
-#### 2. 添加自定义脚本
+#### 2. Add Custom Scripts
 
 ```json
 {
@@ -344,9 +345,9 @@ module.exports = {
 }
 ```
 
-### 🔧 高级自定义
+### 🔧 Advanced Customization
 
-#### 1. 添加系统托盘
+#### 1. Add System Tray
 
 ```javascript
 const { Tray } = require('electron');
@@ -357,10 +358,10 @@ function createTray() {
   tray = new Tray(path.join(__dirname, 'public/icons/tray-icon.png'));
   
   const contextMenu = Menu.buildFromTemplate([
-    { label: '显示', click: () => mainWindow.show() },
-    { label: '隐藏', click: () => mainWindow.hide() },
+    { label: 'Show', click: () => mainWindow.show() },
+    { label: 'Hide', click: () => mainWindow.hide() },
     { type: 'separator' },
-    { label: '退出', click: () => app.quit() }
+    { label: 'Quit', click: () => app.quit() }
   ]);
   
   tray.setToolTip('Your App Name');
@@ -368,13 +369,13 @@ function createTray() {
 }
 ```
 
-#### 2. 添加全局快捷键
+#### 2. Add Global Shortcuts
 
 ```javascript
 const { globalShortcut } = require('electron');
 
 app.whenReady().then(() => {
-  // 注册全局快捷键
+  // Register global shortcut
   globalShortcut.register('CommandOrControl+Shift+D', () => {
     if (mainWindow.isVisible()) {
       mainWindow.hide();
@@ -385,101 +386,101 @@ app.whenReady().then(() => {
 });
 ```
 
-#### 3. 自定义应用菜单
+#### 3. Custom App Menu
 
 ```javascript
 const template = [
   {
-    label: '文件',
+    label: 'File',
     submenu: [
       {
-        label: '新建窗口',
+        label: 'New Window',
         accelerator: 'CmdOrCtrl+N',
         click: () => createNewWindow()
       },
       { type: 'separator' },
       {
-        label: '退出',
+        label: 'Quit',
         accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
         click: () => app.quit()
       }
     ]
   },
-  // 添加更多菜单项...
+  // Add more menu items...
 ];
 
 const menu = Menu.buildFromTemplate(template);
 Menu.setApplicationMenu(menu);
 ```
 
-## 📋 开发说明
+## 📋 Development Notes
 
-### 环境要求
+### Environment Requirements
 
-- Node.js 18.x 或更高版本
-- npm 8.x 或更高版本
-- Windows 10 或更高版本（用于打包）
+- Node.js 18.x or later
+- npm 8.x or later
+- Windows 10 or later (for packaging)
 
-### 构建步骤
+### Build Steps
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 开发调试
+# Development debugging
 npm run start
 
-# 打包应用
+# Package application
 npm run package
 
-# 制作安装包
+# Create installer
 npm run make
 ```
 
-### 代码签名
+### Code Signing
 
-项目支持代码签名以增强安全性：
+The project supports code signing for enhanced security:
 
-1. 获取代码签名证书（.pfx 格式）
-2. 在 `forge.config.js` 中配置证书路径
-3. 重新打包即可生成签名的安装包
+1. Obtain code signing certificate (.pfx format)
+2. Configure certificate path in `forge.config.js`
+3. Rebuild to generate signed installer
 
-## 🤝 贡献指南
+## 🤝 Contribution Guide
 
-欢迎贡献代码！请按照以下步骤：
+Welcome contributions! Please follow these steps:
 
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
+1. Fork this project
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Create Pull Request
 
-### 贡献重点
+### Contribution Priorities
 
-- 🍎 **macOS 版本构建** - 在 macOS 环境中进行打包
-- 🐧 **Linux 版本构建** - 在 Linux 环境中进行打包
-- 🌐 **国际化支持** - 添加多语言界面
-- 🎨 **UI/UX 改进** - 界面优化和用户体验提升
-- 🐛 **Bug 修复** - 发现并修复问题
+- 🍎 **macOS Version Build** - Build on macOS environment
+- 🐧 **Linux Version Build** - Build on Linux environment
+- 🌐 **Internationalization** - Add multi-language support
+- 🎨 **UI/UX Improvements** - Interface optimization and user experience enhancement
+- 🐛 **Bug Fixes** - Discover and fix issues
 
-## 📄 许可证
+## 📄 License
 
-本项目基于 [MIT 许可证](LICENSE) 开源。
+This project is open source under [MIT License](LICENSE).
 
-## 🙏 致谢
+## 🙏 Acknowledgments
 
-- [Electron](https://electronjs.org/) - 跨平台桌面应用开发框架
-- [Electron Forge](https://www.electronforge.io/) - Electron 应用打包工具
-- [electron-context-menu](https://github.com/sindresorhus/electron-context-menu) - 右键菜单增强
+- [Electron](https://electronjs.org/) - Cross-platform desktop app framework
+- [Electron Forge](https://www.electronforge.io/) - Electron app packaging tool
+- [electron-context-menu](https://github.com/sindresorhus/electron-context-menu) - Context menu enhancement
 
-## 📞 联系方式
+## 📞 Contact
 
-- **作者**: YBMecho
+- **Author**: YBMecho
 - **QQ**: 3350198579
-- **QQ邮箱**: 3350198579@qq.com
+- **QQ Email**: 3350198579@qq.com
 
 ---
 
 <div align="center">
-  如果这个项目对您有帮助，请考虑给一个 ⭐ Star！
+  If this project helps you, please consider giving a ⭐ Star!
 </div>
