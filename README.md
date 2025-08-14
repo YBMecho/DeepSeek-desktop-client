@@ -71,7 +71,7 @@ If you have macOS or Linux environment, welcome to:
 ```bash
 # Clone project
 git clone https://github.com/YBMecho/DeepSeek-desktop-client.git
-cd DeepSeek
+cd DeepSeek-desktop-client
 
 # Install dependencies
 npm install
