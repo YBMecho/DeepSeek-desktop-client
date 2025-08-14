@@ -70,7 +70,7 @@ If you have macOS or Linux environment, welcome to:
 
 ```bash
 # Clone project
-git clone https://github.com/YBMecho/DeepSeek.git
+git clone https://github.com/YBMecho/DeepSeek-desktop-client.git
 cd DeepSeek
 
 # Install dependencies
