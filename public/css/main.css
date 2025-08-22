@@ -1,3 +1,33 @@
+/* 全局主题样式 */
+body.theme-light {
+  background-color: #ffffff;
+  color: #374151;
+}
+
+body.theme-dark {
+  background-color: #1f2937;
+  color: #f9fafb;
+}
+
+body.theme-system {
+  /* 跟随系统主题 */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  body.theme-system {
+    background-color: #1f2937;
+    color: #f9fafb;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  body.theme-system {
+    background-color: #ffffff;
+    color: #374151;
+  }
+}
+
 /* 美化滚动条样式 */
 ::-webkit-scrollbar {
   width: 8px;
@@ -24,18 +54,58 @@
   background: transparent;
 }
 
-/* 针对深色主题的滚动条 */
+/* 深色主题滚动条样式 */
+body.theme-dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body.theme-dark ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #4D6BFE 0%, #6B73FF 100%);
+}
+
+body.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #3D5AFE 0%, #5B63FF 100%);
+}
+
+/* 浅色主题滚动条样式 */
+body.theme-light ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.theme-light ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+body.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+/* 系统主题滚动条样式 */
 @media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-track {
+  body.theme-system ::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.05);
   }
   
-  ::-webkit-scrollbar-thumb {
+  body.theme-system ::-webkit-scrollbar-thumb {
     background: linear-gradient(135deg, #4D6BFE 0%, #6B73FF 100%);
   }
   
-  ::-webkit-scrollbar-thumb:hover {
+  body.theme-system ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, #3D5AFE 0%, #5B63FF 100%);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  body.theme-system ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  body.theme-system ::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  
+  body.theme-system ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
   }
 }
 
@@ -48,4 +118,383 @@
 /* 页面平滑滚动 */
 html {
   scroll-behavior: smooth;
+}
+
+/* 设置窗口样式 */
+.settings-blur-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 999999;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.settings-blur-overlay.show {
+  opacity: 1;
+}
+
+.settings-window {
+  width: 555px; /* 设置窗口宽度 */
+  min-height: 555px; /* 设置窗口最小高度 */
+  max-width: 90vw;
+  max-height: 90vh;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-blur-overlay.show .settings-window {
+  transform: scale(1);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 20px;
+  background-color: transparent;
+  color: #374151;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.settings-close-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-close-btn:hover {
+  background-color: rgba(107, 114, 128, 0.1);
+  color: #374151;
+}
+
+.settings-content {
+  padding: 0 20px 20px 20px;
+}
+
+.settings-item {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.settings-item:first-child {
+  padding-top: 8px;
+}
+
+.settings-item:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.settings-item label {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.settings-item p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+/* 深色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .settings-window {
+    background-color: #1f2937;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .settings-blur-overlay {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  .settings-header {
+    background-color: transparent;
+    color: #f9fafb;
+  }
+
+  .settings-close-btn {
+    color: #9ca3af;
+  }
+
+  .settings-close-btn:hover {
+    background-color: rgba(156, 163, 175, 0.1);
+    color: #f9fafb;
+  }
+
+  .settings-item {
+    border-bottom: 1px solid #374151;
+  }
+
+  .settings-item label {
+    color: #f9fafb;
+  }
+
+  .settings-item p {
+    color: #9ca3af;
+  }
+}
+
+/* 主题单选按钮组样式 */
+.theme-radio-group {
+  display: flex;
+  gap: 0;
+  margin-top: 16px;
+  padding: 4px;
+  background-color: #f3f4f6;
+  border-radius: 50px;
+  border: 1px solid #e5e7eb;
+}
+
+.radio-option {
+  flex: 1;
+  position: relative;
+}
+
+.radio-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.radio-option label {
+  display: block;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  background-color: transparent;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0;
+  border: 1px solid transparent;
+}
+
+.radio-option:first-child label {
+  border-radius: 50px;
+}
+
+.radio-option:last-child label {
+  border-radius: 50px;
+}
+
+.radio-option input[type="radio"]:checked + label {
+  background-color: #ffffff;
+  color: #374151;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #d1d5db;
+}
+
+.radio-option label:hover {
+  color: #374151;
+}
+
+/* 深色主题下的单选按钮组样式 */
+@media (prefers-color-scheme: dark) {
+  .theme-radio-group {
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 50px;
+  }
+
+  .radio-option label {
+    color: #9ca3af;
+    border-radius: 50px;
+  }
+
+  .radio-option input[type="radio"]:checked + label {
+    background-color: #1f2937;
+    color: #f9fafb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    border: 1px solid #6b7280;
+  }
+
+  .radio-option label:hover {
+    color: #f9fafb;
+  }
+}
+
+/* 强制主题样式 */
+body.theme-light .theme-radio-group {
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 50px;
+}
+
+body.theme-light .radio-option label {
+  color: #6b7280;
+  border-radius: 50px;
+}
+
+body.theme-light .radio-option input[type="radio"]:checked + label {
+  background-color: #ffffff;
+  color: #374151;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #d1d5db;
+}
+
+body.theme-light .radio-option label:hover {
+  color: #374151;
+}
+
+body.theme-dark .theme-radio-group {
+  background-color: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 50px;
+}
+
+body.theme-dark .radio-option label {
+  color: #9ca3af;
+  border-radius: 50px;
+}
+
+body.theme-dark .radio-option input[type="radio"]:checked + label {
+  background-color: #1f2937;
+  color: #f9fafb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border: 1px solid #6b7280;
+}
+
+body.theme-dark .radio-option label:hover {
+  color: #f9fafb;
+}
+
+/* 深色主题窗口样式覆盖 */
+body.theme-dark .settings-window {
+  background-color: #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+body.theme-dark .settings-blur-overlay {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+body.theme-dark .settings-header {
+  background-color: transparent;
+  color: #f9fafb;
+}
+
+body.theme-dark .settings-close-btn {
+  color: #9ca3af;
+}
+
+body.theme-dark .settings-close-btn:hover {
+  background-color: rgba(156, 163, 175, 0.1);
+  color: #f9fafb;
+}
+
+body.theme-dark .settings-item {
+  border-bottom: 1px solid #374151;
+}
+
+body.theme-dark .settings-item label {
+  color: #f9fafb;
+}
+
+body.theme-dark .settings-item p {
+  color: #9ca3af;
+}
+
+/* 浅色主题窗口样式覆盖 */
+body.theme-light .settings-window {
+  background-color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+body.theme-light .settings-blur-overlay {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+body.theme-light .settings-header {
+  background-color: transparent;
+  color: #374151;
+}
+
+body.theme-light .settings-close-btn {
+  color: #6b7280;
+}
+
+body.theme-light .settings-close-btn:hover {
+  background-color: rgba(107, 114, 128, 0.1);
+  color: #374151;
+}
+
+body.theme-light .settings-item {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+body.theme-light .settings-item label {
+  color: #374151;
+}
+
+body.theme-light .settings-item p {
+  color: #6b7280;
+}
+
+/* 系统默认主题样式覆盖 */
+body.theme-system .settings-item {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+body.theme-system .settings-item label {
+  color: #374151;
+}
+
+body.theme-system .settings-item p {
+  color: #6b7280;
+}
+
+/* 深色主题下的系统默认主题覆盖 */
+@media (prefers-color-scheme: dark) {
+  body.theme-system .settings-item {
+    border-bottom: 1px solid #374151;
+  }
+
+  body.theme-system .settings-item label {
+    color: #f9fafb;
+  }
+
+  body.theme-system .settings-item p {
+    color: #9ca3af;
+  }
 }

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, nativeTheme, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 let contextMenu;
@@ -15,6 +15,35 @@ try {
 
 let mainWindow;
 
+// 主题管理
+let currentTheme = 'system'; // 默认跟随系统
+
+// 应用主题到原生窗口
+function applyNativeTheme(theme) {
+  if (theme === 'light') {
+    nativeTheme.themeSource = 'light';
+  } else if (theme === 'dark') {
+    nativeTheme.themeSource = 'dark';
+  } else {
+    nativeTheme.themeSource = 'system';
+  }
+  currentTheme = theme;
+}
+
+// IPC通信处理
+ipcMain.handle('get-theme', () => {
+  return currentTheme;
+});
+
+ipcMain.handle('set-theme', (event, theme) => {
+  applyNativeTheme(theme);
+  // 通知所有窗口主题已更改
+  BrowserWindow.getAllWindows().forEach(window => {
+    window.webContents.send('theme-changed', theme);
+  });
+  return theme;
+});
+
 // 创建新窗口的通用函数
 function createNewWindow(url = 'https://chat.deepseek.com/') {
   const newWindow = new BrowserWindow({
@@ -25,7 +54,8 @@ function createNewWindow(url = 'https://chat.deepseek.com/') {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: true
+      webSecurity: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     show: false,
     autoHideMenuBar: true,
@@ -72,6 +102,17 @@ function createNewWindow(url = 'https://chat.deepseek.com/') {
     } catch (error) {
       console.log('CSS文件加载失败:', error);
     }
+
+    // 注入renderer.js文件
+    const rendererPath = path.join(__dirname, 'renderer.js');
+    try {
+      const rendererJs = fs.readFileSync(rendererPath, 'utf8');
+      newWindow.webContents.executeJavaScript(rendererJs).catch(function(error) {
+        console.log('renderer.js注入失败:', error);
+      });
+    } catch (error) {
+      console.log('renderer.js文件加载失败:', error);
+    }
   });
 
   // 当窗口关闭时清除引用
@@ -95,7 +136,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: true
+      webSecurity: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     show: false, // 先不显示，等加载完成后再显示
     autoHideMenuBar: true, // 自动隐藏菜单栏
@@ -143,6 +185,17 @@ function createWindow() {
     } catch (error) {
       console.log('CSS文件加载失败:', error);
     }
+
+    // 注入renderer.js文件
+    const rendererPath = path.join(__dirname, 'renderer.js');
+    try {
+      const rendererJs = fs.readFileSync(rendererPath, 'utf8');
+      mainWindow.webContents.executeJavaScript(rendererJs).catch(function(error) {
+        console.log('renderer.js注入失败:', error);
+      });
+    } catch (error) {
+      console.log('renderer.js文件加载失败:', error);
+    }
   });
 
   // 当窗口关闭时清除引用
@@ -178,39 +231,85 @@ app.whenReady().then(() => {
         showCopyLink: true,
         showSaveLinkAs: false,
         showInspectElement: false, // 隐藏检查元素，保持界面简洁
-        prepend: (defaultActions, parameters, browserWindow) => [
-          {
-            label: '新开窗口',
-            click: () => {
-              createNewWindow();
-            }
-          },
-          {
-            label: '复制窗口',
-            click: () => {
-              const currentUrl = browserWindow.webContents.getURL();
-              createNewWindow(currentUrl);
-            }
-          },
-          {
-            type: 'separator'
-          },
-          {
-            label: '重新加载',
-            accelerator: 'CmdOrCtrl+R',
-            click: () => {
-              browserWindow.webContents.reload();
-            }
-          },
-          {
-            type: 'separator'
+        prepend: (defaultActions, parameters, browserWindow) => {
+          // 检查是否在空白处右键（不是链接、图片、文本选择或可编辑区域）
+          const isBlankArea = !parameters.linkURL && 
+                              !parameters.hasImageContents && 
+                              !parameters.selectionText && 
+                              !parameters.editFlags.canCut && 
+                              !parameters.editFlags.canPaste;
+          
+          // 只有在空白处右键时才显示这些菜单项
+          if (isBlankArea) {
+            return [
+              {
+                label: '新开窗口',
+                click: () => {
+                  createNewWindow();
+                }
+              },
+              {
+                label: '复制窗口',
+                click: () => {
+                  const currentUrl = browserWindow.webContents.getURL();
+                  createNewWindow(currentUrl);
+                }
+              },
+              {
+                type: 'separator'
+              },
+              {
+                label: '重新加载',
+                accelerator: 'CmdOrCtrl+R',
+                click: () => {
+                  browserWindow.webContents.reload();
+                }
+              },
+              {
+                type: 'separator'
+              }
+            ];
           }
-        ],
-        append: (defaultActions, parameters, browserWindow) => [
-          {
-            type: 'separator'
-          },
-          {
+          
+          // 在非空白处右键时返回空数组
+          return [];
+        },
+        append: (defaultActions, parameters, browserWindow) => {
+          // 检查是否在空白处右键（不是链接、图片、文本选择或可编辑区域）
+          const isBlankArea = !parameters.linkURL && 
+                              !parameters.hasImageContents && 
+                              !parameters.selectionText && 
+                              !parameters.editFlags.canCut && 
+                              !parameters.editFlags.canPaste;
+          
+          const menuItems = [];
+          
+          // 只有在空白处右键时才显示设置按钮
+          if (isBlankArea) {
+            menuItems.push(
+              {
+                type: 'separator'
+              },
+              {
+                label: '设置',
+                click: () => {
+                  browserWindow.webContents.executeJavaScript(`
+                    if (typeof window.showSettingsWindow === 'function') {
+                      window.showSettingsWindow();
+                    }
+                  `).catch(function(error) {
+                    console.log('设置窗口打开失败:', error);
+                  });
+                }
+              },
+              {
+                type: 'separator'
+              }
+            );
+          }
+          
+          // 关于按钮始终显示
+          menuItems.push({
             label: '关于',
             click: () => {
               const { dialog } = require('electron');
@@ -223,8 +322,10 @@ app.whenReady().then(() => {
                 defaultId: 0
               });
             }
-          }
-        ]
+          });
+          
+          return menuItems;
+        }
       });
     } else {
       console.log('electron-context-menu 模块未正确加载，跳过右键菜单配置');
