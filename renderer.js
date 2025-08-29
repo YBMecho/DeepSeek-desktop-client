@@ -42,14 +42,6 @@
         </div>
       </div>
       <div class="settings-item">
-        <label>全局快捷键</label>
-        <div class="hotkey-setting">
-          <div class="hotkey-display-container">
-            <input type="text" id="hotkey-display" class="hotkey-display" value="Alt+\`" readonly placeholder="点击设置快捷键">
-          </div>
-        </div>
-      </div>
-      <div class="settings-item">
         <label>关于应用</label>
         <p>DeepSeek 桌面客户端 v1.0.0</p>
       </div>
@@ -79,17 +71,10 @@
     // 初始化主题设置
     window.initTheme();
     
-    // 绑定快捷键设置事件
-    window.initHotkeySettings(contentDiv);
-    
     // 点击背景关闭设置窗口
     blurOverlay.addEventListener('click', function(e) {
       if (e.target === blurOverlay) {
-        if (window.hotkeySettingMode) {
-          window.exitHotkeySettingMode();
-        } else {
-          window.hideSettingsWindow();
-        }
+        window.hideSettingsWindow();
       }
     });
   }
@@ -220,179 +205,6 @@
       if (themeRadio) {
         themeRadio.checked = true;
       }
-    }
-  };
-
-  // 快捷键设置相关变量
-  window.hotkeySettingMode = false;
-  window.currentHotkey = 'Alt+`';
-  window.hotkeyClickCount = 0;
-  
-  // 初始化快捷键设置
-  window.initHotkeySettings = function(contentDiv) {
-    const hotkeyDisplay = contentDiv.querySelector('#hotkey-display');
-    
-    if (!hotkeyDisplay) return;
-    
-    // 从主进程获取保存的快捷键
-    if (window.electronAPI && window.electronAPI.getGlobalHotkey) {
-      window.electronAPI.getGlobalHotkey().then(savedHotkey => {
-        window.currentHotkey = savedHotkey || 'Alt+`';
-        hotkeyDisplay.value = window.currentHotkey;
-      }).catch(error => {
-        console.log('获取快捷键失败:', error);
-        window.currentHotkey = 'Alt+`';
-        hotkeyDisplay.value = window.currentHotkey;
-      });
-    } else {
-      window.currentHotkey = 'Alt+`';
-      hotkeyDisplay.value = window.currentHotkey;
-    }
-    
-    // 点击快捷键显示框进入设置模式
-    hotkeyDisplay.addEventListener('click', function(e) {
-      e.stopPropagation();
-      window.enterHotkeySettingMode();
-    });
-    
-    // 阻止在快捷键显示框中输入
-    hotkeyDisplay.addEventListener('keydown', function(e) {
-      if (window.hotkeySettingMode) {
-        e.preventDefault();
-        window.handleHotkeyInput(e);
-      } else {
-        e.preventDefault();
-      }
-    });
-  };
-  
-  // 进入快捷键设置模式
-  window.enterHotkeySettingMode = function() {
-    if (window.hotkeySettingMode) return;
-    
-    window.hotkeySettingMode = true;
-    window.hotkeyClickCount = 0;
-    
-    const hotkeyDisplay = document.querySelector('#hotkey-display');
-    
-    if (hotkeyDisplay) {
-      hotkeyDisplay.classList.add('setting-mode');
-      hotkeyDisplay.value = '请按下快捷键组合...';
-      
-      // 聚焦到输入框以接收键盘事件
-      hotkeyDisplay.focus();
-    }
-    
-    // 添加全局键盘监听
-    document.addEventListener('keydown', window.globalHotkeyListener);
-  };
-  
-  // 退出快捷键设置模式
-  window.exitHotkeySettingMode = function() {
-    if (!window.hotkeySettingMode) return;
-    
-    window.hotkeySettingMode = false;
-    window.hotkeyClickCount++;
-    
-    const hotkeyDisplay = document.querySelector('#hotkey-display');
-    
-    if (hotkeyDisplay) {
-      hotkeyDisplay.classList.remove('setting-mode');
-      hotkeyDisplay.value = window.currentHotkey;
-      
-      if (window.hotkeyClickCount === 1) {
-        // 第一次点击后等待第二次点击
-        setTimeout(() => {
-          if (window.hotkeyClickCount === 1) {
-            window.hotkeyClickCount = 0;
-          }
-        }, 3000);
-      } else {
-        window.hotkeyClickCount = 0;
-      }
-    }
-    
-    // 移除全局键盘监听
-    document.removeEventListener('keydown', window.globalHotkeyListener);
-  };
-  
-  // 处理快捷键输入
-  window.handleHotkeyInput = function(e) {
-    e.preventDefault();
-    
-    const keys = [];
-    
-    // 检查修饰键
-    if (e.ctrlKey) keys.push('Ctrl');
-    if (e.altKey) keys.push('Alt');
-    if (e.shiftKey) keys.push('Shift');
-    if (e.metaKey) keys.push('Meta');
-    
-    // 检查主键
-    if (e.key && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Shift' && e.key !== 'Meta') {
-      let mainKey = e.key;
-      
-      // 特殊键名映射
-      const keyMap = {
-        ' ': 'Space',
-        'ArrowUp': '↑',
-        'ArrowDown': '↓',
-        'ArrowLeft': '←',
-        'ArrowRight': '→',
-        'Escape': 'Esc',
-        'Enter': 'Enter',
-        'Backspace': 'Backspace',
-        'Delete': 'Delete',
-        'Tab': 'Tab'
-      };
-      
-      if (keyMap[mainKey]) {
-        mainKey = keyMap[mainKey];
-      } else if (mainKey.length === 1) {
-        mainKey = mainKey.toUpperCase();
-      }
-      
-      keys.push(mainKey);
-    }
-    
-    // 至少需要一个修饰键和一个主键
-    if (keys.length >= 2) {
-      const hotkeyString = keys.join('+');
-      window.currentHotkey = hotkeyString;
-      
-      const hotkeyDisplay = document.querySelector('#hotkey-display');
-      const hotkeyStatus = document.querySelector('#hotkey-status');
-      
-      if (hotkeyDisplay && hotkeyStatus) {
-        hotkeyDisplay.value = hotkeyString;
-        hotkeyStatus.textContent = `已设置快捷键: ${hotkeyString}`;
-        hotkeyStatus.className = 'hotkey-status success';
-        
-        // 通知主进程更新全局快捷键
-        if (window.electronAPI && window.electronAPI.setGlobalHotkey) {
-          window.electronAPI.setGlobalHotkey(hotkeyString).then(result => {
-            if (result.success) {
-              console.log('全局快捷键设置成功:', result.hotkey);
-            } else {
-              console.log('设置全局快捷键失败:', result.error);
-            }
-          }).catch(error => {
-            console.log('设置全局快捷键失败:', error);
-          });
-        }
-      }
-      
-      // 延迟退出设置模式
-      setTimeout(() => {
-        window.exitHotkeySettingMode();
-      }, 1000);
-    }
-  };
-  
-  // 全局快捷键监听器
-  window.globalHotkeyListener = function(e) {
-    if (window.hotkeySettingMode) {
-      window.handleHotkeyInput(e);
     }
   };
 

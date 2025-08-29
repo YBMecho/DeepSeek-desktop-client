@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, nativeTheme, ipcMain, globalShortcut, Tray } = require('electron');
+const { app, BrowserWindow, Menu, shell, nativeTheme, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -15,15 +15,9 @@ try {
 }
 
 let mainWindow;
-let tray = null;
-let isWindowHidden = false;
 
 // 主题管理
 let currentTheme = 'system'; // 默认跟随系统
-
-// 快捷键管理
-let currentHotkey = 'Alt+`';
-let registeredHotkey = null;
 
 // 配置文件路径
 const configDir = path.join(os.homedir(), '.deepseek-desktop');
@@ -48,7 +42,7 @@ function loadConfig() {
   } catch (error) {
     console.log('读取配置文件失败:', error);
   }
-  return { theme: 'system', hotkey: 'Alt+`' }; // 默认配置
+  return { theme: 'system' }; // 默认配置
 }
 
 // 保存配置文件
@@ -65,9 +59,7 @@ function saveConfig(config) {
 function initTheme() {
   const config = loadConfig();
   currentTheme = config.theme || 'system';
-  currentHotkey = config.hotkey || 'Alt+`';
   applyNativeTheme(currentTheme);
-  initGlobalHotkey();
 }
 
 // 应用主题到原生窗口
@@ -80,100 +72,6 @@ function applyNativeTheme(theme) {
     nativeTheme.themeSource = 'system';
   }
   currentTheme = theme;
-}
-
-// 初始化全局快捷键
-function initGlobalHotkey() {
-  // 先注销之前的快捷键
-  if (registeredHotkey) {
-    globalShortcut.unregister(registeredHotkey);
-    registeredHotkey = null;
-  }
-  
-  try {
-    const success = globalShortcut.register(currentHotkey, () => {
-      toggleWindowVisibility();
-    });
-    
-    if (success) {
-      registeredHotkey = currentHotkey;
-      console.log(`全局快捷键 ${currentHotkey} 注册成功`);
-    } else {
-      console.log(`全局快捷键 ${currentHotkey} 注册失败`);
-    }
-  } catch (error) {
-    console.log('注册全局快捷键时出错:', error);
-  }
-}
-
-// 切换窗口显示/隐藏
-function toggleWindowVisibility() {
-  if (!mainWindow) return;
-  
-  if (isWindowHidden || !mainWindow.isVisible()) {
-    // 显示窗口
-    showWindow();
-  } else {
-    // 隐藏窗口
-    hideWindow();
-  }
-}
-
-// 显示窗口
-function showWindow() {
-  if (!mainWindow) return;
-  
-  mainWindow.show();
-  mainWindow.focus();
-  isWindowHidden = false;
-  
-  // 销毁系统托盘
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
-}
-
-// 隐藏窗口
-function hideWindow() {
-  if (!mainWindow) return;
-  
-  mainWindow.hide();
-  isWindowHidden = true;
-  
-  // 创建系统托盘
-  createTray();
-}
-
-// 创建系统托盘
-function createTray() {
-  if (tray) return; // 如果托盘已存在，不重复创建
-  
-  const iconPath = path.join(__dirname, 'public/images/deepseek-color.png');
-  tray = new Tray(iconPath);
-  
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: '显示窗口',
-      click: () => {
-        showWindow();
-      }
-    },
-    {
-      label: '退出应用',
-      click: () => {
-        app.quit();
-      }
-    }
-  ]);
-  
-  tray.setToolTip('DeepSeek Desktop');
-  tray.setContextMenu(contextMenu);
-  
-  // 双击托盘图标显示窗口
-  tray.on('double-click', () => {
-    showWindow();
-  });
 }
 
 // IPC通信处理
@@ -194,45 +92,6 @@ ipcMain.handle('set-theme', (event, theme) => {
     window.webContents.send('theme-changed', theme);
   });
   return theme;
-});
-
-// 设置全局快捷键
-ipcMain.handle('set-global-hotkey', async (event, hotkey) => {
-  try {
-    // 先注销当前快捷键
-    if (registeredHotkey) {
-      globalShortcut.unregister(registeredHotkey);
-      registeredHotkey = null;
-    }
-    
-    // 注册新快捷键
-    const success = globalShortcut.register(hotkey, () => {
-      toggleWindowVisibility();
-    });
-    
-    if (success) {
-      currentHotkey = hotkey;
-      registeredHotkey = hotkey;
-      
-      // 保存到配置文件
-      const config = loadConfig();
-      config.hotkey = hotkey;
-      saveConfig(config);
-      
-      console.log(`全局快捷键已更新为: ${hotkey}`);
-      return { success: true, hotkey };
-    } else {
-      throw new Error('快捷键注册失败，可能已被其他应用占用');
-    }
-  } catch (error) {
-    console.log('设置全局快捷键失败:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-// 获取当前快捷键
-ipcMain.handle('get-global-hotkey', () => {
-  return currentHotkey;
 });
 
 // 创建新窗口的通用函数
@@ -537,24 +396,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
-});
-
-// 应用退出前清理资源
-app.on('before-quit', () => {
-  // 注销所有全局快捷键
-  globalShortcut.unregisterAll();
-  
-  // 销毁系统托盘
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
-});
-
-// 应用即将退出时的清理
-app.on('will-quit', () => {
-  // 确保全局快捷键被清理
-  globalShortcut.unregisterAll();
 });
 
 app.on('activate', () => {
