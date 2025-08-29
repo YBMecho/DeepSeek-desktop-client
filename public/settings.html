@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设置</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: transparent;
+            overflow: hidden;
+        }
+
+        .settings-container {
+            width: 400px;
+            height: 500px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .settings-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .close-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: #374151;
+        }
+
+        .settings-content {
+            padding: 24px;
+            height: calc(100% - 80px);
+            overflow-y: auto;
+        }
+
+        .setting-item {
+            margin-bottom: 24px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            display: block;
+            font-size: 16px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .setting-description {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .theme-selector {
+            display: flex;
+            gap: 8px;
+            padding: 4px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+        }
+
+        .theme-option {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.2s ease;
+        }
+
+        .theme-option.active {
+            background: white;
+            color: #374151;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .theme-option:hover:not(.active) {
+            color: #374151;
+        }
+
+        /* 深色主题适配 */
+        @media (prefers-color-scheme: dark) {
+            .settings-container {
+                background: rgba(31, 41, 55, 0.95);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            }
+
+            .settings-header {
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .settings-title {
+                color: #f9fafb;
+            }
+
+            .close-btn {
+                color: #9ca3af;
+            }
+
+            .close-btn:hover {
+                background: rgba(255, 255, 255, 0.1);
+                color: #f9fafb;
+            }
+
+            .setting-label {
+                color: #f9fafb;
+            }
+
+            .setting-description {
+                color: #9ca3af;
+            }
+
+            .theme-selector {
+                background: rgba(255, 255, 255, 0.1);
+            }
+
+            .theme-option {
+                color: #9ca3af;
+            }
+
+            .theme-option.active {
+                background: rgba(31, 41, 55, 0.8);
+                color: #f9fafb;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            }
+
+            .theme-option:hover:not(.active) {
+                color: #f9fafb;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <div class="settings-header">
+            <h2 class="settings-title">设置</h2>
+            <button class="close-btn" onclick="closeSettings()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="settings-content">
+            <div class="setting-item">
+                <label class="setting-label">主题设置</label>
+                <p class="setting-description">选择应用的外观主题</p>
+                <div class="theme-selector">
+                    <button class="theme-option" data-theme="light">浅色</button>
+                    <button class="theme-option active" data-theme="system">跟随系统</button>
+                    <button class="theme-option" data-theme="dark">深色</button>
+                </div>
+            </div>
+            
+            <div class="setting-item">
+                <label class="setting-label">关于应用</label>
+                <p class="setting-description">DeepSeek 桌面客户端 v1.0.0<br>一个简洁优雅的AI聊天应用</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 主题切换功能
+        document.querySelectorAll('.theme-option').forEach(button => {
+            button.addEventListener('click', function() {
+                // 移除所有active类
+                document.querySelectorAll('.theme-option').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // 添加active类到当前按钮
+                this.classList.add('active');
+                
+                // 获取选择的主题
+                const theme = this.dataset.theme;
+                
+                // 通知主进程更改主题
+                if (window.electronAPI && window.electronAPI.setTheme) {
+                    window.electronAPI.setTheme(theme);
+                }
+            });
+        });
+
+        // 关闭设置窗口
+        function closeSettings() {
+            if (window.parent && window.parent.hideSettingsWindow) {
+                window.parent.hideSettingsWindow();
+            }
+        }
+
+        // 初始化主题选择
+        async function initTheme() {
+            if (window.electronAPI && window.electronAPI.getTheme) {
+                try {
+                    const currentTheme = await window.electronAPI.getTheme();
+                    document.querySelectorAll('.theme-option').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.theme === currentTheme) {
+                            btn.classList.add('active');
+                        }
+                    });
+                } catch (error) {
+                    console.log('获取主题失败:', error);
+                }
+            }
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initTheme);
+    </script>
+</body>
+</html>
