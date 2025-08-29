@@ -22,5 +22,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getHotkey: () => ipcRenderer.invoke('get-hotkey'),
   
   // 设置快捷键
-  setGlobalHotkey: (hotkey) => ipcRenderer.invoke('set-hotkey', hotkey)
+  setGlobalHotkey: (hotkey) => ipcRenderer.invoke('set-hotkey', hotkey),
+  
+  // 获取窗口关闭行为
+  getCloseBehavior: () => ipcRenderer.invoke('get-close-behavior'),
+  
+  // 设置窗口关闭行为
+  setCloseBehavior: (behavior) => ipcRenderer.invoke('set-close-behavior', behavior)
 });

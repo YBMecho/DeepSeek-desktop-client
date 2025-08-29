@@ -24,6 +24,9 @@ let currentTheme = 'system'; // 默认跟随系统
 // 快捷键管理
 let currentHotkey = 'Alt+`'; // 默认快捷键
 
+// 窗口关闭行为管理
+let closeBehavior = 'minimize'; // 默认最小化到托盘
+
 // 配置文件路径
 const configDir = path.join(os.homedir(), '.deepseek-desktop');
 const configFile = path.join(configDir, 'config.json');
@@ -47,7 +50,7 @@ function loadConfig() {
   } catch (error) {
     console.log('读取配置文件失败:', error);
   }
-  return { theme: 'system', hotkey: 'Alt+`' }; // 默认配置
+  return { theme: 'system', hotkey: 'Alt+`', closeBehavior: 'minimize' }; // 默认配置
 }
 
 // 保存配置文件
@@ -60,11 +63,12 @@ function saveConfig(config) {
   }
 }
 
-// 初始化主题和快捷键设置
+// 初始化主题、快捷键和窗口关闭行为设置
 function initTheme() {
   const config = loadConfig();
   currentTheme = config.theme || 'system';
   currentHotkey = config.hotkey || 'Alt+`';
+  closeBehavior = config.closeBehavior || 'minimize';
   applyNativeTheme(currentTheme);
   registerGlobalHotkey(currentHotkey);
 }
@@ -222,6 +226,18 @@ ipcMain.handle('set-hotkey', (event, hotkey) => {
   return hotkey;
 });
 
+// 获取窗口关闭行为
+ipcMain.handle('get-close-behavior', () => {
+  return closeBehavior;
+});
+
+ipcMain.handle('set-close-behavior', (event, behavior) => {
+  closeBehavior = behavior;
+  const config = loadConfig();
+  config.closeBehavior = behavior;
+  saveConfig(config);
+});
+
 // 创建新窗口的通用函数
 function createNewWindow(url = 'https://chat.deepseek.com/') {
   const newWindow = new BrowserWindow({
@@ -374,6 +390,16 @@ function createWindow() {
     } catch (error) {
       console.log('renderer.js文件加载失败:', error);
     }
+  });
+
+  // 处理窗口关闭事件
+  mainWindow.on('close', (event) => {
+    if (closeBehavior === 'minimize') {
+      // 最小化到托盘
+      event.preventDefault();
+      hideWindow();
+    }
+    // 如果是 'quit'，则允许正常关闭
   });
 
   // 当窗口关闭时清除引用

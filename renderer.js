@@ -42,6 +42,20 @@
         </div>
       </div>
       <div class="settings-item">
+        <label>窗口关闭行为</label>
+        <p>选择点击关闭按钮时的行为</p>
+        <div class="theme-radio-group">
+          <div class="radio-option">
+            <input type="radio" id="close-quit" name="close-behavior" value="quit">
+            <label for="close-quit">直接关闭窗口</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="close-minimize" name="close-behavior" value="minimize" checked>
+            <label for="close-minimize">最小化到托盘</label>
+          </div>
+        </div>
+      </div>
+      <div class="settings-item">
         <label>快捷键设置</label>
         <p>点击下方输入框设置全局快捷键，用于快速隐藏/显示窗口</p>
         <div class="hotkey-setting">
@@ -71,6 +85,16 @@
       radio.addEventListener('change', function() {
         if (this.checked) {
           window.setTheme(this.value);
+        }
+      });
+    });
+
+    // 绑定窗口关闭行为切换事件
+    const closeBehaviorRadios = contentDiv.querySelectorAll('input[name="close-behavior"]');
+    closeBehaviorRadios.forEach(radio => {
+      radio.addEventListener('change', function() {
+        if (this.checked) {
+          window.setCloseBehavior(this.value);
         }
       });
     });
@@ -143,6 +167,16 @@
        window.electronAPI.getHotkey().then(hotkey => {
          if (hotkeyInput) {
            hotkeyInput.value = hotkey || 'Alt+`';
+         }
+       });
+     }
+
+     // 初始化窗口关闭行为设置
+     if (window.electronAPI && window.electronAPI.getCloseBehavior) {
+       window.electronAPI.getCloseBehavior().then(behavior => {
+         const behaviorRadio = contentDiv.querySelector(`input[name="close-behavior"][value="${behavior}"]`);
+         if (behaviorRadio) {
+           behaviorRadio.checked = true;
          }
        });
      }
@@ -235,6 +269,22 @@
     const themeRadio = document.querySelector(`input[name="theme"][value="${theme}"]`);
     if (themeRadio) {
       themeRadio.checked = true;
+    }
+  };
+
+  // 设置窗口关闭行为
+  window.setCloseBehavior = function(behavior) {
+    // 如果在Electron环境中，保存设置到主进程
+    if (hasElectronAPI && window.electronAPI.setCloseBehavior) {
+      window.electronAPI.setCloseBehavior(behavior).catch(error => {
+        console.log('设置窗口关闭行为失败:', error);
+      });
+    }
+    
+    // 更新单选按钮状态
+    const behaviorRadio = document.querySelector(`input[name="close-behavior"][value="${behavior}"]`);
+    if (behaviorRadio) {
+      behaviorRadio.checked = true;
     }
   };
 
