@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, shell, nativeTheme, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 let contextMenu;
 try {
   contextMenu = require('electron-context-menu');
@@ -17,6 +18,49 @@ let mainWindow;
 
 // 主题管理
 let currentTheme = 'system'; // 默认跟随系统
+
+// 配置文件路径
+const configDir = path.join(os.homedir(), '.deepseek-desktop');
+const configFile = path.join(configDir, 'config.json');
+
+// 确保配置目录存在
+function ensureConfigDir() {
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+  }
+}
+
+// 读取配置文件
+function loadConfig() {
+  try {
+    ensureConfigDir();
+    if (fs.existsSync(configFile)) {
+      const configData = fs.readFileSync(configFile, 'utf8');
+      const config = JSON.parse(configData);
+      return config;
+    }
+  } catch (error) {
+    console.log('读取配置文件失败:', error);
+  }
+  return { theme: 'system' }; // 默认配置
+}
+
+// 保存配置文件
+function saveConfig(config) {
+  try {
+    ensureConfigDir();
+    fs.writeFileSync(configFile, JSON.stringify(config, null, 2), 'utf8');
+  } catch (error) {
+    console.log('保存配置文件失败:', error);
+  }
+}
+
+// 初始化主题设置
+function initTheme() {
+  const config = loadConfig();
+  currentTheme = config.theme || 'system';
+  applyNativeTheme(currentTheme);
+}
 
 // 应用主题到原生窗口
 function applyNativeTheme(theme) {
@@ -37,6 +81,12 @@ ipcMain.handle('get-theme', () => {
 
 ipcMain.handle('set-theme', (event, theme) => {
   applyNativeTheme(theme);
+  
+  // 保存主题设置到配置文件
+  const config = loadConfig();
+  config.theme = theme;
+  saveConfig(config);
+  
   // 通知所有窗口主题已更改
   BrowserWindow.getAllWindows().forEach(window => {
     window.webContents.send('theme-changed', theme);
@@ -206,6 +256,8 @@ function createWindow() {
 
 // 当Electron初始化完成并准备创建浏览器窗口时调用此方法
 app.whenReady().then(() => {
+  // 初始化主题设置
+  initTheme();
   // 配置右键上下文菜单
   try {
     if (contextMenu && typeof contextMenu === 'function') {
