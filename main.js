@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, nativeTheme, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell, nativeTheme, ipcMain, globalShortcut, Tray } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -15,9 +15,14 @@ try {
 }
 
 let mainWindow;
+let tray = null;
+let isWindowHidden = false;
 
 // 主题管理
 let currentTheme = 'system'; // 默认跟随系统
+
+// 快捷键管理
+let currentHotkey = 'Alt+`'; // 默认快捷键
 
 // 配置文件路径
 const configDir = path.join(os.homedir(), '.deepseek-desktop');
@@ -42,7 +47,7 @@ function loadConfig() {
   } catch (error) {
     console.log('读取配置文件失败:', error);
   }
-  return { theme: 'system' }; // 默认配置
+  return { theme: 'system', hotkey: 'Alt+`' }; // 默认配置
 }
 
 // 保存配置文件
@@ -55,11 +60,13 @@ function saveConfig(config) {
   }
 }
 
-// 初始化主题设置
+// 初始化主题和快捷键设置
 function initTheme() {
   const config = loadConfig();
   currentTheme = config.theme || 'system';
+  currentHotkey = config.hotkey || 'Alt+`';
   applyNativeTheme(currentTheme);
+  registerGlobalHotkey(currentHotkey);
 }
 
 // 应用主题到原生窗口
@@ -71,8 +78,110 @@ function applyNativeTheme(theme) {
   } else {
     nativeTheme.themeSource = 'system';
   }
-  currentTheme = theme;
 }
+
+// 注册全局快捷键
+function registerGlobalHotkey(hotkey) {
+  // 先注销之前的快捷键
+  globalShortcut.unregisterAll();
+  
+  try {
+    const success = globalShortcut.register(hotkey, () => {
+      toggleWindowVisibility();
+    });
+    
+    if (!success) {
+      console.log('快捷键注册失败:', hotkey);
+    } else {
+      console.log('快捷键注册成功:', hotkey);
+    }
+  } catch (error) {
+    console.log('快捷键注册错误:', error);
+  }
+}
+
+// 创建系统托盘
+function createTray() {
+  if (tray) return;
+  
+  // 使用可用的应用图标作为托盘图标（按优先级选择）
+  const candidates = [
+    path.join(__dirname, 'public', 'icons', 'lp25u-mafhn-001.ico'), // Windows 推荐 .ico
+    path.join(__dirname, 'public', 'icons', 'icon.png'),
+    path.join(__dirname, 'public', 'images', 'deepseek-color.png')
+  ];
+  const iconPath = candidates.find(p => fs.existsSync(p));
+  
+  if (!iconPath) {
+    console.warn('未找到托盘图标文件，跳过创建托盘以避免崩溃');
+    return;
+  }
+  
+  try {
+    tray = new Tray(iconPath);
+  } catch (e) {
+    console.error('创建托盘失败:', e);
+    return;
+  }
+  
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示窗口',
+      click: () => {
+        showWindow();
+      }
+    },
+    {
+      label: '退出',
+      click: () => {
+        app.quit();
+      }
+    }
+  ]);
+  
+  tray.setToolTip('DeepSeek Desktop');
+  tray.setContextMenu(contextMenu);
+  
+  // 双击托盘图标显示窗口
+  tray.on('double-click', () => {
+    showWindow();
+  });
+}
+
+// 切换窗口显示/隐藏
+function toggleWindowVisibility() {
+  if (!mainWindow) return;
+  
+  if (isWindowHidden || !mainWindow.isVisible()) {
+    showWindow();
+  } else {
+    hideWindow();
+  }
+}
+
+// 隐藏窗口
+function hideWindow() {
+  if (!mainWindow) return;
+  
+  mainWindow.hide();
+  isWindowHidden = true;
+  createTray();
+}
+
+// 显示窗口
+function showWindow() {
+  if (!mainWindow) return;
+  
+  mainWindow.show();
+  mainWindow.focus();
+  isWindowHidden = false;
+  
+  // 销毁托盘图标
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+ }
 
 // IPC通信处理
 ipcMain.handle('get-theme', () => {
@@ -80,6 +189,7 @@ ipcMain.handle('get-theme', () => {
 });
 
 ipcMain.handle('set-theme', (event, theme) => {
+  currentTheme = theme;
   applyNativeTheme(theme);
   
   // 保存主题设置到配置文件
@@ -91,7 +201,25 @@ ipcMain.handle('set-theme', (event, theme) => {
   BrowserWindow.getAllWindows().forEach(window => {
     window.webContents.send('theme-changed', theme);
   });
+  
   return theme;
+});
+
+// 快捷键设置IPC处理
+ipcMain.handle('get-hotkey', () => {
+  return currentHotkey;
+});
+
+ipcMain.handle('set-hotkey', (event, hotkey) => {
+  currentHotkey = hotkey;
+  registerGlobalHotkey(hotkey);
+  
+  // 保存快捷键设置到配置文件
+  const config = loadConfig();
+  config.hotkey = hotkey;
+  saveConfig(config);
+  
+  return hotkey;
 });
 
 // 创建新窗口的通用函数
@@ -396,6 +524,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('will-quit', () => {
+  // 注销所有全局快捷键
+  globalShortcut.unregisterAll();
 });
 
 app.on('activate', () => {

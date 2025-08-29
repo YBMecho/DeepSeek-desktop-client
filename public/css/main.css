@@ -231,6 +231,36 @@ html {
   line-height: 1.5;
 }
 
+/* 快捷键设置样式 */
+.hotkey-setting {
+  margin-top: 12px;
+}
+
+.hotkey-input {
+  width: 200px;
+  padding: 8px 12px;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  background-color: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hotkey-input:hover {
+  border-color: #9ca3af;
+}
+
+.hotkey-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+
+
 /* 深色主题适配 */
 @media (prefers-color-scheme: dark) {
   .settings-window {
@@ -268,6 +298,22 @@ html {
   .settings-item p {
     color: #9ca3af;
   }
+
+  .hotkey-input {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+
+  .hotkey-input:hover {
+    border-color: #6b7280;
+  }
+
+  .hotkey-input:focus {
+    border-color: #3b82f6;
+  }
+
+
 }
 
 /* 主题单选按钮组样式 */

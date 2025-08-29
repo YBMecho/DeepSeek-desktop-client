@@ -16,5 +16,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 移除主题变化监听器
   removeThemeListener: () => {
     ipcRenderer.removeAllListeners('theme-changed');
-  }
+  },
+  
+  // 获取当前快捷键
+  getHotkey: () => ipcRenderer.invoke('get-hotkey'),
+  
+  // 设置快捷键
+  setGlobalHotkey: (hotkey) => ipcRenderer.invoke('set-hotkey', hotkey)
 });

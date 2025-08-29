@@ -42,6 +42,13 @@
         </div>
       </div>
       <div class="settings-item">
+        <label>快捷键设置</label>
+        <p>点击下方输入框设置全局快捷键，用于快速隐藏/显示窗口</p>
+        <div class="hotkey-setting">
+          <input type="text" id="hotkey-display" class="hotkey-input" value="Alt+\`" readonly>
+        </div>
+      </div>
+      <div class="settings-item">
         <label>关于应用</label>
         <p>DeepSeek 桌面客户端 v1.0.0</p>
       </div>
@@ -67,11 +74,85 @@
         }
       });
     });
+
+    // 绑定快捷键设置事件
+    const hotkeyInput = contentDiv.querySelector('#hotkey-display');
+    let isSettingHotkey = false;
+    let clickCount = 0;
+
+    hotkeyInput.addEventListener('click', function() {
+      if (!isSettingHotkey) {
+        isSettingHotkey = true;
+        clickCount = 0;
+        this.value = '';
+        
+        // 监听键盘事件
+        document.addEventListener('keydown', handleHotkeyCapture);
+      }
+    });
+
+    function handleHotkeyCapture(e) {
+      if (!isSettingHotkey) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const keys = [];
+      if (e.ctrlKey) keys.push('Ctrl');
+      if (e.altKey) keys.push('Alt');
+      if (e.shiftKey) keys.push('Shift');
+      if (e.metaKey) keys.push('Meta');
+      
+      // 添加主键
+      if (e.key && !['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+        let mainKey = e.key;
+        if (mainKey === ' ') mainKey = 'Space';
+        if (mainKey === '`') mainKey = '\`';
+        keys.push(mainKey);
+        
+        const hotkeyString = keys.join('+');
+        hotkeyInput.value = hotkeyString;
+        
+        // 保存快捷键设置
+        window.currentHotkey = hotkeyString;
+        if (window.electronAPI && window.electronAPI.setGlobalHotkey) {
+          window.electronAPI.setGlobalHotkey(hotkeyString);
+        }
+        
+        // 直接退出设置模式
+        isSettingHotkey = false;
+        clickCount = 0;
+        document.removeEventListener('keydown', handleHotkeyCapture);
+      }
+    }
+
+    // 点击空白区域退出设置模式
+    document.addEventListener('click', function(e) {
+      if (isSettingHotkey && !hotkeyInput.contains(e.target)) {
+        isSettingHotkey = false;
+        clickCount = 0;
+        hotkeyInput.value = window.currentHotkey || 'Alt+`';
+        document.removeEventListener('keydown', handleHotkeyCapture);
+      }
+    })
     
-    // 初始化主题设置
-    window.initTheme();
+    // 初始化主题设置（由后文 window.initTheme 统一处理）
     
-    // 点击背景关闭设置窗口
+    // 初始化快捷键设置
+     if (window.electronAPI && window.electronAPI.getHotkey) {
+       window.electronAPI.getHotkey().then(hotkey => {
+         if (hotkeyInput) {
+           hotkeyInput.value = hotkey || 'Alt+`';
+         }
+       });
+     }
+
+     // 初始化主题
+     if (typeof window.initTheme === 'function') {
+       window.initTheme();
+     }
+     
+     // 点击背景关闭设置窗口
     blurOverlay.addEventListener('click', function(e) {
       if (e.target === blurOverlay) {
         window.hideSettingsWindow();
