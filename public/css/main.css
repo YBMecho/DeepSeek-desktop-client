@@ -49,3 +49,71 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* 快捷键设置样式 */
+.shortcut-setting-item {
+  /* 边框样式由JavaScript动态控制 */
+}
+
+.shortcut-input {
+  background-color: var(--ds-native-select-background, #2A2A32) !important;
+  border: 1px solid var(--ds-rgb-separator, rgba(93, 93, 108, 0.2)) !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  color: var(--ds-native-select-color, #555562) !important;
+  font-size: 14px !important;
+  width: 120px !important;
+  height: auto !important;
+  cursor: pointer !important;
+  transition: border-color 0.2s ease !important;
+  outline: none !important;
+  appearance: none !important;
+  font-family: inherit !important;
+  box-sizing: border-box !important;
+}
+
+.shortcut-input:focus,
+.shortcut-input.setting-mode {
+  border-color: #4A9EFF !important;
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2) !important;
+}
+
+.shortcut-input:read-only {
+  cursor: pointer !important;
+}
+
+.shortcut-input:hover {
+  border-color: rgba(93, 93, 108, 0.4) !important;
+}
+
+/* 确保快捷键设置项与其他设置项样式一致 */
+.shortcut-setting-item .ds-native-select {
+  position: relative !important;
+  width: fit-content !important;
+}
+
+/* 深色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .shortcut-input {
+    background-color: #2A2A32 !important;
+    border-color: rgba(93, 93, 108, 0.2) !important;
+    color: #BBBBC6 !important;
+  }
+  
+  .shortcut-input:hover {
+    border-color: rgba(93, 93, 108, 0.4) !important;
+  }
+}
+
+/* 浅色主题适配 */
+@media (prefers-color-scheme: light) {
+  .shortcut-input {
+    background-color: #FFFFFF !important;
+    border-color: rgba(93, 93, 108, 0.3) !important;
+    color: #333333 !important;
+  }
+  
+  .shortcut-input:hover {
+    border-color: rgba(93, 93, 108, 0.5) !important;
+  }
+}

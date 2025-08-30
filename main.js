@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, Tray, globalShortcut, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 let contextMenu;
@@ -14,6 +14,9 @@ try {
 }
 
 let mainWindow;
+let tray = null;
+let isWindowHidden = false;
+let currentShortcut = 'Alt+`';
 
 // 创建新窗口的通用函数
 function createNewWindow(url = 'https://chat.deepseek.com/') {
@@ -95,7 +98,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: true
+      webSecurity: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     show: false, // 先不显示，等加载完成后再显示
     autoHideMenuBar: true, // 自动隐藏菜单栏
@@ -143,11 +147,28 @@ function createWindow() {
     } catch (error) {
       console.log('CSS文件加载失败:', error);
     }
+    
+    // 注入快捷键设置JavaScript
+    const jsPath = path.join(__dirname, 'public/js/shortcut-settings.js');
+    try {
+      const js = fs.readFileSync(jsPath, 'utf8');
+      mainWindow.webContents.executeJavaScript(js);
+    } catch (error) {
+      console.log('快捷键设置JS文件加载失败:', error);
+    }
   });
 
   // 当窗口关闭时清除引用
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  // 设置窗口关闭行为（最小化到托盘而不是退出）
+  mainWindow.on('close', (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      hideWindowToTray();
+    }
   });
 }
 
@@ -178,34 +199,58 @@ app.whenReady().then(() => {
         showCopyLink: true,
         showSaveLinkAs: false,
         showInspectElement: false, // 隐藏检查元素，保持界面简洁
-        prepend: (defaultActions, parameters, browserWindow) => [
-          {
-            label: '新开窗口',
-            click: () => {
-              createNewWindow();
-            }
-          },
-          {
-            label: '复制窗口',
-            click: () => {
-              const currentUrl = browserWindow.webContents.getURL();
-              createNewWindow(currentUrl);
-            }
-          },
-          {
-            type: 'separator'
-          },
-          {
-            label: '重新加载',
-            accelerator: 'CmdOrCtrl+R',
-            click: () => {
-              browserWindow.webContents.reload();
-            }
-          },
-          {
-            type: 'separator'
+        prepend: (defaultActions, parameters, browserWindow) => {
+          // 检查是否在空白处右键点击
+          const isBlankArea = !parameters.hasImageContents && 
+                             !parameters.linkURL && 
+                             !parameters.selectionText && 
+                             !parameters.isEditable && 
+                             !parameters.inputFieldType;
+          
+          const menuItems = [];
+          
+          // 只在空白处显示新开窗口和复制窗口选项
+          if (isBlankArea) {
+            menuItems.push(
+              {
+                label: '新开窗口',
+                click: () => {
+                  createNewWindow();
+                }
+              },
+              {
+                label: '复制窗口',
+                click: () => {
+                  const currentUrl = browserWindow.webContents.getURL();
+                  createNewWindow(currentUrl);
+                }
+              },
+              {
+                type: 'separator'
+              }
+            );
           }
-        ],
+          
+          // 重新加载选项在所有情况下都显示
+          menuItems.push(
+            {
+              label: '重新加载',
+              accelerator: 'CmdOrCtrl+R',
+              click: () => {
+                browserWindow.webContents.reload();
+              }
+            }
+          );
+          
+          // 只在有菜单项时添加分隔符
+          if (menuItems.length > 1) {
+            menuItems.push({
+              type: 'separator'
+            });
+          }
+          
+          return menuItems;
+        },
         append: (defaultActions, parameters, browserWindow) => [
           {
             type: 'separator'
@@ -234,6 +279,8 @@ app.whenReady().then(() => {
   }
 
   createWindow();
+  setupGlobalShortcut();
+  setupIPCHandlers();
 });
 
 // 当所有窗口关闭时退出应用
@@ -251,4 +298,172 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+app.on('before-quit', () => {
+  app.isQuiting = true;
+});
+
+/**
+ * 创建系统托盘
+ */
+function createTray() {
+  if (tray) return;
+
+  const iconPath = path.join(__dirname, 'public/icons/icon.png');
+  tray = new Tray(iconPath);
+  
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示窗口',
+      click: showWindowFromTray
+    },
+    {
+      type: 'separator'
+    },
+    {
+      label: '退出',
+      click: () => {
+        app.isQuiting = true;
+        app.quit();
+      }
+    }
+  ]);
+  
+  tray.setToolTip('DeepSeek');
+  tray.setContextMenu(contextMenu);
+  
+  // 点击托盘图标显示窗口
+  tray.on('click', showWindowFromTray);
+}
+
+/**
+ * 隐藏窗口到托盘
+ */
+function hideWindowToTray() {
+  if (mainWindow && !isWindowHidden) {
+    mainWindow.hide();
+    isWindowHidden = true;
+    createTray();
+  }
+}
+
+/**
+ * 从托盘显示窗口
+ */
+function showWindowFromTray() {
+  if (mainWindow && isWindowHidden) {
+    mainWindow.show();
+    mainWindow.focus();
+    isWindowHidden = false;
+    
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
+  }
+}
+
+/**
+ * 切换窗口显示状态
+ */
+function toggleWindow() {
+  if (isWindowHidden) {
+    showWindowFromTray();
+  } else {
+    hideWindowToTray();
+  }
+}
+
+/**
+ * 设置全局快捷键
+ */
+function setupGlobalShortcut() {
+  try {
+    // 注册默认快捷键
+    const success = globalShortcut.register(currentShortcut, () => {
+      toggleWindow();
+    });
+
+    if (!success) {
+      console.log('快捷键注册失败:', currentShortcut);
+    }
+  } catch (error) {
+    console.log('快捷键设置错误:', error);
+  }
+}
+
+/**
+ * 更新全局快捷键
+ */
+function updateGlobalShortcut(newShortcut) {
+  try {
+    // 注销旧快捷键
+    if (currentShortcut) {
+      globalShortcut.unregister(currentShortcut);
+    }
+    
+    // 注册新快捷键
+    const success = globalShortcut.register(newShortcut, () => {
+      toggleWindow();
+    });
+
+    if (success) {
+      currentShortcut = newShortcut;
+      console.log('快捷键更新成功:', newShortcut);
+    } else {
+      console.log('快捷键注册失败:', newShortcut);
+      // 如果新快捷键注册失败，恢复旧快捷键
+      globalShortcut.register(currentShortcut, () => {
+        toggleWindow();
+      });
+    }
+  } catch (error) {
+    console.log('快捷键更新错误:', error);
+  }
+}
+
+/**
+ * 设置IPC处理器
+ */
+function setupIPCHandlers() {
+  // 暂停全局快捷键监听
+  ipcMain.handle('pause-global-shortcut', () => {
+    try {
+      if (currentShortcut) {
+        globalShortcut.unregister(currentShortcut);
+      }
+    } catch (error) {
+      console.log('暂停快捷键监听失败:', error);
+    }
+  });
+
+  // 恢复全局快捷键监听
+  ipcMain.handle('resume-global-shortcut', (event, shortcut) => {
+    try {
+      const success = globalShortcut.register(shortcut || currentShortcut, () => {
+        toggleWindow();
+      });
+      if (success && shortcut) {
+        currentShortcut = shortcut;
+      }
+    } catch (error) {
+      console.log('恢复快捷键监听失败:', error);
+    }
+  });
+
+  // 更新快捷键设置
+  ipcMain.handle('update-shortcut', (event, shortcut) => {
+    updateGlobalShortcut(shortcut);
+  });
+
+  // 切换窗口显示状态
+  ipcMain.handle('toggle-window', () => {
+    toggleWindow();
+  });
+}
+
+// 应用退出时注销所有快捷键
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
