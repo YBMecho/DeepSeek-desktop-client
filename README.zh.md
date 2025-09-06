@@ -52,7 +52,7 @@ DeepSeek 是一个基于 Electron 开发的桌面应用程序，旨在为用户�
 - x64 架构
 
 **安装步骤：**
-1. 下载安装包（如果国内下载不了/下载速度慢，可以来这里gitee[下载](https://gitee.com/mE7aT89S78xVmNhsydwNuS5EpTrEOGF4/DeepSeek-desktop-client)。）
+1. 下载安装包（如果国内下载不了/下载速度慢，可以来这里gitee[下载](https://gitee.com/mE7aT89S78xVmNhsydwNuS5EpTrEOGF4/deep-seek-desktop-client)。）
 2. 双击运行安装程序
 3. 按照安装向导完成安装
 4. 启动应用开始使用
