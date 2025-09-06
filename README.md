@@ -637,7 +637,7 @@ This project is open source under the [MIT License](LICENSE).
 ## 📞 Contact Information
 
 - **Author**: YBMecho
-- **QQ**: 3350198579
+- **QQ Group**: 704156190
 - **QQ Email**: 3350198579@qq.com
 
 ---
