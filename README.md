@@ -647,5 +647,5 @@ This project is open source under the [MIT License](LICENSE).
 </div>
 
 <p align="center">
-  <sub>This project was developed using <a href="https://cursor.sh">Cursor</a>, as the person loves AI-written code, but the individual doesn't fully know how to code.</sub>
+  <sub>This project is developed using <a href="https://cursor.sh">Cursor</a>. I have a hobby and like AI programming, but I don't fully know how to write code myself.</sub>
 </p>
