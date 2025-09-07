@@ -647,5 +647,5 @@ npm run make
 </div>
 
 <p align="center">
-  <sub>本项目使用 <a href="https://cursor.sh">Cursor</a> 开发，本人爱好喜欢AI编写代码，当个人并不是完全会编写代码。</sub>
+  <sub>本项目使用 <a href="https://cursor.sh">Cursor</a> 开发，本人爱好喜欢AI编写代码，但是个人并不是完全会编写代码。</sub>
 </p>
