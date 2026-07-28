@@ -197,15 +197,26 @@
       console.log('当前不是通用设置标签页，跳过创建快捷键设置');
       return;
     }
-    
+
     // 移除可能存在的旧设置
     removeExistingHotkeySettings();
-    
-    // 找到语言设置区域
+
+    // 找到语言设置区域：容器还没渲染出来时，用 MutationObserver
+    // 盯一次而不是 setTimeout 重试，避免打开设置时只看到语言一行再闪一下。
     const languageContainer = findLanguageContainer();
     if (!languageContainer) {
-      console.log('未找到语言容器，延迟重试');
-      setTimeout(createHotkeySettings, 500);
+      console.log('未找到语言容器，等待 DOM 出现');
+      const waitObserver = new MutationObserver(() => {
+        if (!isGeneralSettingsTab()) return;
+        const lc = findLanguageContainer();
+        if (lc) {
+          waitObserver.disconnect();
+          createHotkeySettings();
+        }
+      });
+      waitObserver.observe(document.body, { childList: true, subtree: true });
+      // ponytail: 兜底保险，超过 3s 仍没出现就放弃（极端情况下原网页改版）
+      setTimeout(() => waitObserver.disconnect(), 3000);
       return;
     }
     
@@ -1034,17 +1045,16 @@
             if (node.querySelector && node.querySelector('.ds-modal-content__title')) {
               const title = node.querySelector('.ds-modal-content__title');
               if (title && title.textContent.includes('系统设置')) {
-                // 延迟创建，确保DOM完全加载
-                setTimeout(createHotkeySettings, 200);
-                // 添加标签页点击监听
-                setTimeout(addTabClickListeners, 300);
+                // 立即创建，避免设置面板先只显示语言一行再闪出快捷键
+                createHotkeySettings();
+                addTabClickListeners();
               }
             }
             // 检查子节点中是否包含设置弹窗
             const settingsModal = node.querySelector('.ds-modal-content__title');
             if (settingsModal && settingsModal.textContent.includes('系统设置')) {
-              setTimeout(createHotkeySettings, 200);
-              setTimeout(addTabClickListeners, 300);
+              createHotkeySettings();
+              addTabClickListeners();
             }
             
             // 监听标签页选中状态变化
@@ -1070,15 +1080,13 @@
       attributes: true,
       attributeFilter: ['class']
     });
-    
-    // 页面加载完成后立即检查是否存在设置弹窗
-    setTimeout(() => {
-      const existingModal = document.querySelector('.ds-modal-content__title');
-      if (existingModal && existingModal.textContent.includes('系统设置')) {
-        createHotkeySettings();
-        addTabClickListeners();
-      }
-    }, 1000);
+
+    // 页面加载后立即检查是否存在设置弹窗（不延迟：弹窗存在就立刻创建）
+    const existingModal = document.querySelector('.ds-modal-content__title');
+    if (existingModal && existingModal.textContent.includes('系统设置')) {
+      createHotkeySettings();
+      addTabClickListeners();
+    }
   }
 
   // 监听body元素的主题变化
@@ -1170,16 +1178,24 @@
   function init() {
     // 加载当前快捷键设置
     loadCurrentHotkey();
-    
+
     // 加载当前关闭行为设置
     loadCurrentCloseBehavior();
-    
+
+    // 如果初始化时设置弹窗已经存在（比如从登录跳回主页的瞬态），立即插入。
+    // createHotkeySettings 内部会在找不到语言容器时自动用 MutationObserver 等待。
+    const existingModal = document.querySelector('.ds-modal-content__title');
+    if (existingModal && existingModal.textContent.includes('系统设置')) {
+      createHotkeySettings();
+      addTabClickListeners();
+    }
+
     // 开始监听设置界面变化
     observeSettingsModal();
-    
+
     // 开始监听body主题变化
     observeBodyThemeChanges();
-    
+
     console.log('快捷键设置功能初始化完成');
     // 初始化时尝试基于 CSS 变量同步一次窗口主题
     syncThemeByCssVar();
