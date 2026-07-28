@@ -286,6 +286,8 @@
 
     // 根据当前 tab 状态决定初始显隐
     syncHotkeySectionVisibility();
+    // 防御式复位（万一原生 UI 重排过 wrapper，后续兜底 observer 也会再校正一次）
+    ensureHotkeySectionPlacement();
 
     console.log('快捷键设置区域创建成功');
 
@@ -309,6 +311,24 @@
       cur = cur.parentElement;
     }
     return true;
+  }
+
+  // 把 wrapper 重新挂到语言行后面，保证视觉位置正确
+  let placementScheduled = false;
+  function ensureHotkeySectionPlacement() {
+    if (placementScheduled) return;
+    if (!hotkeySectionWrapper) return;
+    placementScheduled = true;
+    // ponytail: 用 microtask 合并同帧内的多次调用，避免被其它 mutation 回调频发触发，
+    // 导致 observer/themeObserver 联动造成高频 IPC 阻塞渲染。
+    Promise.resolve().then(() => {
+      placementScheduled = false;
+      const lc = findLanguageContainer();
+      if (!lc || !hotkeySectionWrapper) return;
+      if (lc.nextSibling !== hotkeySectionWrapper || hotkeySectionWrapper.parentNode !== lc.parentNode) {
+        lc.parentNode.insertBefore(hotkeySectionWrapper, lc.nextSibling);
+      }
+    });
   }
 
   // 根据当前是否在通用设置 tab，控制 wrapper 的显隐
@@ -1072,7 +1092,8 @@
           console.log('切换到通用设置，重建快捷键设置');
           createHotkeySettings();
         } else {
-          console.log('切换到通用设置，恢复快捷键设置显隐');
+          console.log('切换到通用设置，恢复快捷键设置显隐 + 复位位置');
+          ensureHotkeySectionPlacement();
           syncHotkeySectionVisibility();
         }
       } else {
@@ -1080,7 +1101,10 @@
       }
       // ponytail: 原生 tab 切换可能有微小延迟，再过一帧再同步一次兜底，
       // 防止首个 rAF 时通用设置面板还没渲染完导致 wrapper 漏判隐藏。
-      requestAnimationFrame(syncHotkeySectionVisibility);
+      requestAnimationFrame(() => {
+        ensureHotkeySectionPlacement();
+        syncHotkeySectionVisibility();
+      });
     });
   }
   
