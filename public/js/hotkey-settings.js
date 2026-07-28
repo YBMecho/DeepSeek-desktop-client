@@ -11,6 +11,8 @@
   let mediaDark = null;
   let mediaDarkChangeHandler = null;
   let themeSyncTimer = null;
+  // ponytail: 主进程推送"原生主题变化"事件的解绑句柄，cleanup 时调用避免重入泄漏。
+  let unsubscribeNativeTheme = null;
   
   // 关闭行为设置相关变量
   let currentCloseBehavior = 'minimize';
@@ -168,14 +170,14 @@
       existing.remove();
       console.log('移除已存在的快捷键设置');
     }
-    
+
     // 移除关闭行为设置
     const existingCloseBehavior = document.querySelector('.close-behavior-setting-flex');
     if (existingCloseBehavior) {
       existingCloseBehavior.remove();
       console.log('移除已存在的关闭行为设置');
     }
-    
+
     // 解绑主题选择器与系统主题监听
     if (boundThemeSelectEl && themeChangeHandler) {
       boundThemeSelectEl.removeEventListener('change', themeChangeHandler);
@@ -194,6 +196,11 @@
     hotkeySelectContainer = null;
     closeBehaviorSelectContainer = null;
     closeBehaviorSelect = null;
+    // ponytail: 解绑主进程推送的事件订阅，避免设置面板反复打开/销毁/重建时累积监听器。
+    if (unsubscribeNativeTheme) {
+      try { unsubscribeNativeTheme(); } catch (e) {}
+      unsubscribeNativeTheme = null;
+    }
   }
   
   // 创建快捷键设置区域
@@ -476,6 +483,43 @@
     console.log('主题已应用，使用默认的语言选择框样式');
   }
 
+  // ponytail: 直接改 DOM 三要素强制应用主题（body class / data-ds-dark-theme / .ds-theme 内联样式），
+  // 绕过 React 自身的 select 状态机。这是 OS 主题下行通道的唯一落点——React 在 select='system'
+  // 时不一定能立刻重读 prefers-color-scheme，所以我们替它改。
+  function forceApplyTheme(isDark) {
+    const targetLight = !isDark;
+    const hoverLight = '0 0 0 / 4%';
+    const hoverDark = '255 255 255 / 8%';
+
+    const body = document.body || document.querySelector('body');
+    if (body) {
+      // 仅替换 light/dark 两个 token，其它 class（语言、翻译包装等）保留
+      const classes = body.className.split(/\s+/).filter(Boolean);
+      const filtered = classes.filter(c => c !== 'light' && c !== 'dark');
+      filtered.push(targetLight ? 'light' : 'dark');
+      body.className = Array.from(new Set(filtered)).join(' ');
+
+      if (targetLight) {
+        body.removeAttribute('data-ds-dark-theme');
+      } else {
+        body.setAttribute('data-ds-dark-theme', 'dark');
+      }
+    }
+
+    // 改所有 .ds-theme 节点的 --ds-rgb-hover，覆盖设置弹窗与正文双层
+    const themeNodes = document.querySelectorAll('.ds-theme');
+    themeNodes.forEach(node => {
+      node.style.setProperty('--ds-rgb-hover', targetLight ? hoverLight : hoverDark);
+    });
+
+    // 没找到 .ds-theme 时回写到 body，保证至少有一处可被 CSS 命中
+    if (!themeNodes.length && body) {
+      body.style.setProperty('--ds-rgb-hover', targetLight ? hoverLight : hoverDark);
+    }
+
+    console.log('强制应用主题:', targetLight ? 'light' : 'dark');
+  }
+
   // 监听系统主题变化，仅当选择“跟随系统”时启用
   function ensureSystemThemeWatcher() {
     let isSystem = false;
@@ -574,8 +618,37 @@
     ensureSystemThemeWatcher();
     applyHotkeyTheme();
     syncElectronTheme();
-    // 额外保障：根据 CSS 变量再同步一次窗口主题
-    syncThemeByCssVar();
+    // ponytail: 删掉了原先的 syncThemeByCssVar()——它会把 CSS 变量推断出的 light/dark
+    // 强行写进主进程，覆盖掉用户的"system"选择。这里只让 syncElectronTheme 走一次，干净。
+
+    // ponytail: 订阅主进程推送的原生主题变化，收到后直接改 DOM。
+    // 这是"跟随系统"失效的唯一兜底——React 在 select='system' 时不一定重读 prefers-color-scheme。
+    if (!unsubscribeNativeTheme && window.electronAPI && window.electronAPI.onNativeThemeUpdated) {
+      unsubscribeNativeTheme = window.electronAPI.onNativeThemeUpdated((payload) => {
+        if (!payload || typeof payload.isDark !== 'boolean') return;
+        forceApplyTheme(payload.isDark);
+      });
+    }
+
+    // ponytail: 首次进入设置界面时，按当前 OS 强制对齐一次 DOM。
+    // 否则 OS 是深色但用户之前手动选了浅色的话，"跟随系统"状态已经对了但视觉还停在浅色。
+    try {
+      const initialIsDark = readCurrentDarkFromDom();
+      if (initialIsDark !== null) forceApplyTheme(initialIsDark);
+    } catch (e) {}
+  }
+
+  // ponytail: 通过 CSS 变量读出当前实际明暗，避免依赖 prefers-color-scheme 在 Electron 内的不可靠行为。
+  function readCurrentDarkFromDom() {
+    const el = document.querySelector('.ds-modal-content .ds-theme')
+      || document.querySelector('.ds-theme')
+      || document.body;
+    if (!el) return null;
+    const hover = (window.getComputedStyle(el).getPropertyValue('--ds-rgb-hover') || '').trim();
+    if (!hover) return null;
+    if (hover.includes('255 255 255') || hover.includes('255, 255, 255')) return true;
+    if (hover.includes('0 0 0') || hover.includes('0, 0, 0')) return false;
+    return null;
   }
 
   // 将网页主题同步到 Electron 主进程窗口
@@ -635,14 +708,9 @@
     }, 50);
   }
 
-  // 基于 CSS 变量同步（当选择器缺失或需要额外保障时使用）
-  function syncThemeByCssVar() {
-    if (!window.electronAPI || !window.electronAPI.setThemeSource) return;
-    const theme = resolveThemeFromCssVar();
-    if (!theme) return;
-    window.electronAPI.setThemeSource(theme === 'dark' ? 'dark' : 'light');
-  }
-  
+  // ponytail: 旧的 syncThemeByCssVar 已删除——它把 CSS 推断值写进主进程，会覆盖 user 的 'system' 选择。
+  // 现在 DOM 主题由 forceApplyTheme 直接改，主题状态由 syncElectronTheme 单向同步，不再需要二次保障。
+
   // 创建关闭行为设置区域
   function createCloseBehaviorSettings(hotkeyContainer) {
     // 创建关闭行为设置容器，模仿快捷键设置的样式
@@ -1201,9 +1269,7 @@
           
           // 同步到Electron窗口
           syncElectronTheme();
-          
-          // 基于CSS变量的额外同步
-          setTimeout(syncThemeByCssVar, 100);
+          // ponytail: 删掉了多余的 syncThemeByCssVar 调用——会覆盖 user 的 'system' 选择。
         }
       }
     });
@@ -1270,8 +1336,7 @@
     observeBodyThemeChanges();
 
     console.log('快捷键设置功能初始化完成');
-    // 初始化时尝试基于 CSS 变量同步一次窗口主题
-    syncThemeByCssVar();
+    // ponytail: 初始化时不再调 syncThemeByCssVar——它会把 CSS 推断值写进主进程覆盖 user 的 system 选择。
   }
   
   // 页面加载完成后初始化

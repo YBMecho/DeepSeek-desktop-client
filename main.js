@@ -638,8 +638,18 @@ ipcMain.handle('set-theme-source', (event, theme) => {
       nativeTheme.themeSource = theme;
       if (mainWindow) {
         applyWindowTheme(mainWindow, nativeTheme.shouldUseDarkColors);
+        // ponytail: themeSource 重新写入不会触发 'updated' 事件（特别是从 system→system），
+        // 这里主动推一次，渲染进程拿到 isDark 后直接改 DOM，避免"跟随系统"卡在前一次手动选择。
+        try {
+          if (!mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('native-theme-updated', {
+              isDark: nativeTheme.shouldUseDarkColors,
+              source: nativeTheme.themeSource
+            });
+          }
+        } catch (e) {}
       }
-      
+
       // 保存主题设置到配置文件
       const saveResult = updateConfig('theme', theme);
       if (!saveResult) {
@@ -789,6 +799,15 @@ app.whenReady().then(() => {
       nativeTheme.on('updated', () => {
         if (mainWindow) {
           applyWindowTheme(mainWindow, nativeTheme.shouldUseDarkColors);
+          // ponytail: OS 主题切换也要告诉渲染进程改 DOM，否则"跟随系统"模式下网页不刷新。
+          try {
+            if (!mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('native-theme-updated', {
+                isDark: nativeTheme.shouldUseDarkColors,
+                source: nativeTheme.themeSource
+              });
+            }
+          } catch (e) {}
         }
       });
     }
