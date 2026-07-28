@@ -19,6 +19,12 @@
   let closeBehaviorDisplay = null;
   let closeBehaviorMenuWrapper = null;
   let isCloseMenuOpen = false;
+
+  // ponytail: 包裹"快捷键 + 关闭行为"两行的容器节点，用于跟随 tab 显隐。
+  // 原网页切 tab 时整体面板不会被销毁，只会切 hidden/visible，所以我们注入
+  // 的两行如果不显隐控制，就会跟着别的 tab 一起显示。
+  let hotkeySectionWrapper = null;
+  let hotkeySectionParent = null;
   
   // 双击检测相关变量
   let lastClickTime = 0;
@@ -270,17 +276,48 @@
     selectContainer.appendChild(hotkeyInput);
     hotkeyContainer.appendChild(label);
     hotkeyContainer.appendChild(selectContainer);
-    
-    // 插入到语言设置后面
-    languageContainer.parentNode.insertBefore(hotkeyContainer, languageContainer.nextSibling);
-    
+
+    // 包裹到一个容器里，便于跟随 tab 显隐（其他 tab 不要把这两行露出来）
+    hotkeySectionWrapper = document.createElement('div');
+    hotkeySectionWrapper.className = 'hotkey-section-wrapper';
+    hotkeySectionWrapper.appendChild(hotkeyContainer);
+    hotkeySectionParent = languageContainer.parentNode;
+    hotkeySectionParent.insertBefore(hotkeySectionWrapper, languageContainer.nextSibling);
+
+    // 根据当前 tab 状态决定初始显隐
+    syncHotkeySectionVisibility();
+
     console.log('快捷键设置区域创建成功');
 
     // 绑定主题变化并根据当前主题设置外观
     bindAndApplyTheme();
-    
-    // 创建关闭行为设置
+
+    // 创建关闭行为设置（作为 wrapper 的子节点，一起被显隐）
     createCloseBehaviorSettings(hotkeyContainer);
+  }
+
+  // 判断元素是否真的可见（不被祖先隐藏 / display:none）
+  function isElementVisible(el) {
+    if (!el) return false;
+    if (!el.isConnected) return false;
+    let cur = el;
+    while (cur && cur !== document.body) {
+      const style = window.getComputedStyle ? window.getComputedStyle(cur) : null;
+      if (style) {
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+      }
+      cur = cur.parentElement;
+    }
+    return true;
+  }
+
+  // 根据当前是否在通用设置 tab，控制 wrapper 的显隐
+  function syncHotkeySectionVisibility() {
+    if (!hotkeySectionWrapper) return;
+    // ponytail: 用"语言行现在是否能查到且可见"来判定通用的 tab 状态，
+    // 比判断左侧按钮高亮类更稳定——切瞬态时唯一可靠的信号是结构变化。
+    const lc = findLanguageContainer();
+    hotkeySectionWrapper.style.display = (lc && isElementVisible(lc)) ? '' : 'none';
   }
 
   // 读取主题选择器元素（新版本使用按钮而不是select）
@@ -1024,15 +1061,27 @@
   // 监听标签页切换
   function handleTabSwitch() {
     console.log('标签页切换事件触发');
-    setTimeout(() => {
+    // ponytail: 点击事件触发时，原生 UI 还没来得及把"通用设置"高亮挪走，
+    // 此刻 isGeneralSettingsTab() 仍会返回 true。
+    // 延一帧再判断，等原生 UI 把 _699d482 等高亮类从旧 tab 按钮上移走。
+    requestAnimationFrame(() => {
+      // 切到通用设置 tab
       if (isGeneralSettingsTab()) {
-        console.log('切换到通用设置，创建快捷键设置');
-        createHotkeySettings();
+        // 节点还在就只切回显隐；不在就重建（防御式，几乎不会发生）
+        if (!document.querySelector('.hotkey-section-wrapper')) {
+          console.log('切换到通用设置，重建快捷键设置');
+          createHotkeySettings();
+        } else {
+          console.log('切换到通用设置，恢复快捷键设置显隐');
+          syncHotkeySectionVisibility();
+        }
       } else {
-        console.log('切换到其他标签页，移除快捷键设置');
-        removeExistingHotkeySettings();
+        syncHotkeySectionVisibility();
       }
-    }, 100);
+      // ponytail: 原生 tab 切换可能有微小延迟，再过一帧再同步一次兜底，
+      // 防止首个 rAF 时通用设置面板还没渲染完导致 wrapper 漏判隐藏。
+      requestAnimationFrame(syncHotkeySectionVisibility);
+    });
   }
   
   // 监听页面变化和标签页切换
