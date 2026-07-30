@@ -215,6 +215,8 @@
       try { unsubscribeNativeTheme(); } catch (e) {}
       unsubscribeNativeTheme = null;
     }
+    // ponytail: 解绑外部点击关闭监听，常驻监听需要每次重建都清理否则会重复。
+    document.removeEventListener('mousedown', handleOutsideMouseDown, true);
   }
   
   // 创建快捷键设置区域
@@ -318,8 +320,11 @@
     // 创建关闭行为设置（作为 wrapper 的子节点，一起被显隐）
     createCloseBehaviorSettings(hotkeyContainer);
 
-    // 创建回复通知开关（与关闭行为同一 row 风格）
-    createReplyNotifyToggle(hotkeyContainer);
+    // 创建回复通知开关（紧跟关闭行为那一行）
+    // ponytail: 关闭行为行是 createCloseBehaviorSettings 内部刚插好的，
+    // 直接以它为参考节点，避免再次以 hotkeyContainer 为锚导致位置错乱。
+    const closeBehaviorContainer = hotkeyContainer.parentNode.querySelector('.close-behavior-setting-flex');
+    createReplyNotifyToggle(closeBehaviorContainer || hotkeyContainer);
   }
 
   // 判断元素是否真的可见（不被祖先隐藏 / display:none）
@@ -771,6 +776,9 @@
       if (isCloseMenuOpen) {
         closeCloseBehaviorMenu();
       } else {
+        // ponytail: 关闭动画期间 wrapper 还挂在 body 上，避免再次"打开"造成
+        // 旧 wrapper 还在淡出 + 新 wrapper 同时出现的鬼影——用户感受是"关不掉"。
+        if (closeBehaviorMenuWrapper) return;
         openCloseBehaviorMenu();
       }
     };
@@ -847,10 +855,21 @@
     closeBehaviorMenuWrapper.appendChild(menu);
     document.body.appendChild(closeBehaviorMenuWrapper);
 
-    // 外部点击关闭
-    setTimeout(() => {
-      document.addEventListener('click', closeCloseBehaviorMenu, { once: true });
-    }, 0);
+    // 外部点击关闭：捕获阶段 + 常驻监听，确保 React / SPA 内部的 stopPropagation
+    // 也拦不住——这是"点空白处不收回"最常见的原因（页面里其它组件吃了 click）。
+    // ponytail: mousedown 在 React 的 onClick 之前派发，能抢在前面把菜单关掉；
+    // handler 里用 contains 判断排除菜单自身 + 选择框自身，避免关掉内部空白。
+    document.addEventListener('mousedown', handleOutsideMouseDown, true);
+  }
+
+  // ponytail: mousedown capture 阶段判断点击是否落在"菜单 + 选择框"之外，
+  // 是则关闭菜单。这样 React/SPA 的 stopPropagation 影响不到。
+  function handleOutsideMouseDown(e) {
+    if (!isCloseMenuOpen) return;
+    const target = e.target;
+    if (closeBehaviorMenuWrapper && closeBehaviorMenuWrapper.contains(target)) return;
+    if (closeBehaviorSelectContainer && closeBehaviorSelectContainer.contains(target)) return;
+    closeCloseBehaviorMenu();
   }
 
   function closeCloseBehaviorMenu() {
@@ -957,8 +976,14 @@
     container.appendChild(label);
     container.appendChild(wrapper);
 
-    // 紧跟在关闭行为那一行后面
-    referenceContainer.parentNode.insertBefore(container, referenceContainer.nextSibling);
+    // 紧跟在参考节点后面；如参考节点已不在 DOM（极少），就退回到它原父节点的末尾。
+    const parent = referenceContainer.parentNode;
+    const ref = referenceContainer.nextSibling;
+    if (ref) {
+      parent.insertBefore(container, ref);
+    } else {
+      parent.appendChild(container);
+    }
 
     console.log('回复通知开关设置区域创建成功');
   }

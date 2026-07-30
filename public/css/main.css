@@ -194,12 +194,13 @@ html {
   position: relative;
 }
 
-/* 回复通知开关（iOS 风格）—— ponytail: 原生 input + 自定义滑块，键盘可达性 / 表单语义免费。 */
+/* 回复通知开关：基于原生 .ds-switch 风格（设计系统） */
+/* ponytail: 原生 input 隐藏，点击/键盘触发；视觉与 .ds-switch 完全一致。 */
 .reply-notify-toggle {
   position: relative;
   display: inline-block;
-  width: 36px;
-  height: 20px;
+  width: 40px;
+  height: 24px;
   flex-shrink: 0;
   cursor: pointer;
 }
@@ -215,12 +216,13 @@ html {
   z-index: 1;
 }
 
+/* 滑块本体（轨道 + 圆点），与设计系统 .ds-switch 视觉一致 */
 .reply-notify-toggle__slider {
   position: absolute;
   inset: 0;
-  background-color: rgba(120, 120, 120, 0.35);
+  background-color: rgba(120, 120, 128, 0.4);
   border-radius: 999px;
-  transition: background-color 0.18s ease;
+  transition: background-color var(--ds-transition-duration, 0.18s) var(--ds-ease-in-out, ease);
   pointer-events: none;
 }
 
@@ -229,29 +231,43 @@ html {
   position: absolute;
   left: 2px;
   top: 2px;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   background-color: #ffffff;
   border-radius: 50%;
-  transition: transform 0.18s ease;
+  transition: transform var(--ds-transition-duration, 0.18s) var(--ds-ease-in-out, ease);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .reply-notify-toggle input[type="checkbox"]:checked + .reply-notify-toggle__slider {
-  background-color: #4D6BFE;
+  background-color: var(--ds-rgb-accent, #5686FE);
 }
 
 .reply-notify-toggle input[type="checkbox"]:checked + .reply-notify-toggle__slider::before {
-  transform: translateX(16px);
+  transform: translateX(14px);
 }
 
-.reply-notify-toggle input[type="checkbox"]:focus-visible + .reply-notify-toggle__slider {
-  box-shadow: 0 0 0 3px rgba(77, 107, 254, 0.25);
+/* ponytail: 用户提供的 .ds-switch ::after 视觉——环形 hover/focus halo。
+   在 wrapper 上做，不撑大布局，只显示半透明 box-shadow。 */
+.reply-notify-toggle:after {
+  content: "";
+  transition: box-shadow var(--ds-transition-duration, 0.18s) var(--ds-ease-in-out, ease);
+  border-radius: 4096px;
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: -2px;
+  right: -2px;
+  pointer-events: none;
 }
 
-/* 兼容深色主题：滑块背景使用 CSS 变量，避免在 dark 下过亮 */
-@media (prefers-color-scheme: dark) {
-  .reply-notify-toggle__slider {
-    background-color: rgba(255, 255, 255, 0.18);
-  }
+.reply-notify-toggle input[type="checkbox"]:hover + .reply-notify-toggle__slider:after,
+.reply-notify-toggle:hover:after {
+  box-shadow: 0 0 0 4px var(--ds-rgb-hover, rgba(0, 0, 0, 0.04));
+}
+
+.reply-notify-toggle input[type="checkbox"]:focus-visible + .reply-notify-toggle__slider,
+.reply-notify-toggle input[type="checkbox"]:focus-visible ~ .reply-notify-toggle__slider {
+  outline: 2px solid var(--ds-rgb-accent, #4D6BFE);
+  outline-offset: 2px;
 }
