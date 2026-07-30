@@ -689,8 +689,69 @@ ipcMain.handle('set-close-behavior', (event, behavior) => {
   }
 });
 
+// 回复输出完成通知：弹出系统通知，点击唤起窗口
+function showReplyFinishedNotification() {
+  try {
+    // ponytail: Notification 动态 require，避免在不支持的环境（部分 Linux）启动时报错
+    const { Notification } = require('electron');
+    if (!Notification.isSupported()) return;
+
+    const notify = new Notification({
+      title: 'DeepSeek',
+      body: '回复已完成',
+      icon: path.join(__dirname, 'public/icons/icon.png'),
+      silent: false
+    });
+
+    notify.on('click', () => {
+      try {
+        const win = (mainWindow && !mainWindow.isDestroyed()) ? mainWindow : BrowserWindow.getAllWindows()[0];
+        if (!win || win.isDestroyed()) return;
+        win.show();
+        win.focus();
+        // 恢复托盘隐藏状态
+        isWindowHidden = false;
+        if (tray) { try { tray.destroy(); } catch (e) {} tray = null; }
+      } catch (e) {}
+    });
+
+    notify.show();
+  } catch (error) {
+    logDebug('通知失败:', error);
+  }
+}
+
+// 注册 SSE 完成监听：completion 请求的流关闭时（onCompleted）触发通知。
+// ponytail: 用 webRequest 网络层拦截，不依赖渲染进程脚本注入时机——
+// 此前用 executeJavaScript hook window.fetch 失败，因 executeJavaScript 会延迟到
+// 页面 did-stop-loading 才执行，此时网页已缓存原生 fetch 引用，hook 失效。
+// webRequest.onCompleted 对 text/event-stream 在连接真正关闭时触发，恰好对应回复结束。
+function registerReplyFinishedListener() {
+  try {
+    const { session } = require('electron');
+    session.defaultSession.webRequest.onCompleted(
+      { urls: ['https://chat.deepseek.com/api/v0/chat/completion*'] },
+      (details) => {
+        // 只关心 POST（真正的对话请求），排除预检/OPTIONS
+        if (details.method === 'POST' && details.statusCode === 200) {
+          logDebug('检测到回复流结束，触发通知');
+          showReplyFinishedNotification();
+        }
+      }
+    );
+  } catch (error) {
+    console.log('注册回复完成监听失败:', error);
+  }
+}
+
 // 当Electron初始化完成并准备创建浏览器窗口时调用此方法
 app.whenReady().then(() => {
+  // ponytail: Windows 上系统通知需要 AppUserModelId，否则会归到 electron.exe 且可能不显示
+  try { app.setAppUserModelId('com.deepseek.chat'); } catch (e) {}
+
+  // 注册 SSE 回复完成监听（网络层拦截，时机可靠）
+  registerReplyFinishedListener();
+
   // 配置右键上下文菜单
   try {
     if (contextMenu && typeof contextMenu === 'function') {
