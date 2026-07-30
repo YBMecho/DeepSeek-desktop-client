@@ -229,14 +229,13 @@ html {
 .reply-notify-toggle__slider::before {
   content: '';
   position: absolute;
-  left: 2px;
-  top: 2px;
+  left: 3px;
+  top: 3px;
   width: 18px;
   height: 18px;
   background-color: #ffffff;
   border-radius: 50%;
   transition: transform var(--ds-transition-duration, 0.18s) var(--ds-ease-in-out, ease);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .reply-notify-toggle input[type="checkbox"]:checked + .reply-notify-toggle__slider {
@@ -244,30 +243,10 @@ html {
 }
 
 .reply-notify-toggle input[type="checkbox"]:checked + .reply-notify-toggle__slider::before {
-  transform: translateX(14px);
+  transform: translateX(16px);
 }
 
-/* ponytail: 用户提供的 .ds-switch ::after 视觉——环形 hover/focus halo。
-   在 wrapper 上做，不撑大布局，只显示半透明 box-shadow。 */
+/* ponytail: 不再加 hover halo / focus ring——保持纯开关视觉。 */
 .reply-notify-toggle:after {
-  content: "";
-  transition: box-shadow var(--ds-transition-duration, 0.18s) var(--ds-ease-in-out, ease);
-  border-radius: 4096px;
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  left: -2px;
-  right: -2px;
-  pointer-events: none;
-}
-
-.reply-notify-toggle input[type="checkbox"]:hover + .reply-notify-toggle__slider:after,
-.reply-notify-toggle:hover:after {
-  box-shadow: 0 0 0 4px var(--ds-rgb-hover, rgba(0, 0, 0, 0.04));
-}
-
-.reply-notify-toggle input[type="checkbox"]:focus-visible + .reply-notify-toggle__slider,
-.reply-notify-toggle input[type="checkbox"]:focus-visible ~ .reply-notify-toggle__slider {
-  outline: 2px solid var(--ds-rgb-accent, #4D6BFE);
-  outline-offset: 2px;
+  content: none;
 }
