@@ -22,6 +22,11 @@
   let closeBehaviorMenuWrapper = null;
   let isCloseMenuOpen = false;
 
+  // 回复通知开关设置相关变量
+  let currentReplyNotifyEnabled = true;
+  let replyNotifyToggleContainer = null;
+  let replyNotifyToggleInput = null;
+
   // ponytail: 包裹"快捷键 + 关闭行为"两行的容器节点，用于跟随 tab 显隐。
   // 原网页切 tab 时整体面板不会被销毁，只会切 hidden/visible，所以我们注入
   // 的两行如果不显隐控制，就会跟着别的 tab 一起显示。
@@ -178,6 +183,13 @@
       console.log('移除已存在的关闭行为设置');
     }
 
+    // 移除回复通知开关设置
+    const existingReplyNotify = document.querySelector('.reply-notify-setting-flex');
+    if (existingReplyNotify) {
+      existingReplyNotify.remove();
+      console.log('移除已存在的回复通知开关设置');
+    }
+
     // 解绑主题选择器与系统主题监听
     if (boundThemeSelectEl && themeChangeHandler) {
       boundThemeSelectEl.removeEventListener('change', themeChangeHandler);
@@ -196,6 +208,8 @@
     hotkeySelectContainer = null;
     closeBehaviorSelectContainer = null;
     closeBehaviorSelect = null;
+    replyNotifyToggleContainer = null;
+    replyNotifyToggleInput = null;
     // ponytail: 解绑主进程推送的事件订阅，避免设置面板反复打开/销毁/重建时累积监听器。
     if (unsubscribeNativeTheme) {
       try { unsubscribeNativeTheme(); } catch (e) {}
@@ -303,6 +317,9 @@
 
     // 创建关闭行为设置（作为 wrapper 的子节点，一起被显隐）
     createCloseBehaviorSettings(hotkeyContainer);
+
+    // 创建回复通知开关（与关闭行为同一 row 风格）
+    createReplyNotifyToggle(hotkeyContainer);
   }
 
   // 判断元素是否真的可见（不被祖先隐藏 / display:none）
@@ -899,6 +916,97 @@
       loadCurrentCloseBehavior();
     }
   }
+
+  // 创建回复完成系统提示音开关区域
+  function createReplyNotifyToggle(referenceContainer) {
+    const container = document.createElement('div');
+    container.className = 'ds-flex _50b3d9e reply-notify-setting-flex';
+    container.style.cssText = `
+      padding: 12px 0px;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      display: flex;
+    `;
+
+    const label = document.createElement('span');
+    label.textContent = '回复完系统提示音';
+
+    // ponytail: 用原生 checkbox + 自定义滑块壳，键盘可达性与表单语义都免费拿到。
+    // label 包住输入框后，键盘聚焦/点击文字都等价于点开关。
+    const wrapper = document.createElement('label');
+    wrapper.className = 'reply-notify-toggle';
+    wrapper.setAttribute('role', 'switch');
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = !!currentReplyNotifyEnabled;
+    input.addEventListener('change', handleReplyNotifyToggleChange);
+
+    const slider = document.createElement('span');
+    slider.className = 'reply-notify-toggle__slider';
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(slider);
+
+    replyNotifyToggleContainer = wrapper;
+    replyNotifyToggleInput = input;
+    // 初始状态写到 aria 上，屏幕阅读器能播报
+    wrapper.setAttribute('aria-checked', String(input.checked));
+
+    container.appendChild(label);
+    container.appendChild(wrapper);
+
+    // 紧跟在关闭行为那一行后面
+    referenceContainer.parentNode.insertBefore(container, referenceContainer.nextSibling);
+
+    console.log('回复通知开关设置区域创建成功');
+  }
+
+  // 处理回复通知开关切换
+  async function handleReplyNotifyToggleChange(event) {
+    const enabled = !!event.target.checked;
+    try {
+      if (window.electronAPI && window.electronAPI.setReplyNotifyEnabled) {
+        const result = await window.electronAPI.setReplyNotifyEnabled(enabled);
+        if (result && result.success) {
+          currentReplyNotifyEnabled = !!result.replyNotifyEnabled;
+          if (replyNotifyToggleContainer) {
+            replyNotifyToggleContainer.setAttribute('aria-checked', String(currentReplyNotifyEnabled));
+          }
+          console.log('回复通知开关已更新:', currentReplyNotifyEnabled);
+        } else {
+          console.error('回复通知开关更新失败:', result && result.error);
+          // 回滚 UI
+          event.target.checked = currentReplyNotifyEnabled;
+        }
+      } else {
+        console.log('Electron API不可用，无法保存回复通知开关');
+        event.target.checked = currentReplyNotifyEnabled;
+      }
+    } catch (error) {
+      console.error('保存回复通知开关时出错:', error);
+      event.target.checked = currentReplyNotifyEnabled;
+    }
+  }
+
+  // 加载当前回复通知开关
+  async function loadCurrentReplyNotifyEnabled() {
+    try {
+      if (window.electronAPI && window.electronAPI.getReplyNotifyEnabled) {
+        currentReplyNotifyEnabled = !!(await window.electronAPI.getReplyNotifyEnabled());
+        if (replyNotifyToggleInput) {
+          replyNotifyToggleInput.checked = currentReplyNotifyEnabled;
+        }
+        if (replyNotifyToggleContainer) {
+          replyNotifyToggleContainer.setAttribute('aria-checked', String(currentReplyNotifyEnabled));
+        }
+        console.log('加载回复通知开关:', currentReplyNotifyEnabled);
+      }
+    } catch (error) {
+      console.error('加载回复通知开关时出错:', error);
+    }
+  }
   
   // 加载当前关闭行为设置
   async function loadCurrentCloseBehavior() {
@@ -1320,6 +1428,9 @@
 
     // 加载当前关闭行为设置
     loadCurrentCloseBehavior();
+
+    // 加载当前回复通知开关
+    loadCurrentReplyNotifyEnabled();
 
     // 如果初始化时设置弹窗已经存在（比如从登录跳回主页的瞬态），立即插入。
     // createHotkeySettings 内部会在找不到语言容器时自动用 MutationObserver 等待。

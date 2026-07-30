@@ -25,6 +25,7 @@ let isWindowHidden = false;
 let currentHotkey = 'Alt+`'; // 默认快捷键
 let hotkeyRegistered = false;
 let closeBehavior = 'minimize'; // 当前关闭行为设置
+let replyNotifyEnabled = true; // 回复完成后系统通知开关（默认开启）
 let isQuitting = false; // 标记是否正在退出应用
 let areAllWindowsHidden = false; // 是否通过快捷键隐藏了所有窗口
 let previouslyVisibleWindowIds = new Set(); // 记录上次被隐藏的可见窗口ID
@@ -36,7 +37,8 @@ const configPath = path.join(app.getPath('userData'), 'config.json');
 const defaultConfig = {
   hotkey: 'Alt+`',
   theme: 'system',
-  closeBehavior: 'minimize' // 'close' | 'minimize'
+  closeBehavior: 'minimize', // 'close' | 'minimize'
+  replyNotifyEnabled: true // 回复完成后系统通知开关，默认开启
 };
 
 // 读取配置文件
@@ -70,7 +72,12 @@ function loadConfig() {
       if (config.closeBehavior && ['close', 'minimize'].includes(config.closeBehavior)) {
         validatedConfig.closeBehavior = config.closeBehavior;
       }
-      
+
+      // 验证回复通知开关
+      if (typeof config.replyNotifyEnabled === 'boolean') {
+        validatedConfig.replyNotifyEnabled = config.replyNotifyEnabled;
+      }
+
       logDebug('配置文件加载成功:', validatedConfig);
       return validatedConfig;
     }
@@ -591,6 +598,7 @@ function createWindow() {
   const config = loadConfig();
   currentHotkey = config.hotkey;
   closeBehavior = config.closeBehavior;
+  replyNotifyEnabled = config.replyNotifyEnabled;
   
   // 设置主题
   if (nativeTheme && config.theme) {
@@ -667,6 +675,29 @@ ipcMain.handle('get-close-behavior', () => {
   return closeBehavior;
 });
 
+// 获取当前回复通知开关
+ipcMain.handle('get-reply-notify-enabled', () => {
+  return replyNotifyEnabled;
+});
+
+// 设置回复通知开关
+ipcMain.handle('set-reply-notify-enabled', (event, enabled) => {
+  try {
+    if (typeof enabled !== 'boolean') {
+      return { success: false, error: '参数必须是布尔值' };
+    }
+    replyNotifyEnabled = enabled;
+    const saveResult = updateConfig('replyNotifyEnabled', enabled);
+    if (!saveResult) {
+      console.log('回复通知开关保存到配置文件失败，但开关仍然生效');
+    }
+    console.log('回复通知开关设置为:', enabled);
+    return { success: true, replyNotifyEnabled: enabled };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // 设置关闭行为：'close' | 'minimize'
 ipcMain.handle('set-close-behavior', (event, behavior) => {
   try {
@@ -734,6 +765,10 @@ function registerReplyFinishedListener() {
       (details) => {
         // 只关心 POST（真正的对话请求），排除预检/OPTIONS
         if (details.method === 'POST' && details.statusCode === 200) {
+          if (!replyNotifyEnabled) {
+            logDebug('回复通知开关已关闭，跳过通知');
+            return;
+          }
           logDebug('检测到回复流结束，触发通知');
           showReplyFinishedNotification();
         }

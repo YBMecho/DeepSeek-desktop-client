@@ -24,5 +24,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCloseBehavior: () => ipcRenderer.invoke('get-close-behavior'),
 
   // 设置关闭行为：'close' | 'minimize'
-  setCloseBehavior: (behavior) => ipcRenderer.invoke('set-close-behavior', behavior)
+  setCloseBehavior: (behavior) => ipcRenderer.invoke('set-close-behavior', behavior),
+
+  // 获取当前回复通知开关
+  getReplyNotifyEnabled: () => ipcRenderer.invoke('get-reply-notify-enabled'),
+
+  // 设置回复通知开关
+  setReplyNotifyEnabled: (enabled) => ipcRenderer.invoke('set-reply-notify-enabled', enabled)
 });

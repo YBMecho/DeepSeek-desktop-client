@@ -188,3 +188,70 @@ html {
 
 
 /* 动态宽度调整通过JavaScript实现，确保浏览器兼容性 */
+
+/* 回复通知开关容器 */
+.reply-notify-setting-flex {
+  position: relative;
+}
+
+/* 回复通知开关（iOS 风格）—— ponytail: 原生 input + 自定义滑块，键盘可达性 / 表单语义免费。 */
+.reply-notify-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.reply-notify-toggle input[type="checkbox"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.reply-notify-toggle__slider {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(120, 120, 120, 0.35);
+  border-radius: 999px;
+  transition: background-color 0.18s ease;
+  pointer-events: none;
+}
+
+.reply-notify-toggle__slider::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.18s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.reply-notify-toggle input[type="checkbox"]:checked + .reply-notify-toggle__slider {
+  background-color: #4D6BFE;
+}
+
+.reply-notify-toggle input[type="checkbox"]:checked + .reply-notify-toggle__slider::before {
+  transform: translateX(16px);
+}
+
+.reply-notify-toggle input[type="checkbox"]:focus-visible + .reply-notify-toggle__slider {
+  box-shadow: 0 0 0 3px rgba(77, 107, 254, 0.25);
+}
+
+/* 兼容深色主题：滑块背景使用 CSS 变量，避免在 dark 下过亮 */
+@media (prefers-color-scheme: dark) {
+  .reply-notify-toggle__slider {
+    background-color: rgba(255, 255, 255, 0.18);
+  }
+}
