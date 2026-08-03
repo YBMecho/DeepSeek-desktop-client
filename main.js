@@ -103,6 +103,12 @@ function loadConfig() {
       if (typeof config.autoLaunch === 'boolean') {
         validatedConfig.autoLaunch = config.autoLaunch;
       }
+
+      // 验证悬浮窗重置选项
+      if (config.floatingResetOption && typeof config.floatingResetOption === 'string') {
+        validatedConfig.floatingResetOption = config.floatingResetOption;
+      }
+      
       return validatedConfig;
     }
   } catch (error) {
