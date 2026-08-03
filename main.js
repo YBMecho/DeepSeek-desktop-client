@@ -376,6 +376,7 @@ function createFloatingWindow() {
     maximizable: false,
     show: false,
     autoHideMenuBar: true,
+    skipTaskbar: true,
     backgroundColor: nativeTheme && nativeTheme.shouldUseDarkColors ? '#2b2b2b' : '#ffffff'
   });
   
