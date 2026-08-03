@@ -332,7 +332,7 @@ function setupReinjectOnAuthNavigation(targetWindow) {
   wc[setupKey] = true;
   
   // 增加最大监听器数量，防止警告
-  wc.setMaxListeners(20);
+  wc.setMaxListeners(25);
   
   wc.__lastUrl = '';
   wc.__pendingReinject = false;

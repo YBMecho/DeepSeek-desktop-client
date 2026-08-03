@@ -12,7 +12,7 @@
   function createToggleButton() {
     const button = document.createElement('div');
     button.setAttribute('role', 'button');
-    button.className = 'ds-button ds-button--iconLabelPrimary ds-button--icon ds-button--capsule ds-button--m ds-button--icon-relative-m ds-floating-toggle-button';
+    button.className = 'ds-button ds-button--iconLabelPrimary ds-button--icon ds-button--capsule ds-button--l ds-button--icon-relative-m _57370c5 _5dedc1e ds-floating-toggle-button';
     button.setAttribute('tabindex', '0');
     button.style.cssText = '--dsl-button-height: 34px;';
 
