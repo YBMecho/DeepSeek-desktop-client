@@ -1034,17 +1034,6 @@ ipcMain.handle('set-theme-source', (event, theme) => {
         } catch (e) {}
       }
 
-      // 同步更新悬浮窗主题
-      if (floatingWindow && !floatingWindow.isDestroyed()) {
-        applyWindowTheme(floatingWindow, nativeTheme.shouldUseDarkColors);
-        try {
-          floatingWindow.webContents.send('native-theme-updated', {
-            isDark: nativeTheme.shouldUseDarkColors,
-            source: nativeTheme.themeSource
-          });
-        } catch (e) {}
-      }
-
       // 保存主题设置到配置文件
       const saveResult = updateConfig('theme', theme);
       if (!saveResult) {
@@ -1099,10 +1088,8 @@ ipcMain.handle('set-floating-window-pin-state', (event, pinned) => {
     isFloatingWindowPinned = pinned;
     console.log('悬浮窗置顶状态设置为:', pinned);
     
-    // 实际设置窗口置顶属性
+    // 广播置顶状态变化给所有渲染进程
     if (floatingWindow && !floatingWindow.isDestroyed()) {
-      floatingWindow.setAlwaysOnTop(pinned);
-      // 广播置顶状态变化给所有渲染进程
       floatingWindow.webContents.send('floating-window-pin-state-changed', pinned);
     }
     
@@ -1317,16 +1304,6 @@ app.whenReady().then(() => {
                 source: nativeTheme.themeSource
               });
             }
-          } catch (e) {}
-        }
-        // 同步更新悬浮窗主题
-        if (floatingWindow && !floatingWindow.isDestroyed()) {
-          applyWindowTheme(floatingWindow, nativeTheme.shouldUseDarkColors);
-          try {
-            floatingWindow.webContents.send('native-theme-updated', {
-              isDark: nativeTheme.shouldUseDarkColors,
-              source: nativeTheme.themeSource
-            });
           } catch (e) {}
         }
       });
