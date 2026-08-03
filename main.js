@@ -20,10 +20,13 @@ try {
 }
 
 let mainWindow;
+let floatingWindow = null; // 悬浮窗
 let tray = null;
 let isWindowHidden = false;
 let currentHotkey = 'Alt+`'; // 默认快捷键
+let floatingWindowHotkey = 'Alt+Space'; // 悬浮窗快捷键
 let hotkeyRegistered = false;
+let floatingHotkeyRegistered = false;
 let closeBehavior = 'minimize'; // 当前关闭行为设置
 let replyNotifyEnabled = true; // 回复完成后系统通知开关（默认开启）
 let isQuitting = false; // 标记是否正在退出应用
@@ -36,6 +39,8 @@ const configPath = path.join(app.getPath('userData'), 'config.json');
 // 默认配置
 const defaultConfig = {
   hotkey: 'Alt+`',
+  floatingWindowHotkey: 'Alt+Space',
+  floatingWindowBounds: null, // 悬浮窗位置和尺寸 { x, y, width, height }
   theme: 'system',
   closeBehavior: 'minimize', // 'close' | 'minimize'
   replyNotifyEnabled: true // 回复完成后系统通知开关，默认开启
@@ -61,6 +66,16 @@ function loadConfig() {
       // 验证快捷键
       if (config.hotkey && typeof config.hotkey === 'string') {
         validatedConfig.hotkey = config.hotkey;
+      }
+      
+      // 验证悬浮窗快捷键
+      if (config.floatingWindowHotkey && typeof config.floatingWindowHotkey === 'string') {
+        validatedConfig.floatingWindowHotkey = config.floatingWindowHotkey;
+      }
+      
+      // 验证悬浮窗位置尺寸
+      if (config.floatingWindowBounds && typeof config.floatingWindowBounds === 'object') {
+        validatedConfig.floatingWindowBounds = config.floatingWindowBounds;
       }
       
       // 验证主题设置
@@ -257,6 +272,219 @@ function setupReinjectOnAuthNavigation(targetWindow) {
   wc.on('did-stop-loading', () => {
     tryAutoInject(wc.getURL());
   });
+}
+
+// 获取鼠标所在屏幕的中心位置
+function getMouseScreenCenter() {
+  const { screen } = require('electron');
+  const point = screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(point);
+  const { x, y, width, height } = display.workArea;
+  return { x, y, width, height };
+}
+
+// 保证窗口位置在屏幕内且距离顶部至少30px
+function ensureWindowInScreen(bounds) {
+  const { screen } = require('electron');
+  const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  const display = screen.getDisplayNearestPoint(point);
+  const workArea = display.workArea;
+  
+  let { x, y, width, height } = bounds;
+  
+  // 限制宽高
+  width = Math.max(360, Math.min(860, width));
+  height = Math.max(426, Math.min(1032, height));
+  
+  // 确保不超出屏幕右边和底部
+  if (x + width > workArea.x + workArea.width) {
+    x = workArea.x + workArea.width - width;
+  }
+  if (y + height > workArea.y + workArea.height) {
+    y = workArea.y + workArea.height - height;
+  }
+  
+  // 确保不超出屏幕左边
+  if (x < workArea.x) {
+    x = workArea.x;
+  }
+  
+  // 确保距离顶部至少30px
+  if (y < workArea.y + 30) {
+    y = workArea.y + 30;
+  }
+  
+  return { x, y, width, height };
+}
+
+// 创建悬浮窗
+function createFloatingWindow() {
+  if (floatingWindow && !floatingWindow.isDestroyed()) {
+    floatingWindow.show();
+    floatingWindow.focus();
+    return;
+  }
+  
+  const config = loadConfig();
+  let bounds;
+  
+  // 如果有保存的位置和尺寸，使用保存的
+  if (config.floatingWindowBounds) {
+    bounds = ensureWindowInScreen(config.floatingWindowBounds);
+  } else {
+    // 否则在鼠标所在屏幕中心创建，默认尺寸440x600
+    const mouseScreen = getMouseScreenCenter();
+    bounds = {
+      x: Math.round(mouseScreen.x + (mouseScreen.width - 440) / 2),
+      y: Math.round(mouseScreen.y + (mouseScreen.height - 600) / 2),
+      width: 440,
+      height: 600
+    };
+    bounds = ensureWindowInScreen(bounds);
+  }
+  
+  floatingWindow = new BrowserWindow({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    minWidth: 360,
+    maxWidth: 860,
+    minHeight: 426,
+    maxHeight: 1032,
+    title: 'DeepSeek',
+    icon: path.join(__dirname, 'public/images/deepseek-color.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
+      preload: path.join(__dirname, 'preload.js')
+    },
+    frame: true,
+    show: false,
+    autoHideMenuBar: true,
+    menuBarVisible: false,
+    titleBarOverlay: true,
+    backgroundColor: nativeTheme && nativeTheme.shouldUseDarkColors ? '#2b2b2b' : '#ffffff'
+  });
+  
+  floatingWindow.loadURL('https://chat.deepseek.com/');
+  
+  floatingWindow.webContents.on('page-title-updated', (event) => {
+    event.preventDefault();
+    floatingWindow.setTitle('DeepSeek');
+  });
+  
+  floatingWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  
+  floatingWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    const currentUrl = floatingWindow.webContents.getURL();
+    const currentDomain = new URL(currentUrl).hostname;
+    const navigationDomain = new URL(navigationUrl).hostname;
+    if (navigationDomain !== currentDomain) {
+      event.preventDefault();
+      shell.openExternal(navigationUrl);
+    }
+  });
+  
+  floatingWindow.once('ready-to-show', () => {
+    floatingWindow.show();
+    floatingWindow.setTitle('DeepSeek');
+    try {
+      applyWindowTheme(floatingWindow, nativeTheme ? nativeTheme.shouldUseDarkColors : false);
+    } catch (e) {}
+    injectCustomAssets(floatingWindow);
+  });
+  
+  try {
+    floatingWindow.webContents.on('dom-ready', () => {
+      injectCustomAssets(floatingWindow);
+    });
+  } catch (e) {}
+  
+  // 保存位置和尺寸
+  const saveBounds = () => {
+    if (floatingWindow && !floatingWindow.isDestroyed()) {
+      const bounds = floatingWindow.getBounds();
+      updateConfig('floatingWindowBounds', bounds);
+    }
+  };
+  
+  floatingWindow.on('moved', saveBounds);
+  floatingWindow.on('resized', saveBounds);
+  
+  floatingWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      floatingWindow.hide();
+    }
+  });
+  
+  floatingWindow.on('closed', () => {
+    floatingWindow = null;
+  });
+  
+  setupReinjectOnAuthNavigation(floatingWindow);
+}
+
+// 切换悬浮窗显隐
+function toggleFloatingWindow() {
+  if (isQuitting) return;
+  
+  if (!floatingWindow || floatingWindow.isDestroyed()) {
+    createFloatingWindow();
+  } else if (floatingWindow.isVisible()) {
+    floatingWindow.hide();
+  } else {
+    // 显示在鼠标所在屏幕
+    const mouseScreen = getMouseScreenCenter();
+    const bounds = floatingWindow.getBounds();
+    const config = loadConfig();
+    
+    // 如果有保存的位置，使用保存的；否则显示在鼠标屏幕中心
+    if (config.floatingWindowBounds) {
+      const savedBounds = ensureWindowInScreen(config.floatingWindowBounds);
+      floatingWindow.setBounds(savedBounds);
+    } else {
+      const newBounds = {
+        x: Math.round(mouseScreen.x + (mouseScreen.width - bounds.width) / 2),
+        y: Math.round(mouseScreen.y + (mouseScreen.height - bounds.height) / 2),
+        width: bounds.width,
+        height: bounds.height
+      };
+      floatingWindow.setBounds(ensureWindowInScreen(newBounds));
+    }
+    
+    floatingWindow.show();
+    floatingWindow.focus();
+  }
+}
+
+// 注册悬浮窗快捷键
+function registerFloatingWindowHotkey(hotkey) {
+  try {
+    if (floatingHotkeyRegistered) {
+      globalShortcut.unregister(floatingWindowHotkey);
+      floatingHotkeyRegistered = false;
+    }
+    
+    floatingWindowHotkey = hotkey;
+    const ret = globalShortcut.register(hotkey, () => {
+      toggleFloatingWindow();
+    });
+    
+    if (ret) {
+      floatingHotkeyRegistered = true;
+      console.log(`悬浮窗快捷键 ${hotkey} 注册成功`);
+    } else {
+      console.log(`悬浮窗快捷键 ${hotkey} 注册失败`);
+    }
+  } catch (error) {
+    console.log('悬浮窗快捷键注册错误:', error);
+  }
 }
 
 // 注册全局快捷键
@@ -597,6 +825,7 @@ function createWindow() {
   // 从配置文件加载设置
   const config = loadConfig();
   currentHotkey = config.hotkey;
+  floatingWindowHotkey = config.floatingWindowHotkey || 'Alt+Space';
   closeBehavior = config.closeBehavior;
   replyNotifyEnabled = config.replyNotifyEnabled;
   
@@ -612,6 +841,9 @@ function createWindow() {
   
   // 注册加载的快捷键
   registerHotkey(currentHotkey);
+  
+  // 注册悬浮窗快捷键
+  registerFloatingWindowHotkey(floatingWindowHotkey);
 
   // 监听从登录/注册页返回主页时重新注入
   setupReinjectOnAuthNavigation(mainWindow);
@@ -631,6 +863,28 @@ ipcMain.handle('set-hotkey', (event, hotkey) => {
     const saveResult = updateConfig('hotkey', hotkey);
     if (!saveResult) {
       console.log('快捷键设置保存到配置文件失败，但快捷键仍然生效');
+    }
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 获取悬浮窗快捷键
+ipcMain.handle('get-floating-window-hotkey', () => {
+  return floatingWindowHotkey;
+});
+
+// 设置悬浮窗快捷键
+ipcMain.handle('set-floating-window-hotkey', (event, hotkey) => {
+  try {
+    floatingWindowHotkey = hotkey;
+    registerFloatingWindowHotkey(hotkey);
+    
+    const saveResult = updateConfig('floatingWindowHotkey', hotkey);
+    if (!saveResult) {
+      console.log('悬浮窗快捷键设置保存到配置文件失败，但快捷键仍然生效');
     }
     
     return { success: true };

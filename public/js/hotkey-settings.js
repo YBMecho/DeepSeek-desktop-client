@@ -14,6 +14,12 @@
   // ponytail: 主进程推送"原生主题变化"事件的解绑句柄，cleanup 时调用避免重入泄漏。
   let unsubscribeNativeTheme = null;
   
+  // 悬浮窗快捷键设置相关变量
+  let isFloatingSettingMode = false;
+  let floatingHotkeyInput = null;
+  let currentFloatingHotkey = 'Alt+Space';
+  let floatingHotkeySelectContainer = null;
+  
   // 关闭行为设置相关变量
   let currentCloseBehavior = 'minimize';
   let closeBehaviorSelectContainer = null;
@@ -176,6 +182,13 @@
       console.log('移除已存在的快捷键设置');
     }
 
+    // 移除悬浮窗快捷键设置
+    const existingFloating = document.querySelector('.floating-hotkey-setting-flex');
+    if (existingFloating) {
+      existingFloating.remove();
+      console.log('移除已存在的悬浮窗快捷键设置');
+    }
+
     // 移除关闭行为设置
     const existingCloseBehavior = document.querySelector('.close-behavior-setting-flex');
     if (existingCloseBehavior) {
@@ -316,6 +329,9 @@
 
     // 绑定主题变化并根据当前主题设置外观
     bindAndApplyTheme();
+
+    // 创建悬浮窗快捷键设置（紧跟在快捷键设置后面）
+    createFloatingHotkeySettings(hotkeyContainer);
 
     // 创建关闭行为设置（作为 wrapper 的子节点，一起被显隐）
     createCloseBehaviorSettings(hotkeyContainer);
@@ -504,6 +520,247 @@
     // 新版本使用的是与语言选择框相同的样式，无需额外的主题适配
     console.log('主题已应用，使用默认的语言选择框样式');
   }
+
+  // 创建悬浮窗快捷键设置区域
+  function createFloatingHotkeySettings(referenceContainer) {
+    const floatingContainer = document.createElement('div');
+    floatingContainer.className = 'ds-flex _50b3d9e floating-hotkey-setting-flex';
+    floatingContainer.style.cssText = `
+      padding: 12px 0px; 
+      justify-content: space-between; 
+      align-items: center; 
+      gap: 12px;
+      display: flex;
+      border-bottom: 1px solid rgb(var(--ds-rgb-separator));
+    `;
+    
+    const label = document.createElement('span');
+    label.textContent = '对话悬浮窗';
+    
+    const selectContainer = document.createElement('div');
+    selectContainer.className = 'e311289c ds-select ds-select--filled ds-select--none ds-select--m floating-hotkey-select';
+    selectContainer.setAttribute('tabindex', '0');
+    floatingHotkeySelectContainer = selectContainer;
+    
+    floatingHotkeyInput = document.createElement('div');
+    floatingHotkeyInput.className = 'ds-select__select floating-hotkey-input-display';
+    floatingHotkeyInput.setAttribute('role', 'button');
+    floatingHotkeyInput.setAttribute('aria-label', '悬浮窗快捷键设置');
+    floatingHotkeyInput.style.cssText = 'text-align: center; display: flex; align-items: center; justify-content: center; min-height: 20px;';
+    
+    floatingHotkeyInput.textContent = currentFloatingHotkey;
+    
+    floatingHotkeyInput.addEventListener('click', startFloatingHotkeyCapture);
+    selectContainer.addEventListener('click', startFloatingHotkeyCapture);
+    floatingHotkeyInput.addEventListener('keydown', handleFloatingKeyDown);
+    
+    selectContainer.appendChild(floatingHotkeyInput);
+    floatingContainer.appendChild(label);
+    floatingContainer.appendChild(selectContainer);
+    
+    referenceContainer.parentNode.insertBefore(floatingContainer, referenceContainer.nextSibling);
+    
+    console.log('悬浮窗快捷键设置区域创建成功');
+  }
+
+  // 开始悬浮窗快捷键捕获
+  function startFloatingHotkeyCapture(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const currentTime = Date.now();
+    
+    // 双击检测逻辑
+    if (currentTime - lastClickTime < DOUBLE_CLICK_THRESHOLD) {
+      clickCount++;
+      if (clickCount >= 2) {
+        console.log('检测到双击，恢复默认悬浮窗快捷键');
+        
+        if (isFloatingSettingMode) {
+          exitFloatingSettingMode();
+        }
+        
+        restoreDefaultFloatingHotkey();
+        
+        clickCount = 0;
+        lastClickTime = 0;
+        ensureFloatingStateReset();
+        return;
+      }
+    } else {
+      clickCount = 1;
+    }
+    
+    lastClickTime = currentTime;
+    
+    if (isFloatingSettingMode) return;
+    
+    isFloatingSettingMode = true;
+    
+    floatingHotkeyInput.classList.add('setting-mode');
+    floatingHotkeyInput.textContent = '';
+    
+    document.addEventListener('keydown', captureFloatingKeyDown, true);
+    document.addEventListener('click', handleFloatingOutsideClick, true);
+    
+    console.log('进入悬浮窗快捷键设置模式');
+  }
+
+  // 处理悬浮窗输入框的键盘事件
+  function handleFloatingKeyDown(event) {
+    if (!isFloatingSettingMode) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        startFloatingHotkeyCapture(event);
+      }
+    }
+  }
+
+  // 捕获悬浮窗快捷键按下
+  function captureFloatingKeyDown(event) {
+    if (!isFloatingSettingMode) return;
+    
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) {
+      return;
+    }
+    
+    const hotkeyString = keyEventToHotkeyString(event);
+    
+    if (!isValidHotkey(hotkeyString)) {
+      console.log('无效的悬浮窗快捷键:', hotkeyString);
+      return;
+    }
+    
+    console.log('捕获到悬浮窗快捷键:', hotkeyString);
+    
+    currentFloatingHotkey = hotkeyString;
+    updateFloatingHotkeyDisplay();
+    saveFloatingHotkeySetting(hotkeyString);
+    exitFloatingSettingMode();
+    
+    ensureFloatingDisplayCorrectness();
+  }
+
+  // 处理点击悬浮窗外部区域
+  function handleFloatingOutsideClick(event) {
+    if (!isFloatingSettingMode) return;
+    
+    if (!floatingHotkeyInput.contains(event.target)) {
+      event.preventDefault();
+      event.stopPropagation();
+      exitFloatingSettingMode();
+      ensureFloatingDisplayCorrectness();
+    }
+  }
+
+  // 退出悬浮窗设置模式
+  function exitFloatingSettingMode() {
+    if (!isFloatingSettingMode) return;
+    
+    isFloatingSettingMode = false;
+    floatingHotkeyInput.classList.remove('setting-mode');
+    
+    document.removeEventListener('keydown', captureFloatingKeyDown, true);
+    document.removeEventListener('click', handleFloatingOutsideClick, true);
+    
+    clickCount = 0;
+    lastClickTime = 0;
+    
+    updateFloatingHotkeyDisplay();
+    console.log('退出悬浮窗快捷键设置模式');
+  }
+
+  // 确保悬浮窗状态完全重置
+  function ensureFloatingStateReset() {
+    isFloatingSettingMode = false;
+    
+    if (floatingHotkeyInput) {
+      floatingHotkeyInput.classList.remove('setting-mode');
+      floatingHotkeyInput.textContent = currentFloatingHotkey;
+    }
+    
+    document.removeEventListener('keydown', captureFloatingKeyDown, true);
+    document.removeEventListener('click', handleFloatingOutsideClick, true);
+    
+    clickCount = 0;
+    lastClickTime = 0;
+    
+    console.log('悬浮窗状态完全重置完成');
+  }
+
+  // 确保悬浮窗显示内容和样式都正确
+  function ensureFloatingDisplayCorrectness() {
+    if (floatingHotkeyInput) {
+      floatingHotkeyInput.classList.remove('setting-mode');
+      floatingHotkeyInput.textContent = currentFloatingHotkey;
+      floatingHotkeyInput.style.color = '';
+      floatingHotkeyInput.style.opacity = '';
+      
+      if (floatingHotkeySelectContainer) {
+        floatingHotkeySelectContainer.classList.remove('ds-select--open');
+      }
+      
+      console.log('悬浮窗显示内容和样式已确保正确');
+    }
+  }
+
+  // 更新悬浮窗快捷键显示
+  function updateFloatingHotkeyDisplay() {
+    if (floatingHotkeyInput) {
+      floatingHotkeyInput.textContent = currentFloatingHotkey;
+      
+      if (!isFloatingSettingMode) {
+        floatingHotkeyInput.classList.remove('setting-mode');
+        floatingHotkeyInput.style.color = '';
+        floatingHotkeyInput.style.opacity = '';
+      }
+    }
+  }
+
+  // 恢复默认悬浮窗快捷键
+  function restoreDefaultFloatingHotkey() {
+    console.log('恢复默认悬浮窗快捷键: Alt+Space');
+    
+    currentFloatingHotkey = 'Alt+Space';
+    updateFloatingHotkeyDisplay();
+    saveFloatingHotkeySetting('Alt+Space');
+  }
+
+  // 保存悬浮窗快捷键设置
+  async function saveFloatingHotkeySetting(hotkey) {
+    try {
+      if (window.electronAPI && window.electronAPI.setFloatingWindowHotkey) {
+        const result = await window.electronAPI.setFloatingWindowHotkey(hotkey);
+        if (result.success) {
+          console.log('悬浮窗快捷键设置保存成功:', hotkey);
+        } else {
+          console.error('悬浮窗快捷键设置失败:', result.error);
+          loadCurrentFloatingHotkey();
+        }
+      } else {
+        console.log('Electron API不可用，悬浮窗快捷键设置:', hotkey);
+      }
+    } catch (error) {
+      console.error('保存悬浮窗快捷键设置时出错:', error);
+      loadCurrentFloatingHotkey();
+    }
+  }
+
+  // 加载当前悬浮窗快捷键设置
+  async function loadCurrentFloatingHotkey() {
+    try {
+      if (window.electronAPI && window.electronAPI.getFloatingWindowHotkey) {
+        currentFloatingHotkey = await window.electronAPI.getFloatingWindowHotkey();
+        updateFloatingHotkeyDisplay();
+        console.log('加载当前悬浮窗快捷键:', currentFloatingHotkey);
+      }
+    } catch (error) {
+      console.error('加载悬浮窗快捷键设置时出错:', error);
+    }
+  }
+
 
   // ponytail: 直接改 DOM 三要素强制应用主题（body class / data-ds-dark-theme / .ds-theme 内联样式），
   // 绕过 React 自身的 select 状态机。这是 OS 主题下行通道的唯一落点——React 在 select='system'
@@ -1450,6 +1707,9 @@
   function init() {
     // 加载当前快捷键设置
     loadCurrentHotkey();
+
+    // 加载当前悬浮窗快捷键设置
+    loadCurrentFloatingHotkey();
 
     // 加载当前关闭行为设置
     loadCurrentCloseBehavior();

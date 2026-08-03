@@ -8,6 +8,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 设置新快捷键
   setHotkey: (hotkey) => ipcRenderer.invoke('set-hotkey', hotkey),
 
+  // 获取悬浮窗快捷键
+  getFloatingWindowHotkey: () => ipcRenderer.invoke('get-floating-window-hotkey'),
+
+  // 设置悬浮窗快捷键
+  setFloatingWindowHotkey: (hotkey) => ipcRenderer.invoke('set-floating-window-hotkey', hotkey),
+
   // 设置应用主题：'light' | 'dark' | 'system'
   setThemeSource: (theme) => ipcRenderer.invoke('set-theme-source', theme),
 
