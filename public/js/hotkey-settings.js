@@ -1043,22 +1043,8 @@
   let lastSyncedTheme = null; // ponytail: 缓存上次同步的主题，避免重复写入
   let isCacheInitialized = false; // ponytail: 标记缓存是否已初始化
   
-  async function syncElectronTheme() {
+  function syncElectronTheme() {
     if (!window.electronAPI || !window.electronAPI.setThemeSource) return;
-    
-    // ponytail: 如果缓存未初始化，先从主进程获取真实值并初始化
-    if (!isCacheInitialized && window.electronAPI.getCurrentTheme) {
-      try {
-        const theme = await window.electronAPI.getCurrentTheme();
-        if (theme && theme.source) {
-          lastSyncedTheme = theme.source;
-          isCacheInitialized = true;
-          console.log('syncElectronTheme: 缓存已初始化为', theme.source);
-        }
-      } catch (e) {
-        console.log('syncElectronTheme: 初始化缓存失败', e);
-      }
-    }
     
     // 限制节流，避免频繁调用
     if (themeSyncTimer) {
@@ -1095,8 +1081,15 @@
         
         if (foundTheme) {
           console.log('从按钮检测到主题:', themeSource);
-          // ponytail: 只在主题真正变化时才调用 IPC，避免循环触发
-          if (themeSource !== lastSyncedTheme) {
+          
+          // ponytail: 如果缓存未初始化，先初始化再判断；如果已初始化，只在变化时写入
+          if (!isCacheInitialized) {
+            console.log('首次同步主题，初始化缓存并写入:', themeSource);
+            lastSyncedTheme = themeSource;
+            isCacheInitialized = true;
+            window.electronAPI.setThemeSource(themeSource);
+          } else if (themeSource !== lastSyncedTheme) {
+            console.log('主题变化，从', lastSyncedTheme, '到', themeSource);
             lastSyncedTheme = themeSource;
             window.electronAPI.setThemeSource(themeSource);
           }
@@ -1114,8 +1107,14 @@
         console.log('从选择器检测到主题:', themeSource);
       }
       
-      // ponytail: 只在主题真正变化时才调用 IPC，避免循环触发
-      if (themeSource !== lastSyncedTheme) {
+      // ponytail: 如果缓存未初始化，先初始化再判断；如果已初始化，只在变化时写入
+      if (!isCacheInitialized) {
+        console.log('首次同步主题，初始化缓存并写入:', themeSource);
+        lastSyncedTheme = themeSource;
+        isCacheInitialized = true;
+        window.electronAPI.setThemeSource(themeSource);
+      } else if (themeSource !== lastSyncedTheme) {
+        console.log('主题变化，从', lastSyncedTheme, '到', themeSource);
         lastSyncedTheme = themeSource;
         window.electronAPI.setThemeSource(themeSource);
       }
