@@ -242,7 +242,8 @@
           isCacheInitialized = true; // 标记缓存已初始化
         }
         
-        forceApplyTheme(payload.isDark);
+        // ponytail: 传递 source 参数，让 forceApplyTheme 知道是否应该点击"跟随系统"
+        forceApplyTheme(payload.isDark, payload.source);
       });
       console.log('已订阅主进程主题更新');
       
@@ -254,7 +255,7 @@
               lastSyncedTheme = theme.source;
               isCacheInitialized = true; // 标记缓存已初始化
             }
-            forceApplyTheme(theme.isDark);
+            forceApplyTheme(theme.isDark, theme.source);
             console.log('初始主题已应用:', theme);
           }
         }).catch((e) => {
@@ -771,10 +772,21 @@
   // 这样可以保证按钮选中状态和视觉效果一致
   let isApplyingThemeFromMain = false; // ponytail: 标志位，防止触发循环
   
-  function forceApplyTheme(isDark) {
+  function forceApplyTheme(isDark, source) {
     isApplyingThemeFromMain = true; // 设置标志，阻止 syncElectronTheme 响应
     
-    const targetTheme = isDark ? 'dark' : 'light';
+    // ponytail: 根据 source 决定点击哪个按钮
+    let targetButtonText;
+    if (source === 'system') {
+      targetButtonText = '跟随系统';
+    } else if (source === 'light') {
+      targetButtonText = '浅色';
+    } else if (source === 'dark') {
+      targetButtonText = '深色';
+    } else {
+      // 如果没有 source，回退到根据 isDark 判断（兼容旧调用）
+      targetButtonText = isDark ? '深色' : '浅色';
+    }
     
     // 查找主题按钮容器
     const themeContainer = findThemeContainer();
@@ -784,19 +796,18 @@
       // 找到目标主题的按钮并点击
       for (const button of buttons) {
         const text = button.textContent.trim();
-        const shouldClick = (isDark && text.includes('深色')) || (!isDark && text.includes('浅色'));
         
-        if (shouldClick) {
+        if (text.includes(targetButtonText)) {
           // 检查是否已经选中
           const isSelected = button.classList.contains('_16a7dbe') || 
                             button.classList.contains('_699d482') ||
                             button.getAttribute('aria-pressed') === 'true';
           
           if (!isSelected) {
-            console.log('触发主题按钮点击:', targetTheme);
+            console.log('触发主题按钮点击:', targetButtonText, '(source:', source, ')');
             button.click(); // 触发 React 的点击事件
           } else {
-            console.log('主题按钮已选中，跳过点击:', targetTheme);
+            console.log('主题按钮已选中，跳过点击:', targetButtonText);
           }
           
           setTimeout(() => {
@@ -808,7 +819,7 @@
     }
     
     // 如果找不到按钮，回退到强制修改 DOM（兼容旧版本）
-    console.log('未找到主题按钮，回退到强制修改 DOM:', targetTheme);
+    console.log('未找到主题按钮，回退到强制修改 DOM:', targetButtonText);
     forceApplyThemeDOM(isDark);
     
     setTimeout(() => {
