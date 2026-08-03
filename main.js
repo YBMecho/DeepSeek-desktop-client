@@ -30,6 +30,7 @@ let hotkeyRegistered = false;
 let floatingHotkeyRegistered = false;
 let closeBehavior = 'minimize'; // 当前关闭行为设置
 let replyNotifyEnabled = true; // 回复完成后系统通知开关（默认开启）
+let autoLaunch = true; // 开机自启动（默认开启）
 let isQuitting = false; // 标记是否正在退出应用
 let areAllWindowsHidden = false; // 是否通过快捷键隐藏了所有主窗口（不包括悬浮窗）
 let previouslyVisibleWindowIds = new Set(); // 记录上次被隐藏的可见主窗口ID（不包括悬浮窗）
@@ -45,7 +46,8 @@ const defaultConfig = {
   theme: 'system',
   closeBehavior: 'minimize', // 'close' | 'minimize'
   replyNotifyEnabled: true, // 回复完成后系统通知开关，默认开启
-  isFloatingWindowPinned: false // 悬浮窗置顶状态，默认关闭
+  isFloatingWindowPinned: false, // 悬浮窗置顶状态，默认关闭
+  autoLaunch: true // 开机自启动，默认开启
 };
 
 // 读取配置文件
@@ -92,6 +94,11 @@ function loadConfig() {
       // 验证悬浮窗置顶状态
       if (typeof config.isFloatingWindowPinned === 'boolean') {
         validatedConfig.isFloatingWindowPinned = config.isFloatingWindowPinned;
+      }
+
+      // 验证开机自启动
+      if (typeof config.autoLaunch === 'boolean') {
+        validatedConfig.autoLaunch = config.autoLaunch;
       }
       return validatedConfig;
     }
@@ -162,7 +169,8 @@ function updateConfigNoRead(key, value) {
       theme: nativeTheme ? nativeTheme.themeSource : 'system',
       closeBehavior: closeBehavior,
       replyNotifyEnabled: replyNotifyEnabled,
-      isFloatingWindowPinned: isFloatingWindowPinned
+      isFloatingWindowPinned: isFloatingWindowPinned,
+      autoLaunch: autoLaunch
     };
     
     config[key] = value;
@@ -1008,6 +1016,7 @@ function createWindow() {
   closeBehavior = config.closeBehavior;
   replyNotifyEnabled = config.replyNotifyEnabled;
   isFloatingWindowPinned = config.isFloatingWindowPinned;
+  autoLaunch = config.autoLaunch;
   
   // 设置主题
   if (nativeTheme && config.theme) {
@@ -1183,6 +1192,36 @@ ipcMain.handle('set-floating-window-pin-state', (event, pinned) => {
     return { success: false, error: error.message };
   }
 });
+
+// 获取开机自启动状态
+ipcMain.handle('get-auto-launch', () => {
+  return autoLaunch;
+});
+
+// 设置开机自启动
+ipcMain.handle('set-auto-launch', (event, enabled) => {
+  try {
+    if (typeof enabled !== 'boolean') {
+      return { success: false, error: '参数必须是布尔值' };
+    }
+    autoLaunch = enabled;
+    applyAutoLaunchSetting();
+    const saveResult = updateConfig('autoLaunch', enabled);
+    if (!saveResult) {}
+    return { success: true, autoLaunch: enabled };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 应用开机自启动设置
+function applyAutoLaunchSetting() {
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: autoLaunch
+    });
+  } catch (error) {}
+}
 
 // 设置关闭行为：'close' | 'minimize'
 ipcMain.handle('set-close-behavior', (event, behavior) => {
@@ -1365,6 +1404,9 @@ app.whenReady().then(() => {
   } catch (error) {}
 
   createWindow();
+
+  // 应用开机自启动设置
+  applyAutoLaunchSetting();
 
   // 启动配置文件监听
   watchConfigFile();

@@ -54,5 +54,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     };
     ipcRenderer.on('floating-window-pin-state-changed', listener);
     return () => ipcRenderer.removeListener('floating-window-pin-state-changed', listener);
-  }
+  },
+
+  // 获取开机自启动状态
+  getAutoLaunch: () => ipcRenderer.invoke('get-auto-launch'),
+
+  // 设置开机自启动
+  setAutoLaunch: (enabled) => ipcRenderer.invoke('set-auto-launch', enabled)
 });

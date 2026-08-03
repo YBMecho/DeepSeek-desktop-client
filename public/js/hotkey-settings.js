@@ -33,6 +33,11 @@
   let replyNotifyToggleContainer = null;
   let replyNotifyToggleInput = null;
 
+  // 开机自启动开关设置相关变量
+  let currentAutoLaunch = true;
+  let autoLaunchToggleContainer = null;
+  let autoLaunchToggleInput = null;
+
   // ponytail: 包裹"快捷键 + 关闭行为"两行的容器节点，用于跟随 tab 显隐。
   // 原网页切 tab 时整体面板不会被销毁，只会切 hidden/visible，所以我们注入
   // 的两行如果不显隐控制，就会跟着别的 tab 一起显示。
@@ -200,6 +205,12 @@
       existingReplyNotify.remove();
     }
 
+    // 移除开机自启动开关设置
+    const existingAutoLaunch = document.querySelector('.auto-launch-setting-flex');
+    if (existingAutoLaunch) {
+      existingAutoLaunch.remove();
+    }
+
     // 解绑主题选择器与系统主题监听
     if (boundThemeSelectEl && themeChangeHandler) {
       boundThemeSelectEl.removeEventListener('change', themeChangeHandler);
@@ -220,6 +231,8 @@
     closeBehaviorSelect = null;
     replyNotifyToggleContainer = null;
     replyNotifyToggleInput = null;
+    autoLaunchToggleContainer = null;
+    autoLaunchToggleInput = null;
     // ponytail: 解绑主进程推送的事件订阅，避免设置面板反复打开/销毁/重建时累积监听器。
     if (unsubscribeNativeTheme) {
       try { unsubscribeNativeTheme(); } catch (e) {}
@@ -369,6 +382,10 @@
     // 直接以它为参考节点，避免再次以 hotkeyContainer 为锚导致位置错乱。
     const closeBehaviorContainer = hotkeyContainer.parentNode.querySelector('.close-behavior-setting-flex');
     createReplyNotifyToggle(closeBehaviorContainer || hotkeyContainer);
+    
+    // 创建开机自启动开关（紧跟回复通知开关那一行）
+    const replyNotifyContainer = hotkeyContainer.parentNode.querySelector('.reply-notify-setting-flex');
+    createAutoLaunchToggle(replyNotifyContainer || closeBehaviorContainer || hotkeyContainer);
   }
 
   // 判断元素是否真的可见（不被祖先隐藏 / display:none）
@@ -1345,6 +1362,93 @@
 
   }
 
+  // 创建开机自启动开关区域
+  function createAutoLaunchToggle(referenceContainer) {
+    const container = document.createElement('div');
+    container.className = 'ds-flex _50b3d9e auto-launch-setting-flex';
+    container.style.cssText = `
+      padding: 12px 0px;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      display: flex;
+    `;
+
+    const label = document.createElement('span');
+    label.textContent = '开机自启动';
+
+    const wrapper = document.createElement('label');
+    wrapper.className = 'reply-notify-toggle';
+    wrapper.setAttribute('role', 'switch');
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = !!currentAutoLaunch;
+    input.addEventListener('change', handleAutoLaunchToggleChange);
+
+    const slider = document.createElement('span');
+    slider.className = 'reply-notify-toggle__slider';
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(slider);
+
+    autoLaunchToggleContainer = wrapper;
+    autoLaunchToggleInput = input;
+    wrapper.setAttribute('aria-checked', String(input.checked));
+
+    container.appendChild(label);
+    container.appendChild(wrapper);
+
+    const parent = referenceContainer.parentNode;
+    const ref = referenceContainer.nextSibling;
+    if (ref) {
+      parent.insertBefore(container, ref);
+    } else {
+      parent.appendChild(container);
+    }
+  }
+
+  // 处理开机自启动开关切换
+  async function handleAutoLaunchToggleChange(event) {
+    const enabled = !!event.target.checked;
+    try {
+      if (window.electronAPI && window.electronAPI.setAutoLaunch) {
+        const result = await window.electronAPI.setAutoLaunch(enabled);
+        if (result && result.success) {
+          currentAutoLaunch = !!result.autoLaunch;
+          if (autoLaunchToggleContainer) {
+            autoLaunchToggleContainer.setAttribute('aria-checked', String(currentAutoLaunch));
+          }
+        } else {
+          console.error('开机自启动开关更新失败:', result && result.error);
+          event.target.checked = currentAutoLaunch;
+        }
+      } else {
+        event.target.checked = currentAutoLaunch;
+      }
+    } catch (error) {
+      console.error('保存开机自启动开关时出错:', error);
+      event.target.checked = currentAutoLaunch;
+    }
+  }
+
+  // 加载当前开机自启动开关
+  async function loadCurrentAutoLaunch() {
+    try {
+      if (window.electronAPI && window.electronAPI.getAutoLaunch) {
+        currentAutoLaunch = !!(await window.electronAPI.getAutoLaunch());
+        if (autoLaunchToggleInput) {
+          autoLaunchToggleInput.checked = currentAutoLaunch;
+        }
+        if (autoLaunchToggleContainer) {
+          autoLaunchToggleContainer.setAttribute('aria-checked', String(currentAutoLaunch));
+        }
+      }
+    } catch (error) {
+      console.error('加载开机自启动开关时出错:', error);
+    }
+  }
+
   // 处理回复通知开关切换
   async function handleReplyNotifyToggleChange(event) {
     const enabled = !!event.target.checked;
@@ -1792,6 +1896,9 @@
 
     // 加载当前回复通知开关
     loadCurrentReplyNotifyEnabled();
+
+    // 加载当前开机自启动开关
+    loadCurrentAutoLaunch();
 
     // 如果初始化时设置弹窗已经存在（比如从登录跳回主页的瞬态），立即插入。
     // createHotkeySettings 内部会在找不到语言容器时自动用 MutationObserver 等待。
