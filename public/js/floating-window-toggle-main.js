@@ -99,40 +99,61 @@
 
   // 在工具栏注入按钮（分享按钮左侧）
   function injectInToolbar() {
-    let toolbar = document.querySelector('.e5bf614e') || 
-                  document.querySelector('[class*="e5bf614"]') ||
-                  document.querySelector('div[class*="toolbar"]');
+    // 快速检查：如果已存在就直接返回
+    if (document.querySelector('.ds-floating-toggle-button-main')) {
+      return true;
+    }
     
-    if (!toolbar) {
-      const allButtons = document.querySelectorAll('div[role="button"]');
+    console.log('[主程序-悬浮窗按钮] 开始查找分享按钮');
+    
+    // 查找所有按钮
+    const allButtons = document.querySelectorAll('div[role="button"]');
+    console.log('[主程序-悬浮窗按钮] 找到按钮总数:', allButtons.length);
+    
+    // 如果按钮太少，说明页面还没加载完
+    if (allButtons.length < 3) {
+      console.log('[主程序-悬浮窗按钮] 按钮数量太少，等待页面加载');
+      return false;
+    }
+    
+    // 查找分享按钮（通过特定的类名组合）
+    let shareButton = null;
+    for (const btn of allButtons) {
+      const classList = btn.className || '';
+      // 分享按钮的特征：同时包含 _57370c5 和 _5dedc1e 类
+      if (classList.includes('_57370c5') && classList.includes('_5dedc1e')) {
+        shareButton = btn;
+        console.log('[主程序-悬浮窗按钮] 通过类名找到分享按钮');
+        break;
+      }
+    }
+    
+    // 备选：通过 SVG 路径查找
+    if (!shareButton) {
       for (const btn of allButtons) {
-        const svg = btn.querySelector('svg path[d*="M7.95889"]');
-        if (svg) {
-          toolbar = btn.parentNode;
+        const svgPath = btn.querySelector('svg path[d*="M7.95889"]');
+        if (svgPath) {
+          shareButton = btn;
+          console.log('[主程序-悬浮窗按钮] 通过SVG找到分享按钮');
           break;
         }
       }
     }
     
-    if (!toolbar) {
-      return false;
-    }
-
-    if (toolbar.querySelector('.ds-floating-toggle-button-main')) {
-      return true;
-    }
-
-    const buttons = toolbar.querySelectorAll('div[role="button"]');
-    for (const btn of buttons) {
-      const svg = btn.querySelector('svg path[d*="M7.95889"]');
-      if (svg) {
+    // 如果找到分享按钮，在其左侧插入
+    if (shareButton) {
+      const parent = shareButton.parentNode;
+      if (!parent.querySelector('.ds-floating-toggle-button-main')) {
         const toggleButton = createToggleButton();
-        btn.parentNode.insertBefore(toggleButton, btn);
-        console.log('[主程序-悬浮窗按钮] 工具栏注入成功');
+        parent.insertBefore(toggleButton, shareButton);
+        console.log('[主程序-悬浮窗按钮] 分享按钮左侧注入成功');
         return true;
       }
+      console.log('[主程序-悬浮窗按钮] 按钮已存在');
+      return true;
     }
     
+    console.log('[主程序-悬浮窗按钮] 未找到分享按钮');
     return false;
   }
 
@@ -142,8 +163,11 @@
 
   function startButtonInjection() {
     console.log('[主程序-悬浮窗按钮] 启动注入服务');
+    
+    // 立即尝试注入
     injectToggleButtons();
 
+    // 使用 MutationObserver 实时监听
     let injectionTimer = null;
     const observer = new MutationObserver(() => {
       if (injectionTimer) return;
@@ -158,6 +182,18 @@
       subtree: true
     });
 
+    // 前10秒使用更频繁的轮询（每500ms），因为主程序工具栏可能加载较慢
+    let quickCheckCount = 0;
+    const quickCheckInterval = setInterval(() => {
+      injectToggleButtons();
+      quickCheckCount++;
+      if (quickCheckCount >= 20) { // 10秒后停止快速检查
+        clearInterval(quickCheckInterval);
+        console.log('[主程序-悬浮窗按钮] 快速检查阶段结束');
+      }
+    }, 500);
+
+    // 保留低频轮询作为兜底（每5秒）
     if (!checkInterval) {
       checkInterval = setInterval(() => {
         injectToggleButtons();
