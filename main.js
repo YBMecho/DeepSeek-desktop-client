@@ -1088,8 +1088,10 @@ ipcMain.handle('set-floating-window-pin-state', (event, pinned) => {
     isFloatingWindowPinned = pinned;
     console.log('悬浮窗置顶状态设置为:', pinned);
     
-    // 广播置顶状态变化给所有渲染进程
+    // 实际设置窗口置顶
     if (floatingWindow && !floatingWindow.isDestroyed()) {
+      floatingWindow.setAlwaysOnTop(pinned);
+      // 广播置顶状态变化给所有渲染进程
       floatingWindow.webContents.send('floating-window-pin-state-changed', pinned);
     }
     
