@@ -239,6 +239,7 @@
         // ponytail: 更新缓存，避免 forceApplyTheme 触发的 DOM 变化再次调用 setThemeSource
         if (payload.source) {
           lastSyncedTheme = payload.source;
+          isCacheInitialized = true; // 标记缓存已初始化
         }
         
         forceApplyTheme(payload.isDark);
@@ -251,6 +252,7 @@
           if (theme && typeof theme.isDark === 'boolean') {
             if (theme.source) {
               lastSyncedTheme = theme.source;
+              isCacheInitialized = true; // 标记缓存已初始化
             }
             forceApplyTheme(theme.isDark);
             console.log('初始主题已应用:', theme);
@@ -907,19 +909,6 @@
     
     ensureSystemThemeWatcher();
     applyHotkeyTheme();
-    
-    // ponytail: 打开设置界面时，从主进程同步当前主题到缓存
-    // 不调用 syncElectronTheme，避免把 DOM 的不准确状态写回主进程
-    if (window.electronAPI && window.electronAPI.getCurrentTheme) {
-      window.electronAPI.getCurrentTheme().then((theme) => {
-        if (theme && theme.source) {
-          lastSyncedTheme = theme.source;
-          console.log('设置界面已同步主题缓存:', theme.source);
-        }
-      }).catch((e) => {
-        console.log('同步主题缓存失败:', e);
-      });
-    }
 
     // ponytail: 首次进入设置界面时，按当前 OS 强制对齐一次 DOM。
     // 否则 OS 是深色但用户之前手动选了浅色的话，"跟随系统"状态已经对了但视觉还停在浅色。
@@ -977,9 +966,24 @@
 
   // 将网页主题同步到 Electron 主进程窗口
   let lastSyncedTheme = null; // ponytail: 缓存上次同步的主题，避免重复写入
+  let isCacheInitialized = false; // ponytail: 标记缓存是否已初始化
   
-  function syncElectronTheme() {
+  async function syncElectronTheme() {
     if (!window.electronAPI || !window.electronAPI.setThemeSource) return;
+    
+    // ponytail: 如果缓存未初始化，先从主进程获取真实值并初始化
+    if (!isCacheInitialized && window.electronAPI.getCurrentTheme) {
+      try {
+        const theme = await window.electronAPI.getCurrentTheme();
+        if (theme && theme.source) {
+          lastSyncedTheme = theme.source;
+          isCacheInitialized = true;
+          console.log('syncElectronTheme: 缓存已初始化为', theme.source);
+        }
+      } catch (e) {
+        console.log('syncElectronTheme: 初始化缓存失败', e);
+      }
+    }
     
     // 限制节流，避免频繁调用
     if (themeSyncTimer) {
@@ -1015,6 +1019,7 @@
         });
         
         if (foundTheme) {
+          console.log('从按钮检测到主题:', themeSource);
           // ponytail: 只在主题真正变化时才调用 IPC，避免循环触发
           if (themeSource !== lastSyncedTheme) {
             lastSyncedTheme = themeSource;
@@ -1031,6 +1036,7 @@
         if (value === 'light') themeSource = 'light';
         else if (value === 'dark') themeSource = 'dark';
         else themeSource = 'system';
+        console.log('从选择器检测到主题:', themeSource);
       }
       
       // ponytail: 只在主题真正变化时才调用 IPC，避免循环触发
