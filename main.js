@@ -683,10 +683,32 @@ function toggleFloatingWindow() {
 // 注册悬浮窗快捷键（独立于主窗口快捷键）
 function registerFloatingWindowHotkey(hotkey) {
   try {
-    // 先注销旧的快捷键
+    // 先注销所有悬浮窗相关的快捷键（使用 unregisterAll 确保清理干净）
     if (floatingHotkeyRegistered && floatingWindowHotkey) {
       const unregistered = globalShortcut.unregister(floatingWindowHotkey);
       console.log(`尝试注销旧悬浮窗快捷键 ${floatingWindowHotkey}: ${unregistered ? '成功' : '失败'}`);
+      
+      // 如果单个注销失败，尝试检查是否真的注册了
+      if (!unregistered) {
+        const isRegistered = globalShortcut.isRegistered(floatingWindowHotkey);
+        console.log(`检查旧快捷键 ${floatingWindowHotkey} 是否已注册: ${isRegistered}`);
+        
+        // 如果确实注册了但注销失败，使用 unregisterAll 强制清理
+        if (isRegistered) {
+          console.log('单个注销失败，尝试清理所有快捷键后重新注册');
+          const oldMainHotkey = currentHotkey;
+          globalShortcut.unregisterAll();
+          
+          // 重新注册主窗口快捷键
+          if (oldMainHotkey) {
+            globalShortcut.register(oldMainHotkey, () => {
+              toggleWindow();
+            });
+            console.log(`重新注册主窗口快捷键: ${oldMainHotkey}`);
+          }
+        }
+      }
+      
       floatingHotkeyRegistered = false;
     }
     
