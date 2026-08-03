@@ -802,6 +802,12 @@ function createTray() {
       }
     },
     {
+      label: '打开对话悬浮窗',
+      click: () => {
+        toggleFloatingWindow();
+      }
+    },
+    {
       type: 'separator'
     },
     {
