@@ -35,8 +35,6 @@ let isQuitting = false; // 标记是否正在退出应用
 let areAllWindowsHidden = false; // 是否通过快捷键隐藏了所有主窗口（不包括悬浮窗）
 let previouslyVisibleWindowIds = new Set(); // 记录上次被隐藏的可见主窗口ID（不包括悬浮窗）
 let isFloatingWindowPinned = false; // 悬浮窗置顶状态
-let configWatcher = null; // 配置文件监听器
-let isUpdatingConfigFromCode = false; // 标记是否正在通过代码更新配置（避免循环触发）
 
 // 配置文件路径
 const configPath = path.join(app.getPath('userData'), 'config.json');
@@ -130,9 +128,6 @@ function saveConfig(config) {
       fs.mkdirSync(userDataPath, { recursive: true });
     }
     
-    // 标记正在通过代码更新配置
-    isUpdatingConfigFromCode = true;
-    
     // 创建临时文件路径，先写入临时文件以保证原子性操作
     const tempPath = configPath + '.tmp';
     
@@ -143,16 +138,9 @@ function saveConfig(config) {
     fs.renameSync(tempPath, configPath);
     
     logDebug('配置文件保存成功:', config);
-    
-    // 延迟重置标记，避免文件监听器立即触发
-    setTimeout(() => {
-      isUpdatingConfigFromCode = false;
-    }, 200);
-    
     return true;
   } catch (error) {
     console.log('保存配置文件失败:', error.message);
-    isUpdatingConfigFromCode = false;
     
     // 清理可能创建的临时文件
     try {
@@ -182,73 +170,6 @@ function updateConfig(key, value) {
   } catch (error) {
     console.log('更新配置失败:', error);
     return false;
-  }
-}
-
-// 配置文件监听器
-function startConfigWatcher() {
-  // 确保配置文件存在
-  if (!fs.existsSync(configPath)) {
-    saveConfig(defaultConfig);
-  }
-
-  try {
-    // 使用 fs.watch 监听配置文件变化
-    configWatcher = fs.watch(configPath, (eventType, filename) => {
-      // 只处理文件内容变化，忽略代码触发的更新
-      if (eventType === 'change' && !isUpdatingConfigFromCode) {
-        console.log('检测到配置文件外部变化，重新加载...');
-        
-        // 延迟读取，避免文件正在写入
-        setTimeout(() => {
-          try {
-            const newConfig = loadConfig();
-            
-            // 同步主题到悬浮窗
-            if (newConfig.theme && nativeTheme) {
-              const oldTheme = nativeTheme.themeSource;
-              if (oldTheme !== newConfig.theme) {
-                nativeTheme.themeSource = newConfig.theme;
-                console.log('主题已从配置文件同步:', newConfig.theme);
-                
-                // 通知悬浮窗主题已变化
-                if (floatingWindow && !floatingWindow.isDestroyed()) {
-                  const isDark = nativeTheme.shouldUseDarkColors;
-                  applyWindowTheme(floatingWindow, isDark);
-                  floatingWindow.webContents.send('native-theme-updated', { shouldUseDarkColors: isDark });
-                }
-                
-                // 通知主窗口主题已变化
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  const isDark = nativeTheme.shouldUseDarkColors;
-                  applyWindowTheme(mainWindow, isDark);
-                  mainWindow.webContents.send('native-theme-updated', { shouldUseDarkColors: isDark });
-                }
-              }
-            }
-          } catch (error) {
-            console.error('重新加载配置文件失败:', error);
-          }
-        }, 100);
-      }
-    });
-    
-    console.log('配置文件监听器已启动');
-  } catch (error) {
-    console.error('启动配置文件监听器失败:', error);
-  }
-}
-
-// 停止配置文件监听器
-function stopConfigWatcher() {
-  if (configWatcher) {
-    try {
-      configWatcher.close();
-      configWatcher = null;
-      console.log('配置文件监听器已停止');
-    } catch (error) {
-      console.error('停止配置文件监听器失败:', error);
-    }
   }
 }
 
@@ -1099,32 +1020,27 @@ ipcMain.handle('set-theme-source', (event, theme) => {
   try {
     if (nativeTheme && ['light', 'dark', 'system'].includes(String(theme))) {
       nativeTheme.themeSource = theme;
-      
-      // 直接更新配置文件（不读取，避免冲突）
+      if (mainWindow) {
+        applyWindowTheme(mainWindow, nativeTheme.shouldUseDarkColors);
+        // ponytail: themeSource 重新写入不会触发 'updated' 事件（特别是从 system→system），
+        // 这里主动推一次，渲染进程拿到 isDark 后直接改 DOM，避免"跟随系统"卡在前一次手动选择。
+        try {
+          if (!mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('native-theme-updated', {
+              isDark: nativeTheme.shouldUseDarkColors,
+              source: nativeTheme.themeSource
+            });
+          }
+        } catch (e) {}
+      }
+
+      // 保存主题设置到配置文件
       const saveResult = updateConfig('theme', theme);
       if (!saveResult) {
         console.log('主题设置保存到配置文件失败，但主题仍然生效');
       }
-      
-      console.log('应用主题设置为:', theme);
-      
-      // 通知主窗口和悬浮窗
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        const isDark = nativeTheme.shouldUseDarkColors;
-        applyWindowTheme(mainWindow, isDark);
-        mainWindow.webContents.send('native-theme-updated', { shouldUseDarkColors: isDark });
-      }
-      
-      if (floatingWindow && !floatingWindow.isDestroyed()) {
-        const isDark = nativeTheme.shouldUseDarkColors;
-        applyWindowTheme(floatingWindow, isDark);
-        floatingWindow.webContents.send('native-theme-updated', { shouldUseDarkColors: isDark });
-      }
-      
-      return { success: true };
-    } else {
-      return { success: false, error: '无效的主题值' };
     }
+    return { success: true, theme: nativeTheme ? nativeTheme.themeSource : theme };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -1274,9 +1190,6 @@ app.whenReady().then(() => {
   // 注册 SSE 回复完成监听（网络层拦截，时机可靠）
   registerReplyFinishedListener();
 
-  // 启动配置文件监听器
-  startConfigWatcher();
-
   // 配置右键上下文菜单
   try {
     if (contextMenu && typeof contextMenu === 'function') {
@@ -1417,9 +1330,6 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   console.log('应用准备退出，清理资源');
   isQuitting = true;
-  
-  // 停止配置文件监听器
-  stopConfigWatcher();
   
   // 如果主窗口存在且隐藏，直接关闭而不显示
   if (mainWindow && isWindowHidden) {
