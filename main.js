@@ -311,6 +311,14 @@ function injectCustomAssets(targetWindow) {
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
     } catch (e) {}
   }
+
+  // 注入悬浮窗切换按钮JavaScript
+  const floatingToggleJsPath = path.join(__dirname, 'public/js/floating-window-toggle.js');
+  try {
+    const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
+    const wrapped = `(() => {\n  try {\n    if (window.__DS_FLOATING_TOGGLE_LOADED__) {\n      return;\n    }\n    window.__DS_FLOATING_TOGGLE_LOADED__ = true;\n  } catch (e) {}\n})();\n` + floatingToggleJs;
+    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+  } catch (e) {}
 }
 
 // 监听从登录/注册页跳转到主页时，重新注入资源
@@ -1321,6 +1329,53 @@ ipcMain.handle('set-floating-reset-option', (event, option) => {
     const saveResult = updateConfig('floatingResetOption', option);
     if (!saveResult) {}
     return { success: true, floatingResetOption: option };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 切换悬浮窗
+ipcMain.handle('toggle-floating-window', (event, currentUrl) => {
+  try {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!senderWindow) return { success: false, error: '无法获取发送窗口' };
+
+    // 判断发送者是主窗口还是悬浮窗
+    const isFloating = senderWindow === floatingWindow;
+
+    if (isFloating) {
+      // 悬浮窗 -> 主窗口：在主窗口打开当前URL并隐藏悬浮窗
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL(currentUrl);
+        mainWindow.show();
+        mainWindow.focus();
+      }
+      if (floatingWindow && !floatingWindow.isDestroyed()) {
+        floatingWindow.hide();
+        floatingWindowCloseTime = Date.now();
+      }
+    } else {
+      // 主窗口 -> 悬浮窗：在悬浮窗打开当前URL并关闭主窗口
+      if (!floatingWindow || floatingWindow.isDestroyed()) {
+        createFloatingWindow();
+      }
+      if (floatingWindow && !floatingWindow.isDestroyed()) {
+        floatingWindow.webContents.once('did-finish-load', () => {
+          floatingWindow.loadURL(currentUrl);
+        });
+        if (floatingWindow.webContents.getURL() === 'about:blank' || !floatingWindow.isVisible()) {
+          floatingWindow.show();
+          floatingWindow.focus();
+        } else {
+          floatingWindow.loadURL(currentUrl);
+          floatingWindow.show();
+          floatingWindow.focus();
+        }
+      }
+      senderWindow.close();
+    }
+
+    return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }

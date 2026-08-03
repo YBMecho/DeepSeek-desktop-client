@@ -66,5 +66,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getFloatingResetOption: () => ipcRenderer.invoke('get-floating-reset-option'),
 
   // 设置悬浮窗重置选项
-  setFloatingResetOption: (option) => ipcRenderer.invoke('set-floating-reset-option', option)
+  setFloatingResetOption: (option) => ipcRenderer.invoke('set-floating-reset-option', option),
+
+  // 切换悬浮窗
+  toggleFloatingWindow: (currentUrl) => ipcRenderer.invoke('toggle-floating-window', currentUrl)
 });
