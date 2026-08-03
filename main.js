@@ -272,8 +272,8 @@ function injectCustomAssets(targetWindow) {
   const jsPath = path.join(__dirname, 'public/js/hotkey-settings.js');
   try {
     const js = fs.readFileSync(jsPath, 'utf8');
-    const wrapped = `(() => {\n  try {\n    if (window.__DS_HOTKEY_SCRIPT_LOADED__) {;\n      return;\n    }\n    window.__DS_HOTKEY_SCRIPT_LOADED__ = true;\n  } catch (e) {}\n})();\n` + js;
-    targetWindow.webContents.executeJavaScript(wrapped);
+    const wrapped = `(() => {\n  try {\n    if (window.__DS_HOTKEY_SCRIPT_LOADED__) {\n      return;\n    }\n    window.__DS_HOTKEY_SCRIPT_LOADED__ = true;\n  } catch (e) {}\n})();\n` + js;
+    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
   } catch (e) {}
 
   // 注入置顶按钮JavaScript（仅悬浮窗）
@@ -281,8 +281,8 @@ function injectCustomAssets(targetWindow) {
     const pinButtonJsPath = path.join(__dirname, 'public/js/pin-button.js');
     try {
       const pinButtonJs = fs.readFileSync(pinButtonJsPath, 'utf8');
-      const wrapped = `(() => {\n  try {\n    if (window.__DS_PIN_BUTTON_LOADED__) {);\n      return;\n    }\n    window.__DS_PIN_BUTTON_LOADED__ = true;\n  } catch (e) {}\n})();\n` + pinButtonJs;
-      targetWindow.webContents.executeJavaScript(wrapped);
+      const wrapped = `(() => {\n  try {\n    if (window.__DS_PIN_BUTTON_LOADED__) {\n      return;\n    }\n    window.__DS_PIN_BUTTON_LOADED__ = true;\n  } catch (e) {}\n})();\n` + pinButtonJs;
+      targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
     } catch (e) {}
   }
 }
