@@ -173,6 +173,83 @@ function updateConfig(key, value) {
   }
 }
 
+// ponytail: 禁止读取配置，直接根据内存状态写入（避免与文件监听器冲突）
+function updateConfigNoRead(key, value) {
+  try {
+    // 从内存中的当前状态构造配置对象，不从文件读
+    const config = {
+      hotkey: currentHotkey,
+      floatingWindowHotkey: floatingWindowHotkey,
+      theme: nativeTheme ? nativeTheme.themeSource : 'system',
+      closeBehavior: closeBehavior,
+      replyNotifyEnabled: replyNotifyEnabled
+    };
+    
+    config[key] = value;
+    return saveConfig(config);
+  } catch (error) {
+    console.log('无读取更新配置失败:', error);
+    return false;
+  }
+}
+
+// ponytail: 监听配置文件变更，同步主题到所有窗口
+let configWatcher = null;
+let lastConfigMtime = null;
+
+function watchConfigFile() {
+  if (configWatcher) return;
+  
+  try {
+    configWatcher = fs.watch(configPath, (eventType) => {
+      if (eventType !== 'change') return;
+      
+      // 防抖：检查文件修改时间，避免重复触发
+      try {
+        const stats = fs.statSync(configPath);
+        if (lastConfigMtime && stats.mtimeMs === lastConfigMtime) return;
+        lastConfigMtime = stats.mtimeMs;
+      } catch (e) {
+        return;
+      }
+      
+      // 读取配置，仅处理 theme 变更
+      const config = loadConfig();
+      if (!config || !config.theme) return;
+      
+      // 同步到 nativeTheme
+      if (nativeTheme && nativeTheme.themeSource !== config.theme) {
+        nativeTheme.themeSource = config.theme;
+        console.log('配置文件变更，同步主题:', config.theme);
+        
+        const isDark = nativeTheme.shouldUseDarkColors;
+        
+        // 同步到主窗口
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          applyWindowTheme(mainWindow, isDark);
+          mainWindow.webContents.send('native-theme-updated', {
+            isDark,
+            source: config.theme
+          });
+        }
+        
+        // 同步到悬浮窗
+        if (floatingWindow && !floatingWindow.isDestroyed()) {
+          applyWindowTheme(floatingWindow, isDark);
+          floatingWindow.webContents.send('native-theme-updated', {
+            isDark,
+            source: config.theme
+          });
+        }
+      }
+    });
+    
+    console.log('已启动配置文件监听');
+  } catch (error) {
+    console.log('启动配置文件监听失败:', error);
+  }
+}
+
 // 根据是否为深色主题，刷新窗口的标题栏覆盖色与背景色
 function applyWindowTheme(win, isDark) {
   if (!win) return;
@@ -1020,22 +1097,34 @@ ipcMain.handle('set-theme-source', (event, theme) => {
   try {
     if (nativeTheme && ['light', 'dark', 'system'].includes(String(theme))) {
       nativeTheme.themeSource = theme;
-      if (mainWindow) {
-        applyWindowTheme(mainWindow, nativeTheme.shouldUseDarkColors);
+      const isDark = nativeTheme.shouldUseDarkColors;
+      
+      // 同步到主窗口
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        applyWindowTheme(mainWindow, isDark);
         // ponytail: themeSource 重新写入不会触发 'updated' 事件（特别是从 system→system），
         // 这里主动推一次，渲染进程拿到 isDark 后直接改 DOM，避免"跟随系统"卡在前一次手动选择。
         try {
-          if (!mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('native-theme-updated', {
-              isDark: nativeTheme.shouldUseDarkColors,
-              source: nativeTheme.themeSource
-            });
-          }
+          mainWindow.webContents.send('native-theme-updated', {
+            isDark,
+            source: nativeTheme.themeSource
+          });
+        } catch (e) {}
+      }
+      
+      // 同步到悬浮窗
+      if (floatingWindow && !floatingWindow.isDestroyed()) {
+        applyWindowTheme(floatingWindow, isDark);
+        try {
+          floatingWindow.webContents.send('native-theme-updated', {
+            isDark,
+            source: nativeTheme.themeSource
+          });
         } catch (e) {}
       }
 
-      // 保存主题设置到配置文件
-      const saveResult = updateConfig('theme', theme);
+      // ponytail: 禁止读取配置文件，直接根据内存写入以防冲突
+      const saveResult = updateConfigNoRead('theme', theme);
       if (!saveResult) {
         console.log('主题设置保存到配置文件失败，但主题仍然生效');
       }
@@ -1292,6 +1381,9 @@ app.whenReady().then(() => {
 
   createWindow();
 
+  // 启动配置文件监听
+  watchConfigFile();
+
   // 跟随系统主题变化自动更新窗口外观
   try {
     if (nativeTheme && typeof nativeTheme.on === 'function') {
@@ -1330,6 +1422,17 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   console.log('应用准备退出，清理资源');
   isQuitting = true;
+  
+  // 关闭配置文件监听
+  if (configWatcher) {
+    try {
+      configWatcher.close();
+      configWatcher = null;
+      console.log('已关闭配置文件监听');
+    } catch (e) {
+      console.log('关闭配置文件监听失败:', e);
+    }
+  }
   
   // 如果主窗口存在且隐藏，直接关闭而不显示
   if (mainWindow && isWindowHidden) {
