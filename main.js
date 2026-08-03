@@ -22,6 +22,7 @@ try {
 let mainWindow;
 let floatingWindow = null; // 悬浮窗
 let floatingWindowBounds = null; // 临时保存悬浮窗位置尺寸（仅会话期间）
+let floatingWindowRelativePosition = null; // 保存悬浮窗在屏幕中的相对位置
 let tray = null;
 let isWindowHidden = false;
 let currentHotkey = 'Alt+`'; // 默认快捷键
@@ -329,13 +330,14 @@ function createFloatingWindow() {
   const mouseDisplay = screen.getDisplayNearestPoint(cursorPoint);
   const mouseScreen = mouseDisplay.workArea;
   
-  // 如果会话期间有临时保存的位置和尺寸，使用保存的尺寸但在鼠标屏幕中心显示
-  if (floatingWindowBounds) {
+  // 如果有保存的相对位置和尺寸，在当前屏幕的相同相对位置显示
+  if (floatingWindowRelativePosition) {
+    const { relativeX, relativeY, width, height } = floatingWindowRelativePosition;
     bounds = {
-      x: Math.round(mouseScreen.x + (mouseScreen.width - floatingWindowBounds.width) / 2),
-      y: Math.round(mouseScreen.y + (mouseScreen.height - floatingWindowBounds.height) / 2),
-      width: floatingWindowBounds.width,
-      height: floatingWindowBounds.height
+      x: Math.round(mouseScreen.x + mouseScreen.width * relativeX),
+      y: Math.round(mouseScreen.y + mouseScreen.height * relativeY),
+      width: width,
+      height: height
     };
     bounds = ensureWindowInScreen(bounds);
   } else {
@@ -426,6 +428,7 @@ function createFloatingWindow() {
       const point = { x: currentBounds.x + currentBounds.width / 2, y: currentBounds.y + currentBounds.height / 2 };
       const display = screen.getDisplayNearestPoint(point);
       const screenBounds = display.bounds;
+      const workArea = display.workArea;
       
       // 实时检查并修正位置，确保距离屏幕顶部至少30px
       if (currentBounds.y < screenBounds.y + 30) {
@@ -435,9 +438,26 @@ function createFloatingWindow() {
           width: currentBounds.width,
           height: currentBounds.height
         });
-        floatingWindowBounds = floatingWindow.getBounds();
+        const correctedBounds = floatingWindow.getBounds();
+        floatingWindowBounds = correctedBounds;
+        
+        // 保存相对位置（相对于工作区的百分比位置）
+        floatingWindowRelativePosition = {
+          relativeX: (correctedBounds.x - workArea.x) / workArea.width,
+          relativeY: (correctedBounds.y - workArea.y) / workArea.height,
+          width: correctedBounds.width,
+          height: correctedBounds.height
+        };
       } else {
         floatingWindowBounds = currentBounds;
+        
+        // 保存相对位置（相对于工作区的百分比位置）
+        floatingWindowRelativePosition = {
+          relativeX: (currentBounds.x - workArea.x) / workArea.width,
+          relativeY: (currentBounds.y - workArea.y) / workArea.height,
+          width: currentBounds.width,
+          height: currentBounds.height
+        };
       }
     }
   };
@@ -505,20 +525,20 @@ function toggleFloatingWindow() {
     const mouseDisplay = screen.getDisplayNearestPoint(cursorPoint);
     const mouseScreen = mouseDisplay.workArea;
     
-    const bounds = floatingWindow.getBounds();
     let newBounds;
     
-    // 如果会话期间有临时保存的位置和尺寸，使用保存的尺寸
-    if (floatingWindowBounds) {
-      // 使用保存的尺寸，但位置调整到鼠标所在屏幕的中心
+    // 如果有保存的相对位置和尺寸，在当前屏幕的相同相对位置显示
+    if (floatingWindowRelativePosition) {
+      const { relativeX, relativeY, width, height } = floatingWindowRelativePosition;
       newBounds = {
-        x: Math.round(mouseScreen.x + (mouseScreen.width - floatingWindowBounds.width) / 2),
-        y: Math.round(mouseScreen.y + (mouseScreen.height - floatingWindowBounds.height) / 2),
-        width: floatingWindowBounds.width,
-        height: floatingWindowBounds.height
+        x: Math.round(mouseScreen.x + mouseScreen.width * relativeX),
+        y: Math.round(mouseScreen.y + mouseScreen.height * relativeY),
+        width: width,
+        height: height
       };
     } else {
       // 没有保存的位置，使用默认尺寸并在鼠标屏幕中心显示
+      const bounds = floatingWindow.getBounds();
       newBounds = {
         x: Math.round(mouseScreen.x + (mouseScreen.width - bounds.width) / 2),
         y: Math.round(mouseScreen.y + (mouseScreen.height - bounds.height) / 2),
