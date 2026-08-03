@@ -767,21 +767,63 @@
   }
 
 
-  // ponytail: 直接改 DOM 三要素强制应用主题（body class / data-ds-dark-theme / .ds-theme 内联样式），
-  // 绕过 React 自身的 select 状态机。这是 OS 主题下行通道的唯一落点——React 在 select='system'
-  // 时不一定能立刻重读 prefers-color-scheme，所以我们替它改。
-  let isApplyingThemeFromMain = false; // ponytail: 标志位，防止 forceApplyTheme 触发 themeObserver
+  // ponytail: 触发 React 主题按钮点击，让 React 自己切换主题（而不是强制修改 DOM）
+  // 这样可以保证按钮选中状态和视觉效果一致
+  let isApplyingThemeFromMain = false; // ponytail: 标志位，防止触发循环
   
   function forceApplyTheme(isDark) {
-    isApplyingThemeFromMain = true; // 设置标志，阻止 observer 响应
+    isApplyingThemeFromMain = true; // 设置标志，阻止 syncElectronTheme 响应
     
+    const targetTheme = isDark ? 'dark' : 'light';
+    
+    // 查找主题按钮容器
+    const themeContainer = findThemeContainer();
+    if (themeContainer) {
+      const buttons = themeContainer.querySelectorAll('button, div[role="button"]');
+      
+      // 找到目标主题的按钮并点击
+      for (const button of buttons) {
+        const text = button.textContent.trim();
+        const shouldClick = (isDark && text.includes('深色')) || (!isDark && text.includes('浅色'));
+        
+        if (shouldClick) {
+          // 检查是否已经选中
+          const isSelected = button.classList.contains('_16a7dbe') || 
+                            button.classList.contains('_699d482') ||
+                            button.getAttribute('aria-pressed') === 'true';
+          
+          if (!isSelected) {
+            console.log('触发主题按钮点击:', targetTheme);
+            button.click(); // 触发 React 的点击事件
+          } else {
+            console.log('主题按钮已选中，跳过点击:', targetTheme);
+          }
+          
+          setTimeout(() => {
+            isApplyingThemeFromMain = false;
+          }, 150);
+          return;
+        }
+      }
+    }
+    
+    // 如果找不到按钮，回退到强制修改 DOM（兼容旧版本）
+    console.log('未找到主题按钮，回退到强制修改 DOM:', targetTheme);
+    forceApplyThemeDOM(isDark);
+    
+    setTimeout(() => {
+      isApplyingThemeFromMain = false;
+    }, 150);
+  }
+  
+  // ponytail: 强制修改 DOM（备用方案，仅在找不到按钮时使用）
+  function forceApplyThemeDOM(isDark) {
     const targetLight = !isDark;
     const hoverLight = '0 0 0 / 4%';
     const hoverDark = '255 255 255 / 8%';
 
     const body = document.body || document.querySelector('body');
     if (body) {
-      // 仅替换 light/dark 两个 token，其它 class（语言、翻译包装等）保留
       const classes = body.className.split(/\s+/).filter(Boolean);
       const filtered = classes.filter(c => c !== 'light' && c !== 'dark');
       filtered.push(targetLight ? 'light' : 'dark');
@@ -794,22 +836,16 @@
       }
     }
 
-    // 改所有 .ds-theme 节点的 --ds-rgb-hover，覆盖设置弹窗与正文双层
     const themeNodes = document.querySelectorAll('.ds-theme');
     themeNodes.forEach(node => {
       node.style.setProperty('--ds-rgb-hover', targetLight ? hoverLight : hoverDark);
     });
 
-    // 没找到 .ds-theme 时回写到 body，保证至少有一处可被 CSS 命中
     if (!themeNodes.length && body) {
       body.style.setProperty('--ds-rgb-hover', targetLight ? hoverLight : hoverDark);
     }
 
-    
-    // ponytail: 延迟重置标志，确保 DOM 变化已被 observer 处理
-    setTimeout(() => {
-      isApplyingThemeFromMain = false;
-    }, 100);
+    console.log('强制应用主题 DOM:', targetLight ? 'light' : 'dark');
   }
 
   // 监听系统主题变化，仅当选择“跟随系统”时启用
