@@ -397,7 +397,7 @@
     }
     
     // 如果没有select，则创建一个虚拟的select对象来适配现有逻辑
-    const buttons = container.querySelectorAll('button');
+    const buttons = container.querySelectorAll('button, div[role="button"]');
     if (buttons.length > 0) {
       // 判断当前选中的主题
       let selectedTheme = 'system'; // 默认值
@@ -806,7 +806,7 @@
     // 先尝试从新版本按钮获取主题设置
     const themeContainer = findThemeContainer();
     if (themeContainer) {
-      const buttons = themeContainer.querySelectorAll('button');
+      const buttons = themeContainer.querySelectorAll('button, div[role="button"]');
       buttons.forEach(button => {
         const text = button.textContent.trim();
         const isSelected = button.classList.contains('_16a7dbe') || 
@@ -864,7 +864,7 @@
     // 对于新版本的按钮式主题选择，直接监听按钮点击
     const themeContainer = findThemeContainer();
     if (themeContainer) {
-      const buttons = themeContainer.querySelectorAll('button');
+      const buttons = themeContainer.querySelectorAll('button, div[role="button"]');
       buttons.forEach(button => {
         if (!themeChangeHandler) {
           themeChangeHandler = () => {
@@ -945,7 +945,8 @@
       // 先尝试从新版本按钮获取主题
       const themeContainer = findThemeContainer();
       if (themeContainer) {
-        const buttons = themeContainer.querySelectorAll('button');
+        // 查找 button 元素和 div[role="button"] 元素
+        const buttons = themeContainer.querySelectorAll('button, div[role="button"]');
         let foundTheme = false;
         
         buttons.forEach(button => {
