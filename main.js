@@ -21,6 +21,7 @@ try {
 
 let mainWindow;
 let floatingWindow = null; // 悬浮窗
+let floatingWindowBounds = null; // 临时保存悬浮窗位置尺寸（仅会话期间）
 let tray = null;
 let isWindowHidden = false;
 let currentHotkey = 'Alt+`'; // 默认快捷键
@@ -40,7 +41,6 @@ const configPath = path.join(app.getPath('userData'), 'config.json');
 const defaultConfig = {
   hotkey: 'Alt+`',
   floatingWindowHotkey: 'Alt+Space',
-  floatingWindowBounds: null, // 悬浮窗位置和尺寸 { x, y, width, height }
   theme: 'system',
   closeBehavior: 'minimize', // 'close' | 'minimize'
   replyNotifyEnabled: true // 回复完成后系统通知开关，默认开启
@@ -71,11 +71,6 @@ function loadConfig() {
       // 验证悬浮窗快捷键
       if (config.floatingWindowHotkey && typeof config.floatingWindowHotkey === 'string') {
         validatedConfig.floatingWindowHotkey = config.floatingWindowHotkey;
-      }
-      
-      // 验证悬浮窗位置尺寸
-      if (config.floatingWindowBounds && typeof config.floatingWindowBounds === 'object') {
-        validatedConfig.floatingWindowBounds = config.floatingWindowBounds;
       }
       
       // 验证主题设置
@@ -325,12 +320,11 @@ function createFloatingWindow() {
     return;
   }
   
-  const config = loadConfig();
   let bounds;
   
-  // 如果有保存的位置和尺寸，使用保存的
-  if (config.floatingWindowBounds) {
-    bounds = ensureWindowInScreen(config.floatingWindowBounds);
+  // 如果会话期间有临时保存的位置和尺寸，使用临时保存的
+  if (floatingWindowBounds) {
+    bounds = ensureWindowInScreen(floatingWindowBounds);
   } else {
     // 否则在鼠标所在屏幕中心创建，默认尺寸440x600
     const mouseScreen = getMouseScreenCenter();
@@ -364,6 +358,8 @@ function createFloatingWindow() {
     transparent: false,
     hasShadow: true,
     roundedCorners: true,
+    resizable: true,
+    maximizable: false,
     show: false,
     autoHideMenuBar: true,
     backgroundColor: nativeTheme && nativeTheme.shouldUseDarkColors ? '#2b2b2b' : '#ffffff'
@@ -398,24 +394,27 @@ function createFloatingWindow() {
       applyWindowTheme(floatingWindow, nativeTheme ? nativeTheme.shouldUseDarkColors : false);
     } catch (e) {}
     injectCustomAssets(floatingWindow);
+    
+    // 注入自定义拖动区域样式和脚本
+    injectFloatingWindowDragArea(floatingWindow);
   });
   
   try {
     floatingWindow.webContents.on('dom-ready', () => {
       injectCustomAssets(floatingWindow);
+      injectFloatingWindowDragArea(floatingWindow);
     });
   } catch (e) {}
   
-  // 保存位置和尺寸
-  const saveBounds = () => {
+  // 临时保存位置和尺寸（仅会话期间有效）
+  const saveBoundsTemporarily = () => {
     if (floatingWindow && !floatingWindow.isDestroyed()) {
-      const bounds = floatingWindow.getBounds();
-      updateConfig('floatingWindowBounds', bounds);
+      floatingWindowBounds = floatingWindow.getBounds();
     }
   };
   
-  floatingWindow.on('moved', saveBounds);
-  floatingWindow.on('resized', saveBounds);
+  floatingWindow.on('moved', saveBoundsTemporarily);
+  floatingWindow.on('resized', saveBoundsTemporarily);
   
   floatingWindow.on('close', (event) => {
     if (!isQuitting) {
@@ -431,6 +430,37 @@ function createFloatingWindow() {
   setupReinjectOnAuthNavigation(floatingWindow);
 }
 
+// 注入悬浮窗拖动区域样式和脚本
+function injectFloatingWindowDragArea(targetWindow) {
+  if (!targetWindow || targetWindow.isDestroyed()) return;
+  
+  const dragAreaCSS = `
+    /* 悬浮窗顶部拖动区域 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 15px;
+      -webkit-app-region: drag;
+      z-index: 99999;
+      pointer-events: auto;
+    }
+    
+    /* 确保拖动区域内的交互元素可点击 */
+    body::before ~ * {
+      -webkit-app-region: no-drag;
+    }
+  `;
+  
+  try {
+    targetWindow.webContents.insertCSS(dragAreaCSS);
+  } catch (error) {
+    console.log('注入拖动区域样式失败:', error);
+  }
+}
+
 // 切换悬浮窗显隐
 function toggleFloatingWindow() {
   if (isQuitting) return;
@@ -443,11 +473,10 @@ function toggleFloatingWindow() {
     // 显示在鼠标所在屏幕
     const mouseScreen = getMouseScreenCenter();
     const bounds = floatingWindow.getBounds();
-    const config = loadConfig();
     
-    // 如果有保存的位置，使用保存的；否则显示在鼠标屏幕中心
-    if (config.floatingWindowBounds) {
-      const savedBounds = ensureWindowInScreen(config.floatingWindowBounds);
+    // 如果会话期间有临时保存的位置，使用临时保存的；否则显示在鼠标屏幕中心
+    if (floatingWindowBounds) {
+      const savedBounds = ensureWindowInScreen(floatingWindowBounds);
       floatingWindow.setBounds(savedBounds);
     } else {
       const newBounds = {
