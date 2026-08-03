@@ -1123,6 +1123,17 @@ ipcMain.handle('get-close-behavior', () => {
   return closeBehavior;
 });
 
+// ponytail: 获取当前主题状态（渲染进程初始化时主动获取）
+ipcMain.handle('get-current-theme', () => {
+  if (nativeTheme) {
+    return {
+      isDark: nativeTheme.shouldUseDarkColors,
+      source: nativeTheme.themeSource
+    };
+  }
+  return { isDark: false, source: 'system' };
+});
+
 // 获取当前回复通知开关
 ipcMain.handle('get-reply-notify-enabled', () => {
   return replyNotifyEnabled;

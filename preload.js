@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 设置应用主题：'light' | 'dark' | 'system'
   setThemeSource: (theme) => ipcRenderer.invoke('set-theme-source', theme),
 
+  // 获取当前主题状态
+  getCurrentTheme: () => ipcRenderer.invoke('get-current-theme'),
+
   // 订阅主进程推送的原生主题变化（system 模式下 OS 切换时会被回调）
   onNativeThemeUpdated: (callback) => {
     const listener = (_event, payload) => {

@@ -244,6 +244,21 @@
         forceApplyTheme(payload.isDark);
       });
       console.log('已订阅主进程主题更新');
+      
+      // ponytail: 订阅后立即主动获取当前主题并应用，避免初始状态不一致
+      if (window.electronAPI && window.electronAPI.getCurrentTheme) {
+        window.electronAPI.getCurrentTheme().then((theme) => {
+          if (theme && typeof theme.isDark === 'boolean') {
+            if (theme.source) {
+              lastSyncedTheme = theme.source;
+            }
+            forceApplyTheme(theme.isDark);
+            console.log('初始主题已应用:', theme);
+          }
+        }).catch((e) => {
+          console.log('获取初始主题失败:', e);
+        });
+      }
     }
   }
 
@@ -893,15 +908,18 @@
     ensureSystemThemeWatcher();
     applyHotkeyTheme();
     
-    // ponytail: 初始化时读取当前主题到缓存，避免首次误判触发 IPC
-    const initialTheme = getCurrentThemeFromDOM();
-    if (initialTheme) {
-      lastSyncedTheme = initialTheme;
+    // ponytail: 打开设置界面时，从主进程同步当前主题到缓存
+    // 不调用 syncElectronTheme，避免把 DOM 的不准确状态写回主进程
+    if (window.electronAPI && window.electronAPI.getCurrentTheme) {
+      window.electronAPI.getCurrentTheme().then((theme) => {
+        if (theme && theme.source) {
+          lastSyncedTheme = theme.source;
+          console.log('设置界面已同步主题缓存:', theme.source);
+        }
+      }).catch((e) => {
+        console.log('同步主题缓存失败:', e);
+      });
     }
-    
-    syncElectronTheme();
-    // ponytail: 删掉了原先的 syncThemeByCssVar()——它会把 CSS 变量推断出的 light/dark
-    // 强行写进主进程，覆盖掉用户的"system"选择。这里只让 syncElectronTheme 走一次，干净。
 
     // ponytail: 首次进入设置界面时，按当前 OS 强制对齐一次 DOM。
     // 否则 OS 是深色但用户之前手动选了浅色的话，"跟随系统"状态已经对了但视觉还停在浅色。
