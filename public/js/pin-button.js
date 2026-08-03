@@ -117,17 +117,27 @@
     return injectPinButtonBeforeNewChat();
   }
 
-  // 定期检查并注入按钮
+  // 使用 MutationObserver 监听 DOM 变化，立即注入
   function startButtonInjection() {
-    if (checkInterval) return;
-
     // 立即尝试注入
     injectPinButtons();
 
-    // 定期检查（页面DOM可能动态变化）
-    checkInterval = setInterval(() => {
+    // 使用 MutationObserver 监听 DOM 变化
+    const observer = new MutationObserver(() => {
       injectPinButtons();
-    }, 2000);
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    // 保留一个低频轮询作为兜底（每5秒）
+    if (!checkInterval) {
+      checkInterval = setInterval(() => {
+        injectPinButtons();
+      }, 5000);
+    }
   }
 
   // 监听置顶状态变化（从主进程广播）
@@ -142,10 +152,10 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       initPinState();
-      setTimeout(startButtonInjection, 1000);
+      startButtonInjection();
     });
   } else {
     initPinState();
-    setTimeout(startButtonInjection, 1000);
+    startButtonInjection();
   }
 })();

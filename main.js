@@ -302,20 +302,29 @@ function injectCustomAssets(targetWindow) {
     targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
   } catch (e) {}
 
-  // 注入悬浮窗切换按钮JavaScript（优先注入，确保在置顶按钮之前）
-  const floatingToggleJsPath = path.join(__dirname, 'public/js/floating-window-toggle.js');
-  try {
-    const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
-    const wrapped = `(() => {\n  try {\n    if (window.__DS_FLOATING_TOGGLE_LOADED__) {\n      return;\n    }\n    window.__DS_FLOATING_TOGGLE_LOADED__ = true;\n  } catch (e) {}\n})();\n` + floatingToggleJs;
-    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
-  } catch (e) {}
-
-  // 注入置顶按钮JavaScript（仅悬浮窗，在悬浮窗切换按钮之后注入）
+  // 注入悬浮窗切换按钮JavaScript
   if (targetWindow === floatingWindow) {
+    // 悬浮窗：注入悬浮窗专用按钮（侧边栏）+ 置顶按钮
+    const floatingToggleJsPath = path.join(__dirname, 'public/js/floating-window-toggle-floating.js');
+    try {
+      const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
+      const wrapped = `(() => {\n  try {\n    if (window.__DS_FLOATING_TOGGLE_FLOATING_LOADED__) {\n      return;\n    }\n    window.__DS_FLOATING_TOGGLE_FLOATING_LOADED__ = true;\n  } catch (e) {}\n})();\n` + floatingToggleJs;
+      targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+    } catch (e) {}
+
+    // 注入置顶按钮
     const pinButtonJsPath = path.join(__dirname, 'public/js/pin-button.js');
     try {
       const pinButtonJs = fs.readFileSync(pinButtonJsPath, 'utf8');
       const wrapped = `(() => {\n  try {\n    if (window.__DS_PIN_BUTTON_LOADED__) {\n      return;\n    }\n    window.__DS_PIN_BUTTON_LOADED__ = true;\n  } catch (e) {}\n})();\n` + pinButtonJs;
+      targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+    } catch (e) {}
+  } else {
+    // 主程序：只注入工具栏按钮
+    const floatingToggleJsPath = path.join(__dirname, 'public/js/floating-window-toggle-main.js');
+    try {
+      const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
+      const wrapped = `(() => {\n  try {\n    if (window.__DS_FLOATING_TOGGLE_MAIN_LOADED__) {\n      return;\n    }\n    window.__DS_FLOATING_TOGGLE_MAIN_LOADED__ = true;\n  } catch (e) {}\n})();\n` + floatingToggleJs;
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
     } catch (e) {}
   }
