@@ -1125,7 +1125,7 @@ ipcMain.handle('get-floating-window-hotkey', () => {
 // 设置悬浮窗快捷键
 ipcMain.handle('set-floating-window-hotkey', (event, hotkey) => {
   try {
-    floatingWindowHotkey = hotkey;
+    // 直接调用注册函数，它会处理注销旧快捷键的逻辑
     registerFloatingWindowHotkey(hotkey);
     
     const saveResult = updateConfig('floatingWindowHotkey', hotkey);
