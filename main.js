@@ -1346,6 +1346,10 @@ ipcMain.handle('toggle-floating-window', (event, currentUrl) => {
     if (isFloating) {
       // 悬浮窗 -> 主窗口：在主窗口打开当前URL并隐藏悬浮窗
       if (mainWindow && !mainWindow.isDestroyed()) {
+        // 监听加载完成后重新注入资源
+        mainWindow.webContents.once('did-finish-load', () => {
+          injectCustomAssets(mainWindow);
+        });
         mainWindow.loadURL(currentUrl);
         mainWindow.show();
         mainWindow.focus();
@@ -1361,11 +1365,12 @@ ipcMain.handle('toggle-floating-window', (event, currentUrl) => {
       }
       if (floatingWindow && !floatingWindow.isDestroyed()) {
         floatingWindow.webContents.once('did-finish-load', () => {
-          floatingWindow.loadURL(currentUrl);
+          injectCustomAssets(floatingWindow);
         });
         if (floatingWindow.webContents.getURL() === 'about:blank' || !floatingWindow.isVisible()) {
           floatingWindow.show();
           floatingWindow.focus();
+          floatingWindow.loadURL(currentUrl);
         } else {
           floatingWindow.loadURL(currentUrl);
           floatingWindow.show();

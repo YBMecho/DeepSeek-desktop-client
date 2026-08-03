@@ -52,12 +52,20 @@
   }
 
   // 创建悬浮窗切换按钮
-  function createToggleButton() {
+  function createToggleButton(isInSidebar = false) {
     const button = document.createElement('div');
     button.setAttribute('role', 'button');
-    button.className = 'ds-button ds-button--iconLabelPrimary ds-button--icon ds-button--capsule ds-button--l ds-button--icon-relative-m _57370c5 _5dedc1e ds-floating-toggle-button';
+    
+    // 侧边栏使用xl尺寸，工具栏使用l尺寸
+    if (isInSidebar) {
+      button.className = 'ds-button ds-button--iconLabelPrimary ds-button--icon ds-button--capsule ds-button--xl ds-button--icon-relative-m ds-floating-toggle-button';
+      button.style.cssText = '--dsl-button-height: 42px;';
+    } else {
+      button.className = 'ds-button ds-button--iconLabelPrimary ds-button--icon ds-button--capsule ds-button--l ds-button--icon-relative-m _57370c5 _5dedc1e ds-floating-toggle-button';
+      button.style.cssText = '--dsl-button-height: 34px;';
+    }
+    
     button.setAttribute('tabindex', '0');
-    button.style.cssText = '--dsl-button-height: 34px;';
 
     const background = document.createElement('div');
     background.className = 'ds-button__background';
@@ -152,7 +160,7 @@
       const svg = btn.querySelector('svg path[d*="M7.95889"]');
       if (svg) {
         console.log('[悬浮窗切换] 找到分享按钮，准备注入');
-        const toggleButton = createToggleButton();
+        const toggleButton = createToggleButton(false); // 工具栏使用l尺寸
         btn.parentNode.insertBefore(toggleButton, btn);
         console.log('[悬浮窗切换] 工具栏按钮注入成功');
         return true;
@@ -196,7 +204,7 @@
           }
         }
         
-        const toggleButton = createToggleButton();
+        const toggleButton = createToggleButton(true); // 侧边栏使用xl尺寸
         targetPosition.parentNode.insertBefore(toggleButton, targetPosition);
         console.log('[悬浮窗切换] 侧边栏按钮注入成功');
         return true;
