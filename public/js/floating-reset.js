@@ -2,15 +2,15 @@
 (function() {
   'use strict';
   
-  // 重置选项配置（分钟）
-  const RESET_OPTIONS = {
-    'reopen': { label: '重新打开时', value: 0 },
-    '10min': { label: '关闭后10分钟', value: 10 },
-    '15min': { label: '关闭后15分钟', value: 15 },
-    '30min': { label: '关闭后30分钟', value: 30 },
-    '60min': { label: '关闭后60分钟', value: 60 },
-    'never': { label: '从不', value: -1 }
-  };
+  // 重置选项配置
+  const RESET_OPTIONS = [
+    { value: 'reopen', label: '重新打开时' },
+    { value: '10min', label: '关闭后10分钟' },
+    { value: '15min', label: '关闭后15分钟' },
+    { value: '30min', label: '关闭后30分钟' },
+    { value: '60min', label: '关闭后60分钟' },
+    { value: 'never', label: '从不' }
+  ];
 
   // 当前重置设置
   let currentResetOption = '60min';
@@ -29,13 +29,12 @@
       align-items: center;
       gap: 12px;
       display: flex;
-      border-bottom: 1px solid rgb(var(--ds-rgb-separator));
     `;
 
     const label = document.createElement('span');
     label.textContent = '重置为新对话';
 
-    // 创建选择器容器
+    // 创建选择器容器（与关闭行为选择框一致）
     const selectContainer = document.createElement('div');
     selectContainer.className = 'e311289c ds-select ds-select--filled ds-select--none ds-select--m floating-reset-select';
     selectContainer.setAttribute('tabindex', '0');
@@ -44,7 +43,8 @@
     // 当前值显示
     resetDisplay = document.createElement('div');
     resetDisplay.className = 'ds-select__select';
-    resetDisplay.textContent = RESET_OPTIONS[currentResetOption].label;
+    const currentOption = RESET_OPTIONS.find(opt => opt.value === currentResetOption);
+    resetDisplay.textContent = currentOption ? currentOption.label : '关闭后60分钟';
 
     // 箭头
     const arrow = document.createElement('div');
@@ -83,124 +83,92 @@ c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fi
     }
 
     // 调整选择器宽度
-    adjustResetSelectWidth({ target: selectContainer, value: currentResetOption });
+    adjustResetSelectWidth();
+  }
+
+  // 调整选择器宽度
+  function adjustResetSelectWidth() {
+    if (!resetSelectContainer) return;
+    
+    const currentOption = RESET_OPTIONS.find(opt => opt.value === currentResetOption);
+    if (!currentOption) return;
+
+    // 根据文本长度动态调整宽度
+    const textLength = currentOption.label.length;
+    if (textLength <= 6) {
+      resetSelectContainer.style.minWidth = '120px';
+      resetSelectContainer.style.maxWidth = '140px';
+    } else if (textLength <= 8) {
+      resetSelectContainer.style.minWidth = '135px';
+      resetSelectContainer.style.maxWidth = '155px';
+    } else {
+      resetSelectContainer.style.minWidth = '150px';
+      resetSelectContainer.style.maxWidth = '170px';
+    }
   }
 
   // 打开重置选项菜单
   function openResetMenu() {
-    if (isResetMenuOpen || !resetSelectContainer) return;
+    if (!resetSelectContainer || isResetMenuOpen) return;
     isResetMenuOpen = true;
+    resetSelectContainer.classList.add('ds-select--open');
 
     const rect = resetSelectContainer.getBoundingClientRect();
     resetMenuWrapper = document.createElement('div');
-    resetMenuWrapper.className = 'floating-reset-menu-wrapper';
-    resetMenuWrapper.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 99999;
-      background: transparent;
-    `;
+    resetMenuWrapper.className = 'ds-floating-position-wrapper ds-theme';
+    resetMenuWrapper.setAttribute('data-transform-origin', 'top left');
+    resetMenuWrapper.style.cssText = `--ds-rgb-hover: 255 255 255 / 8%; z-index: 1027; min-width: 150px; left: ${Math.round(rect.left)}px; top: ${Math.round(rect.bottom + 8)}px; position: fixed;`;
 
     const menu = document.createElement('div');
-    menu.className = 'ds-select__menu floating-reset-menu';
-    menu.style.cssText = `
-      position: fixed;
-      top: ${rect.bottom + 4}px;
-      left: ${rect.left}px;
-      min-width: ${rect.width}px;
-      background: rgb(var(--ds-rgb-surface-primary));
-      border: 1px solid rgb(var(--ds-rgb-separator));
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      padding: 4px 0;
-      z-index: 100000;
-      opacity: 0;
-      transform: translateY(-4px);
-      transition: opacity 0.15s ease, transform 0.15s ease;
-    `;
+    menu.className = 'ds-select-menu ds-elevated _9afb5f9 ds-scroll-area ds-fade-in-zoom-in-enter ds-fade-in-zoom-in-active floating-reset-dropdown-menu';
 
-    Object.keys(RESET_OPTIONS).forEach(optionKey => {
-      const option = RESET_OPTIONS[optionKey];
-      const item = document.createElement('div');
-      item.className = 'ds-select__option';
-      item.textContent = option.label;
-      item.style.cssText = `
-        padding: 8px 12px;
-        cursor: pointer;
-        transition: background 0.15s ease;
-        white-space: nowrap;
-      `;
-
-      if (optionKey === currentResetOption) {
-        item.style.background = 'rgba(var(--ds-rgb-accent), 0.1)';
-        item.style.color = 'rgb(var(--ds-rgb-accent))';
-      }
-
-      item.addEventListener('mouseenter', () => {
-        if (optionKey !== currentResetOption) {
-          item.style.background = 'rgba(var(--ds-rgb-hover), 0.5)';
-        }
-      });
-
-      item.addEventListener('mouseleave', () => {
-        if (optionKey !== currentResetOption) {
-          item.style.background = '';
-        }
-      });
-
-      item.addEventListener('click', async (e) => {
+    RESET_OPTIONS.forEach(option => {
+      const optionElement = document.createElement('div');
+      const isSelected = currentResetOption === option.value;
+      optionElement.className = 'ds-select-option' + (isSelected ? ' ds-select-option--selected ds-select-option--pending' : '');
+      optionElement.innerHTML = `<span>${option.label}</span>` + (isSelected ? `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15.0498 3.92584L8.49515 12.3819C8.25777 12.6882 8.0452 12.9645 7.84671 13.169C7.6396 13.3824 7.38735 13.5842 7.04495 13.6719C6.86376 13.7183 6.67573 13.7347 6.48929 13.7198C6.13669 13.6916 5.85283 13.5356 5.61234 13.3604C5.38204 13.1927 5.12576 12.9568 4.83987 12.6954L1.03128 9.21295L1.96878 8.18756L5.77737 11.67C6.08687 11.953 6.27776 12.125 6.43069 12.2364C6.50186 12.2882 6.54702 12.3136 6.57327 12.3253C6.58528 12.3306 6.59272 12.3323 6.59573 12.3331C6.59805 12.3337 6.59964 12.334 6.59964 12.334C6.6332 12.3367 6.66761 12.3336 6.70023 12.3253C6.70023 12.3253 6.70214 12.3252 6.70413 12.3243C6.70701 12.323 6.71351 12.319 6.72464 12.3116C6.74852 12.2956 6.78846 12.2642 6.84964 12.2012C6.98141 12.0655 7.1396 11.8628 7.39651 11.5313L13.9502 3.07428L15.0498 3.92584Z" fill="currentColor"></path>
+        </svg>` : '');
+      optionElement.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (optionKey !== currentResetOption) {
-          currentResetOption = optionKey;
-          resetDisplay.textContent = option.label;
-          adjustResetSelectWidth({ target: resetSelectContainer, value: optionKey });
-          await saveFloatingResetSetting(optionKey);
-        }
-        closeResetMenu();
+        selectResetOption(option.value);
       });
-
-      menu.appendChild(item);
+      menu.appendChild(optionElement);
     });
 
     resetMenuWrapper.appendChild(menu);
     document.body.appendChild(resetMenuWrapper);
 
-    requestAnimationFrame(() => {
-      menu.style.opacity = '1';
-      menu.style.transform = 'translateY(0)';
-    });
+    // 外部点击关闭
+    document.addEventListener('mousedown', handleOutsideMouseDown, true);
+  }
 
-    const closeOnClickOutside = (e) => {
-      if (resetMenuWrapper && !menu.contains(e.target) && !resetSelectContainer.contains(e.target)) {
-        closeResetMenu();
-      }
-    };
-
-    setTimeout(() => {
-      document.addEventListener('mousedown', closeOnClickOutside);
-      resetMenuWrapper._cleanupListener = () => {
-        document.removeEventListener('mousedown', closeOnClickOutside);
-      };
-    }, 0);
+  // 处理外部点击
+  function handleOutsideMouseDown(e) {
+    if (!isResetMenuOpen) return;
+    const target = e.target;
+    if (resetMenuWrapper && resetMenuWrapper.contains(target)) return;
+    if (resetSelectContainer && resetSelectContainer.contains(target)) return;
+    closeResetMenu();
   }
 
   // 关闭重置选项菜单
   function closeResetMenu() {
-    if (!isResetMenuOpen || !resetMenuWrapper) return;
+    if (!isResetMenuOpen) return;
     isResetMenuOpen = false;
 
-    const menu = resetMenuWrapper.querySelector('.floating-reset-menu');
-    if (menu) {
-      menu.style.opacity = '0';
-      menu.style.transform = 'translateY(-4px)';
+    if (resetSelectContainer) {
+      resetSelectContainer.classList.remove('ds-select--open');
     }
 
-    if (resetMenuWrapper._cleanupListener) {
-      resetMenuWrapper._cleanupListener();
+    const menu = resetMenuWrapper ? resetMenuWrapper.querySelector('.floating-reset-dropdown-menu') : null;
+    if (menu) {
+      menu.classList.remove('ds-fade-in-zoom-in-active');
+      menu.classList.add('ds-fade-in-zoom-out-exit-active');
     }
+
+    document.removeEventListener('mousedown', handleOutsideMouseDown, true);
 
     setTimeout(() => {
       if (resetMenuWrapper && resetMenuWrapper.parentNode) {
@@ -210,26 +178,22 @@ c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fi
     }, 150);
   }
 
-  // 调整选择器宽度
-  function adjustResetSelectWidth(e) {
-    const target = e.target;
-    const value = e.value || currentResetOption;
-    const option = RESET_OPTIONS[value];
-    if (!option || !target) return;
+  // 选择重置选项
+  async function selectResetOption(value) {
+    if (value === currentResetOption) {
+      closeResetMenu();
+      return;
+    }
 
-    const tempSpan = document.createElement('span');
-    tempSpan.style.cssText = 'visibility: hidden; position: absolute; white-space: nowrap;';
-    tempSpan.textContent = option.label;
-    document.body.appendChild(tempSpan);
-    const textWidth = tempSpan.offsetWidth;
-    document.body.removeChild(tempSpan);
+    currentResetOption = value;
+    const option = RESET_OPTIONS.find(opt => opt.value === value);
+    if (option && resetDisplay) {
+      resetDisplay.textContent = option.label;
+      adjustResetSelectWidth();
+    }
 
-    const padding = 32;
-    const arrowWidth = 20;
-    const minWidth = 120;
-    const calculatedWidth = Math.max(textWidth + padding + arrowWidth, minWidth);
-    target.style.width = `${calculatedWidth}px`;
-    target.style.minWidth = `${minWidth}px`;
+    await saveFloatingResetSetting(value);
+    closeResetMenu();
   }
 
   // 保存重置设置
@@ -255,11 +219,12 @@ c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fi
     try {
       if (window.electronAPI && window.electronAPI.getFloatingResetOption) {
         const option = await window.electronAPI.getFloatingResetOption();
-        if (option && RESET_OPTIONS[option]) {
+        const validOption = RESET_OPTIONS.find(opt => opt.value === option);
+        if (validOption) {
           currentResetOption = option;
           if (resetDisplay && resetSelectContainer) {
-            resetDisplay.textContent = RESET_OPTIONS[option].label;
-            adjustResetSelectWidth({ target: resetSelectContainer, value: option });
+            resetDisplay.textContent = validOption.label;
+            adjustResetSelectWidth();
           }
         }
       }
