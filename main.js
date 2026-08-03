@@ -683,12 +683,17 @@ function toggleFloatingWindow() {
 // 注册悬浮窗快捷键（独立于主窗口快捷键）
 function registerFloatingWindowHotkey(hotkey) {
   try {
-    if (floatingHotkeyRegistered) {
-      globalShortcut.unregister(floatingWindowHotkey);
+    // 先注销旧的快捷键
+    if (floatingHotkeyRegistered && floatingWindowHotkey) {
+      const unregistered = globalShortcut.unregister(floatingWindowHotkey);
+      console.log(`尝试注销旧悬浮窗快捷键 ${floatingWindowHotkey}: ${unregistered ? '成功' : '失败'}`);
       floatingHotkeyRegistered = false;
     }
     
+    // 更新快捷键变量
     floatingWindowHotkey = hotkey;
+    
+    // 注册新的快捷键
     const ret = globalShortcut.register(hotkey, () => {
       toggleFloatingWindow(); // 只控制悬浮窗
     });
@@ -697,7 +702,7 @@ function registerFloatingWindowHotkey(hotkey) {
       floatingHotkeyRegistered = true;
       console.log(`悬浮窗快捷键 ${hotkey} 注册成功`);
     } else {
-      console.log(`悬浮窗快捷键 ${hotkey} 注册失败`);
+      console.log(`悬浮窗快捷键 ${hotkey} 注册失败（可能已被占用）`);
     }
   } catch (error) {
     console.log('悬浮窗快捷键注册错误:', error);
@@ -1412,7 +1417,7 @@ app.whenReady().then(() => {
                 type: 'info',
                 title: '关于 DeepSeek',
                 message: 'DeepSeek 桌面应用',
-                detail: '版本: 1.0.0\n\n一个简洁的DeepSeek聊天客户端\n\n作者: YBMecho',
+                detail: '版本: 2.5.0\n\n一个简洁的DeepSeek聊天客户端\n\n作者: YBMecho\n\n辅助工具：\n\tDeeoSeek、Claude、Claude code、Trea\n\n国内使用Claude API网站：https://aimoniker.top/sign-up?aff=vJij&src=direct',
                 buttons: ['确定'],
                 defaultId: 0
               });

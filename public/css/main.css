@@ -106,6 +106,42 @@ html {
   position: relative;
 }
 
+/* 对话悬浮窗快捷键选择器样式 */
+.floating-hotkey-select {
+  position: relative;
+  cursor: pointer;
+}
+
+.floating-hotkey-select .ds-select__select.floating-hotkey-input-display {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 25px;
+  min-height: 20px;
+  text-align: center;
+  padding: 8px 12px;
+  margin: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  border-radius: 6px;
+}
+
+.floating-hotkey-select .ds-select__select.floating-hotkey-input-display:focus {
+  outline: none;
+}
+
+.floating-hotkey-input-display.setting-mode {
+  opacity: 0.8;
+}
+
 /* 关闭行为设置容器样式 */
 .close-behavior-setting-flex {
   position: relative;

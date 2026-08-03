@@ -546,7 +546,6 @@
     floatingHotkeyInput.className = 'ds-select__select floating-hotkey-input-display';
     floatingHotkeyInput.setAttribute('role', 'button');
     floatingHotkeyInput.setAttribute('aria-label', '悬浮窗快捷键设置');
-    floatingHotkeyInput.style.cssText = 'text-align: center; display: flex; align-items: center; justify-content: center; min-height: 20px;';
     
     floatingHotkeyInput.textContent = currentFloatingHotkey;
     
