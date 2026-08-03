@@ -45,7 +45,8 @@ const defaultConfig = {
   floatingWindowHotkey: 'Alt+Space',
   theme: 'system',
   closeBehavior: 'minimize', // 'close' | 'minimize'
-  replyNotifyEnabled: true // 回复完成后系统通知开关，默认开启
+  replyNotifyEnabled: true, // 回复完成后系统通知开关，默认开启
+  isFloatingWindowPinned: false // 悬浮窗置顶状态，默认关闭
 };
 
 // 读取配置文件
@@ -88,6 +89,11 @@ function loadConfig() {
       // 验证回复通知开关
       if (typeof config.replyNotifyEnabled === 'boolean') {
         validatedConfig.replyNotifyEnabled = config.replyNotifyEnabled;
+      }
+
+      // 验证悬浮窗置顶状态
+      if (typeof config.isFloatingWindowPinned === 'boolean') {
+        validatedConfig.isFloatingWindowPinned = config.isFloatingWindowPinned;
       }
 
       logDebug('配置文件加载成功:', validatedConfig);
@@ -169,7 +175,8 @@ function updateConfigNoRead(key, value) {
       floatingWindowHotkey: floatingWindowHotkey,
       theme: nativeTheme ? nativeTheme.themeSource : 'system',
       closeBehavior: closeBehavior,
-      replyNotifyEnabled: replyNotifyEnabled
+      replyNotifyEnabled: replyNotifyEnabled,
+      isFloatingWindowPinned: isFloatingWindowPinned
     };
     
     config[key] = value;
@@ -498,6 +505,12 @@ function createFloatingWindow() {
     try {
       applyWindowTheme(floatingWindow, nativeTheme ? nativeTheme.shouldUseDarkColors : false);
     } catch (e) {}
+    
+    // 恢复保存的置顶状态
+    if (isFloatingWindowPinned) {
+      floatingWindow.setAlwaysOnTop(true);
+    }
+    
     injectCustomAssets(floatingWindow);
     
     // 注入自定义拖动区域样式和脚本
@@ -1040,6 +1053,7 @@ function createWindow() {
   floatingWindowHotkey = config.floatingWindowHotkey || 'Alt+Space';
   closeBehavior = config.closeBehavior;
   replyNotifyEnabled = config.replyNotifyEnabled;
+  isFloatingWindowPinned = config.isFloatingWindowPinned;
   
   // 设置主题
   if (nativeTheme && config.theme) {
@@ -1210,6 +1224,12 @@ ipcMain.handle('set-floating-window-pin-state', (event, pinned) => {
       floatingWindow.setAlwaysOnTop(pinned);
       // 广播置顶状态变化给所有渲染进程
       floatingWindow.webContents.send('floating-window-pin-state-changed', pinned);
+    }
+    
+    // 保存置顶状态到配置文件
+    const saveResult = updateConfig('isFloatingWindowPinned', pinned);
+    if (!saveResult) {
+      console.log('悬浮窗置顶状态保存到配置文件失败，但设置仍然生效');
     }
     
     return { success: true, pinned: pinned };
