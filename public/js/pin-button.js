@@ -155,10 +155,20 @@
     // 立即尝试注入
     injectPinButtons();
 
-    // 定期检查（页面DOM可能动态变化）
+    // 快速检查（前3秒每500ms检查一次）
+    let quickCheckCount = 0;
+    const quickInterval = setInterval(() => {
+      injectPinButtons();
+      quickCheckCount++;
+      if (quickCheckCount >= 6) { // 3秒后停止快速检查
+        clearInterval(quickInterval);
+      }
+    }, 500);
+
+    // 后续定期检查（页面DOM可能动态变化）
     checkInterval = setInterval(() => {
       injectPinButtons();
-    }, 2000);
+    }, 3000);
 
     console.log('置顶按钮注入器已启动');
   }
@@ -176,11 +186,11 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       initPinState();
-      setTimeout(startButtonInjection, 1000);
+      setTimeout(startButtonInjection, 100);
     });
   } else {
     initPinState();
-    setTimeout(startButtonInjection, 1000);
+    setTimeout(startButtonInjection, 100);
   }
 
   console.log('置顶按钮脚本已加载');
