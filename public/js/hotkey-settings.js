@@ -230,6 +230,23 @@
   }
   
   // 创建快捷键设置区域
+  // ponytail: 订阅主进程推送的主题更新（独立函数，在页面加载时立即订阅）
+  function subscribeNativeThemeUpdates() {
+    if (!unsubscribeNativeTheme && window.electronAPI && window.electronAPI.onNativeThemeUpdated) {
+      unsubscribeNativeTheme = window.electronAPI.onNativeThemeUpdated((payload) => {
+        if (!payload || typeof payload.isDark !== 'boolean') return;
+        
+        // ponytail: 更新缓存，避免 forceApplyTheme 触发的 DOM 变化再次调用 setThemeSource
+        if (payload.source) {
+          lastSyncedTheme = payload.source;
+        }
+        
+        forceApplyTheme(payload.isDark);
+      });
+      console.log('已订阅主进程主题更新');
+    }
+  }
+
   function createHotkeySettings() {
     // 首先检查是否为通用设置标签页
     if (!isGeneralSettingsTab()) {
@@ -885,21 +902,6 @@
     syncElectronTheme();
     // ponytail: 删掉了原先的 syncThemeByCssVar()——它会把 CSS 变量推断出的 light/dark
     // 强行写进主进程，覆盖掉用户的"system"选择。这里只让 syncElectronTheme 走一次，干净。
-
-    // ponytail: 订阅主进程推送的原生主题变化，收到后直接改 DOM。
-    // 这是"跟随系统"失效的唯一兜底——React 在 select='system' 时不一定重读 prefers-color-scheme。
-    if (!unsubscribeNativeTheme && window.electronAPI && window.electronAPI.onNativeThemeUpdated) {
-      unsubscribeNativeTheme = window.electronAPI.onNativeThemeUpdated((payload) => {
-        if (!payload || typeof payload.isDark !== 'boolean') return;
-        
-        // ponytail: 更新缓存，避免 forceApplyTheme 触发的 DOM 变化再次调用 setThemeSource
-        if (payload.source) {
-          lastSyncedTheme = payload.source;
-        }
-        
-        forceApplyTheme(payload.isDark);
-      });
-    }
 
     // ponytail: 首次进入设置界面时，按当前 OS 强制对齐一次 DOM。
     // 否则 OS 是深色但用户之前手动选了浅色的话，"跟随系统"状态已经对了但视觉还停在浅色。
@@ -1733,6 +1735,10 @@
 
     // 开始监听body主题变化
     observeBodyThemeChanges();
+    
+    // ponytail: 立即订阅主进程的主题推送，确保所有窗口（包括未打开设置的悬浮窗）都能收到主题同步
+    subscribeNativeThemeUpdates();
+    
     // ponytail: 初始化时不再调 syncThemeByCssVar——它会把 CSS 推断值写进主进程覆盖 user 的 system 选择。
   }
   
