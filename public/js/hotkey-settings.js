@@ -371,21 +371,20 @@
     // 绑定主题变化并根据当前主题设置外观
     bindAndApplyTheme();
 
-    // 创建悬浮窗快捷键设置（紧跟在快捷键设置后面）
-    createFloatingHotkeySettings(hotkeyContainer);
-
     // 创建关闭行为设置（作为 wrapper 的子节点，一起被显隐）
     createCloseBehaviorSettings(hotkeyContainer);
 
-    // 创建回复通知开关（紧跟关闭行为那一行）
-    // ponytail: 关闭行为行是 createCloseBehaviorSettings 内部刚插好的，
-    // 直接以它为参考节点，避免再次以 hotkeyContainer 为锚导致位置错乱。
+    // 创建悬浮窗快捷键设置（紧跟在关闭行为后面）
     const closeBehaviorContainer = hotkeyContainer.parentNode.querySelector('.close-behavior-setting-flex');
-    createReplyNotifyToggle(closeBehaviorContainer || hotkeyContainer);
+    createFloatingHotkeySettings(closeBehaviorContainer || hotkeyContainer);
+
+    // 创建回复通知开关（紧跟悬浮窗快捷键那一行）
+    const floatingHotkeyContainer = hotkeyContainer.parentNode.querySelector('.floating-hotkey-setting-flex');
+    createReplyNotifyToggle(floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
     
     // 创建开机自启动开关（紧跟回复通知开关那一行）
     const replyNotifyContainer = hotkeyContainer.parentNode.querySelector('.reply-notify-setting-flex');
-    createAutoLaunchToggle(replyNotifyContainer || closeBehaviorContainer || hotkeyContainer);
+    createAutoLaunchToggle(replyNotifyContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
   }
 
   // 判断元素是否真的可见（不被祖先隐藏 / display:none）
