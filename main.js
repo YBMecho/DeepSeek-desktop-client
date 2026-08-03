@@ -34,6 +34,7 @@ let replyNotifyEnabled = true; // 回复完成后系统通知开关（默认开�
 let isQuitting = false; // 标记是否正在退出应用
 let areAllWindowsHidden = false; // 是否通过快捷键隐藏了所有主窗口（不包括悬浮窗）
 let previouslyVisibleWindowIds = new Set(); // 记录上次被隐藏的可见主窗口ID（不包括悬浮窗）
+let isFloatingWindowPinned = false; // 悬浮窗置顶状态
 
 // 配置文件路径
 const configPath = path.join(app.getPath('userData'), 'config.json');
@@ -213,6 +214,18 @@ function injectCustomAssets(targetWindow) {
     targetWindow.webContents.executeJavaScript(wrapped);
   } catch (error) {
     console.log('JS文件加载失败:', error);
+  }
+
+  // 注入置顶按钮JavaScript（仅悬浮窗）
+  if (targetWindow === floatingWindow) {
+    const pinButtonJsPath = path.join(__dirname, 'public/js/pin-button.js');
+    try {
+      const pinButtonJs = fs.readFileSync(pinButtonJsPath, 'utf8');
+      const wrapped = `(() => {\n  try {\n    if (window.__DS_PIN_BUTTON_LOADED__) {\n      console.log('检测到置顶按钮脚本已存在，跳过重复注入');\n      return;\n    }\n    window.__DS_PIN_BUTTON_LOADED__ = true;\n  } catch (e) {}\n})();\n` + pinButtonJs;
+      targetWindow.webContents.executeJavaScript(wrapped);
+    } catch (error) {
+      console.log('置顶按钮JS文件加载失败:', error);
+    }
   }
 }
 
@@ -476,6 +489,13 @@ function createFloatingWindow() {
   
   floatingWindow.on('closed', () => {
     floatingWindow = null;
+  });
+  
+  // 监听悬浮窗失焦事件，未置顶时自动隐藏
+  floatingWindow.on('blur', () => {
+    if (!isFloatingWindowPinned && floatingWindow && !floatingWindow.isDestroyed()) {
+      floatingWindow.hide();
+    }
   });
   
   setupReinjectOnAuthNavigation(floatingWindow);
@@ -1049,6 +1069,31 @@ ipcMain.handle('set-reply-notify-enabled', (event, enabled) => {
     }
     console.log('回复通知开关设置为:', enabled);
     return { success: true, replyNotifyEnabled: enabled };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 获取悬浮窗置顶状态
+ipcMain.handle('get-floating-window-pin-state', () => {
+  return isFloatingWindowPinned;
+});
+
+// 设置悬浮窗置顶状态
+ipcMain.handle('set-floating-window-pin-state', (event, pinned) => {
+  try {
+    if (typeof pinned !== 'boolean') {
+      return { success: false, error: '参数必须是布尔值' };
+    }
+    isFloatingWindowPinned = pinned;
+    console.log('悬浮窗置顶状态设置为:', pinned);
+    
+    // 广播置顶状态变化给所有渲染进程
+    if (floatingWindow && !floatingWindow.isDestroyed()) {
+      floatingWindow.webContents.send('floating-window-pin-state-changed', pinned);
+    }
+    
+    return { success: true, pinned: pinned };
   } catch (error) {
     return { success: false, error: error.message };
   }

@@ -36,5 +36,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getReplyNotifyEnabled: () => ipcRenderer.invoke('get-reply-notify-enabled'),
 
   // 设置回复通知开关
-  setReplyNotifyEnabled: (enabled) => ipcRenderer.invoke('set-reply-notify-enabled', enabled)
+  setReplyNotifyEnabled: (enabled) => ipcRenderer.invoke('set-reply-notify-enabled', enabled),
+
+  // 获取悬浮窗置顶状态
+  getFloatingWindowPinState: () => ipcRenderer.invoke('get-floating-window-pin-state'),
+
+  // 设置悬浮窗置顶状态
+  setFloatingWindowPinState: (pinned) => ipcRenderer.invoke('set-floating-window-pin-state', pinned),
+
+  // 监听悬浮窗置顶状态变化
+  onFloatingWindowPinStateChanged: (callback) => {
+    const listener = (_event, pinned) => {
+      try { callback(pinned); } catch (e) {}
+    };
+    ipcRenderer.on('floating-window-pin-state-changed', listener);
+    return () => ipcRenderer.removeListener('floating-window-pin-state-changed', listener);
+  }
 });
