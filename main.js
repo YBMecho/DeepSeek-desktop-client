@@ -31,6 +31,8 @@ let floatingHotkeyRegistered = false;
 let closeBehavior = 'minimize'; // 当前关闭行为设置
 let replyNotifyEnabled = true; // 回复完成后系统通知开关（默认开启）
 let autoLaunch = true; // 开机自启动（默认开启）
+let floatingResetOption = '60min'; // 悬浮窗重置选项（默认关闭后60分钟）
+let floatingWindowCloseTime = null; // 悬浮窗关闭时间戳
 let isQuitting = false; // 标记是否正在退出应用
 let areAllWindowsHidden = false; // 是否通过快捷键隐藏了所有主窗口（不包括悬浮窗）
 let previouslyVisibleWindowIds = new Set(); // 记录上次被隐藏的可见主窗口ID（不包括悬浮窗）
@@ -47,7 +49,8 @@ const defaultConfig = {
   closeBehavior: 'minimize', // 'close' | 'minimize'
   replyNotifyEnabled: true, // 回复完成后系统通知开关，默认开启
   isFloatingWindowPinned: false, // 悬浮窗置顶状态，默认关闭
-  autoLaunch: true // 开机自启动，默认开启
+  autoLaunch: true, // 开机自启动，默认开启
+  floatingResetOption: '60min' // 悬浮窗重置选项，默认关闭后60分钟
 };
 
 // 读取配置文件
@@ -170,7 +173,8 @@ function updateConfigNoRead(key, value) {
       closeBehavior: closeBehavior,
       replyNotifyEnabled: replyNotifyEnabled,
       isFloatingWindowPinned: isFloatingWindowPinned,
-      autoLaunch: autoLaunch
+      autoLaunch: autoLaunch,
+      floatingResetOption: floatingResetOption
     };
     
     config[key] = value;
@@ -281,6 +285,14 @@ function injectCustomAssets(targetWindow) {
   try {
     const js = fs.readFileSync(jsPath, 'utf8');
     const wrapped = `(() => {\n  try {\n    if (window.__DS_HOTKEY_SCRIPT_LOADED__) {\n      return;\n    }\n    window.__DS_HOTKEY_SCRIPT_LOADED__ = true;\n  } catch (e) {}\n})();\n` + js;
+    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+  } catch (e) {}
+
+  // 注入悬浮窗重置功能JavaScript
+  const floatingResetJsPath = path.join(__dirname, 'public/js/floating-reset.js');
+  try {
+    const floatingResetJs = fs.readFileSync(floatingResetJsPath, 'utf8');
+    const wrapped = `(() => {\n  try {\n    if (window.__DS_FLOATING_RESET_LOADED__) {\n      return;\n    }\n    window.__DS_FLOATING_RESET_LOADED__ = true;\n  } catch (e) {}\n})();\n` + floatingResetJs;
     targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
   } catch (e) {}
 
@@ -565,6 +577,8 @@ function createFloatingWindow() {
     if (!isQuitting) {
       event.preventDefault();
       floatingWindow.hide();
+      // 记录关闭时间，用于重置判断
+      floatingWindowCloseTime = Date.now();
     }
   });
   
@@ -576,6 +590,8 @@ function createFloatingWindow() {
   floatingWindow.on('blur', () => {
     if (!isFloatingWindowPinned && floatingWindow && !floatingWindow.isDestroyed()) {
       floatingWindow.hide();
+      // 记录隐藏时间，用于重置判断
+      floatingWindowCloseTime = Date.now();
     }
   });
   
@@ -619,7 +635,12 @@ function toggleFloatingWindow() {
     createFloatingWindow();
   } else if (floatingWindow.isVisible()) {
     floatingWindow.hide();
+    // 记录隐藏时间
+    floatingWindowCloseTime = Date.now();
   } else {
+    // 检查是否需要重置
+    checkAndResetFloatingWindow();
+    
     // 获取鼠标所在屏幕信息
     const { screen } = require('electron');
     const cursorPoint = screen.getCursorScreenPoint();
@@ -653,6 +674,56 @@ function toggleFloatingWindow() {
     
     floatingWindow.show();
     floatingWindow.focus();
+  }
+}
+
+// 检查并重置悬浮窗
+function checkAndResetFloatingWindow() {
+  if (!floatingWindow || floatingWindow.isDestroyed()) return;
+  
+  // 获取重置选项对应的分钟数
+  const resetMinutes = getResetMinutes(floatingResetOption);
+  
+  // 如果是"从不"或无关闭时间，不重置
+  if (resetMinutes === -1 || !floatingWindowCloseTime) return;
+  
+  // 如果是"重新打开时"，直接重置
+  if (resetMinutes === 0) {
+    resetFloatingWindowContent();
+    return;
+  }
+  
+  // 检查是否超过设置的时间
+  const now = Date.now();
+  const elapsedMinutes = (now - floatingWindowCloseTime) / (1000 * 60);
+  
+  if (elapsedMinutes >= resetMinutes) {
+    resetFloatingWindowContent();
+  }
+}
+
+// 获取重置选项对应的分钟数
+function getResetMinutes(option) {
+  const optionMap = {
+    'reopen': 0,
+    '10min': 10,
+    '15min': 15,
+    '30min': 30,
+    '60min': 60,
+    'never': -1
+  };
+  return optionMap[option] !== undefined ? optionMap[option] : 60;
+}
+
+// 重置悬浮窗内容
+function resetFloatingWindowContent() {
+  if (!floatingWindow || floatingWindow.isDestroyed()) return;
+  
+  try {
+    floatingWindow.loadURL('https://chat.deepseek.com/');
+    floatingWindowCloseTime = null; // 清空关闭时间
+  } catch (e) {
+    console.error('重置悬浮窗内容失败:', e);
   }
 }
 
@@ -1023,6 +1094,7 @@ function createWindow() {
   replyNotifyEnabled = config.replyNotifyEnabled;
   isFloatingWindowPinned = config.isFloatingWindowPinned;
   autoLaunch = config.autoLaunch;
+  floatingResetOption = config.floatingResetOption || '60min';
   
   // 设置主题
   if (nativeTheme && config.theme) {
@@ -1215,6 +1287,26 @@ ipcMain.handle('set-auto-launch', (event, enabled) => {
     const saveResult = updateConfig('autoLaunch', enabled);
     if (!saveResult) {}
     return { success: true, autoLaunch: enabled };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 获取悬浮窗重置选项
+ipcMain.handle('get-floating-reset-option', () => {
+  return floatingResetOption;
+});
+
+// 设置悬浮窗重置选项
+ipcMain.handle('set-floating-reset-option', (event, option) => {
+  try {
+    if (typeof option !== 'string') {
+      return { success: false, error: '参数必须是字符串' };
+    }
+    floatingResetOption = option;
+    const saveResult = updateConfig('floatingResetOption', option);
+    if (!saveResult) {}
+    return { success: true, floatingResetOption: option };
   } catch (error) {
     return { success: false, error: error.message };
   }

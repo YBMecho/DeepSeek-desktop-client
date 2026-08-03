@@ -211,6 +211,12 @@
       existingAutoLaunch.remove();
     }
 
+    // 移除悬浮窗重置设置
+    const existingFloatingReset = document.querySelector('.floating-reset-setting-flex');
+    if (existingFloatingReset) {
+      existingFloatingReset.remove();
+    }
+
     // 解绑主题选择器与系统主题监听
     if (boundThemeSelectEl && themeChangeHandler) {
       boundThemeSelectEl.removeEventListener('change', themeChangeHandler);
@@ -378,13 +384,19 @@
     const closeBehaviorContainer = hotkeyContainer.parentNode.querySelector('.close-behavior-setting-flex');
     createFloatingHotkeySettings(closeBehaviorContainer || hotkeyContainer);
 
-    // 创建回复通知开关（紧跟悬浮窗快捷键那一行）
+    // 创建悬浮窗重置设置（紧跟悬浮窗快捷键那一行）
     const floatingHotkeyContainer = hotkeyContainer.parentNode.querySelector('.floating-hotkey-setting-flex');
-    createReplyNotifyToggle(floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
+    if (window.__floatingResetModule && window.__floatingResetModule.createFloatingResetSettings) {
+      window.__floatingResetModule.createFloatingResetSettings(floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
+    }
+
+    // 创建回复通知开关（紧跟悬浮窗重置设置那一行）
+    const floatingResetContainer = hotkeyContainer.parentNode.querySelector('.floating-reset-setting-flex');
+    createReplyNotifyToggle(floatingResetContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
     
     // 创建开机自启动开关（紧跟回复通知开关那一行）
     const replyNotifyContainer = hotkeyContainer.parentNode.querySelector('.reply-notify-setting-flex');
-    createAutoLaunchToggle(replyNotifyContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
+    createAutoLaunchToggle(replyNotifyContainer || floatingResetContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
   }
 
   // 判断元素是否真的可见（不被祖先隐藏 / display:none）
@@ -1898,6 +1910,11 @@
 
     // 加载当前开机自启动开关
     loadCurrentAutoLaunch();
+
+    // 加载悬浮窗重置设置
+    if (window.__floatingResetModule && window.__floatingResetModule.loadCurrentFloatingResetOption) {
+      window.__floatingResetModule.loadCurrentFloatingResetOption();
+    }
 
     // 如果初始化时设置弹窗已经存在（比如从登录跳回主页的瞬态），立即插入。
     // createHotkeySettings 内部会在找不到语言容器时自动用 MutationObserver 等待。
