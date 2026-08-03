@@ -311,6 +311,15 @@ function injectCustomAssets(targetWindow) {
 function setupReinjectOnAuthNavigation(targetWindow) {
   if (!targetWindow || targetWindow.isDestroyed()) return;
   const wc = targetWindow.webContents;
+  
+  // 防止重复设置监听器 - 使用 Symbol 确保唯一性
+  const setupKey = Symbol.for('__reinjectSetup');
+  if (wc[setupKey]) return;
+  wc[setupKey] = true;
+  
+  // 增加最大监听器数量，防止警告
+  wc.setMaxListeners(20);
+  
   wc.__lastUrl = '';
   wc.__pendingReinject = false;
 
@@ -323,28 +332,6 @@ function setupReinjectOnAuthNavigation(targetWindow) {
     }
   };
 
-  const markIfNeeded = (nextUrl) => {
-    const prev = wc.__lastUrl || '';
-    if (shouldReinject(prev, nextUrl)) {
-      wc.__pendingReinject = true;
-    }
-    wc.__lastUrl = nextUrl;
-  };
-
-  wc.on('did-navigate', (event, url) => {
-    markIfNeeded(url);
-  });
-  wc.on('did-navigate-in-page', (event, url) => {
-    markIfNeeded(url);
-  });
-  wc.on('dom-ready', () => {
-    if (wc.__pendingReinject) {
-      injectCustomAssets(targetWindow);
-      wc.__pendingReinject = false;
-    }
-  });
-
-  // 在所有同域导航与加载停止后也尝试注入，适配 SPA 路由
   const tryAutoInject = (url) => {
     try {
       const hostname = new URL(url).hostname;
@@ -353,11 +340,32 @@ function setupReinjectOnAuthNavigation(targetWindow) {
       }
     } catch (e) {}
   };
-  wc.on('did-navigate', (e, url) => tryAutoInject(url));
-  wc.on('did-navigate-in-page', (e, url) => tryAutoInject(url));
-  wc.on('did-stop-loading', () => {
+
+  const handleNavigate = (event, url) => {
+    const prev = wc.__lastUrl || '';
+    if (shouldReinject(prev, url)) {
+      wc.__pendingReinject = true;
+    }
+    wc.__lastUrl = url;
+    tryAutoInject(url);
+  };
+
+  const handleDomReady = () => {
+    if (wc.__pendingReinject) {
+      injectCustomAssets(targetWindow);
+      wc.__pendingReinject = false;
+    }
+  };
+
+  const handleStopLoading = () => {
     tryAutoInject(wc.getURL());
-  });
+  };
+
+  // 统一添加监听器，避免重复
+  wc.on('did-navigate', handleNavigate);
+  wc.on('did-navigate-in-page', handleNavigate);
+  wc.on('dom-ready', handleDomReady);
+  wc.on('did-stop-loading', handleStopLoading);
 }
 
 // 获取鼠标所在屏幕的中心位置
