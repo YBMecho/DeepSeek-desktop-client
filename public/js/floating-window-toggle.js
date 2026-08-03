@@ -57,35 +57,69 @@
 
   // 在工具栏中注入按钮（分享按钮左侧）
   function injectInToolbar() {
-    const toolbar = document.querySelector('.e5bf614e');
-    if (!toolbar) return false;
+    // 方法1: 尝试多种选择器查找工具栏
+    let toolbar = document.querySelector('.e5bf614e') || 
+                  document.querySelector('[class*="e5bf614"]') ||
+                  document.querySelector('div[class*="toolbar"]');
+    
+    // 方法2: 如果没找到工具栏，直接搜索分享按钮，通过其父元素定位
+    if (!toolbar) {
+      console.log('[悬浮窗切换] 方法1未找到工具栏，尝试方法2：直接搜索分享按钮');
+      const allButtons = document.querySelectorAll('div[role="button"]');
+      console.log('[悬浮窗切换] 页面中所有按钮数量:', allButtons.length);
+      
+      for (const btn of allButtons) {
+        const svg = btn.querySelector('svg path[d*="M7.95889"]');
+        if (svg) {
+          console.log('[悬浮窗切换] 找到分享按钮（方法2）');
+          toolbar = btn.parentNode;
+          break;
+        }
+      }
+    }
+    
+    if (!toolbar) {
+      console.log('[悬浮窗切换] 未找到工具栏容器');
+      return false;
+    }
+
+    console.log('[悬浮窗切换] 找到工具栏容器:', toolbar.className);
 
     // 检查是否已添加
     if (toolbar.querySelector('.ds-floating-toggle-button')) {
+      console.log('[悬浮窗切换] 工具栏按钮已存在');
       return true;
     }
 
-    // 查找分享按钮（通过SVG路径特征，注意分享按钮使用--l尺寸）
+    // 查找分享按钮（通过SVG路径特征）
     const buttons = toolbar.querySelectorAll('div[role="button"]');
+    console.log('[悬浮窗切换] 工具栏中找到按钮数量:', buttons.length);
+    
     for (const btn of buttons) {
-      const svg = btn.querySelector('svg path[d*="M7.95889 1.52285"]');
+      const svg = btn.querySelector('svg path[d*="M7.95889"]');
       if (svg) {
+        console.log('[悬浮窗切换] 找到分享按钮，准备注入');
         const toggleButton = createToggleButton();
         btn.parentNode.insertBefore(toggleButton, btn);
+        console.log('[悬浮窗切换] 工具栏按钮注入成功');
         return true;
       }
     }
+    
+    console.log('[悬浮窗切换] 未找到分享按钮');
     return false;
   }
 
   // 在侧边栏中注入按钮（新对话按钮左侧，置顶按钮更左侧）
   function injectInSidebar() {
     const allButtons = document.querySelectorAll('div[role="button"].ds-button--xl');
+    console.log('[悬浮窗切换] 侧边栏中找到xl按钮数量:', allButtons.length);
     
     for (const btn of allButtons) {
       // 查找新对话按钮
       const svg = btn.querySelector('svg path[d*="M9.99994 1.22943C5.15598"]');
       if (svg) {
+        console.log('[悬浮窗切换] 找到新对话按钮');
         // 检查是否已添加悬浮窗切换按钮
         // 需要查找紧邻的前一个兄弟元素，如果是置顶按钮，再往前查找
         let targetPosition = btn;
@@ -93,29 +127,35 @@
         
         // 如果前面有置顶按钮，插入到置顶按钮之前
         if (prevSibling && prevSibling.classList.contains('ds-pin-button')) {
+          console.log('[悬浮窗切换] 检测到置顶按钮，将插入到置顶按钮之前');
           targetPosition = prevSibling;
           // 检查置顶按钮前面是否已有悬浮窗切换按钮
           const beforePin = prevSibling.previousElementSibling;
           if (beforePin && beforePin.classList.contains('ds-floating-toggle-button')) {
+            console.log('[悬浮窗切换] 侧边栏按钮已存在');
             return true; // 已存在
           }
         } else {
           // 没有置顶按钮，检查新对话按钮前面是否已有悬浮窗切换按钮
           if (prevSibling && prevSibling.classList.contains('ds-floating-toggle-button')) {
+            console.log('[悬浮窗切换] 侧边栏按钮已存在');
             return true; // 已存在
           }
         }
         
         const toggleButton = createToggleButton();
         targetPosition.parentNode.insertBefore(toggleButton, targetPosition);
+        console.log('[悬浮窗切换] 侧边栏按钮注入成功');
         return true;
       }
     }
+    console.log('[悬浮窗切换] 未找到新对话按钮');
     return false;
   }
 
   // 主注入函数
   function injectToggleButtons() {
+    console.log('[悬浮窗切换] 开始执行注入检查...');
     let injected = false;
     
     if (injectInToolbar()) {
@@ -125,6 +165,10 @@
       injected = true;
     }
     
+    if (!injected) {
+      console.log('[悬浮窗切换] 本次检查未能注入按钮');
+    }
+    
     return injected;
   }
 
@@ -132,6 +176,7 @@
   function startButtonInjection() {
     if (checkInterval) return;
 
+    console.log('[悬浮窗切换] 启动按钮注入服务');
     injectToggleButtons();
 
     checkInterval = setInterval(() => {
@@ -142,9 +187,11 @@
   // 初始化
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(startButtonInjection, 1000);
+      console.log('[悬浮窗切换] DOMContentLoaded事件触发');
+      setTimeout(startButtonInjection, 1500);
     });
   } else {
-    setTimeout(startButtonInjection, 1000);
+    console.log('[悬浮窗切换] DOM已就绪，直接启动');
+    setTimeout(startButtonInjection, 1500);
   }
 })();
