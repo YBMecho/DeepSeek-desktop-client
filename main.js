@@ -360,11 +360,12 @@ function createFloatingWindow() {
       webSecurity: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    frame: true,
+    frame: false,
+    transparent: false,
+    hasShadow: true,
+    roundedCorners: true,
     show: false,
     autoHideMenuBar: true,
-    menuBarVisible: false,
-    titleBarOverlay: true,
     backgroundColor: nativeTheme && nativeTheme.shouldUseDarkColors ? '#2b2b2b' : '#ffffff'
   });
   
