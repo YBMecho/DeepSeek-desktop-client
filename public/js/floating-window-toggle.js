@@ -4,9 +4,52 @@
 
   let toggleButtonElements = [];
   let checkInterval = null;
+  let currentTooltip = null; // 当前显示的tooltip
 
   // SVG图标（使用悬浮窗.svg的内容）
   const FLOATING_WINDOW_SVG = `<svg t="1785783042990" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M921.6 12.8h-307.2A89.6 89.6 0 0 0 524.8 102.4v307.2c0 49.4592 40.1408 89.6 89.6 89.6h307.2A89.6 89.6 0 0 0 1011.2 409.6V102.4A89.6 89.6 0 0 0 921.6 12.8zM204.8 140.8h204.8a38.4 38.4 0 0 0 0-76.8H204.8A140.8 140.8 0 0 0 64 204.8v614.4A140.8 140.8 0 0 0 204.8 960h614.4A140.8 140.8 0 0 0 960 819.2v-204.8a38.4 38.4 0 0 0-76.8 0v204.8c0 35.328-28.672 64-64 64H204.8c-35.328 0-64-28.672-64-64V204.8c0-35.328 28.672-64 64-64zM601.6 102.4a12.8 12.8 0 0 1 12.8-12.8h307.2a12.8 12.8 0 0 1 12.8 12.8v307.2a12.8 12.8 0 0 1-12.8 12.8h-307.2a12.8 12.8 0 0 1-12.8-12.8V102.4z" fill="currentColor"></path></svg>`;
+
+  // 创建tooltip提示
+  function createTooltip(text) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ds-floating-position-wrapper ds-theme';
+    wrapper.setAttribute('data-transform-origin', 'top');
+    wrapper.style.cssText = 'z-index: 1024; position: fixed;';
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'ds-tooltip ds-tooltip--s ds-tooltip--tooltip ds-elevated ds-theme';
+    tooltip.textContent = text;
+
+    wrapper.appendChild(tooltip);
+    return wrapper;
+  }
+
+  // 显示tooltip
+  function showTooltip(buttonElement, text) {
+    // 移除已存在的tooltip
+    hideTooltip();
+
+    const rect = buttonElement.getBoundingClientRect();
+    currentTooltip = createTooltip(text);
+    
+    // 定位在按钮下方
+    const left = rect.left + rect.width / 2;
+    const top = rect.bottom + 8;
+    
+    currentTooltip.style.left = `${left}px`;
+    currentTooltip.style.top = `${top}px`;
+    currentTooltip.style.transform = 'translateX(-50%)';
+    
+    document.body.appendChild(currentTooltip);
+  }
+
+  // 隐藏tooltip
+  function hideTooltip() {
+    if (currentTooltip && currentTooltip.parentNode) {
+      currentTooltip.remove();
+      currentTooltip = null;
+    }
+  }
 
   // 创建悬浮窗切换按钮
   function createToggleButton() {
@@ -31,10 +74,20 @@
     button.appendChild(background);
     button.appendChild(iconWrapper);
 
+    // 鼠标悬停事件
+    button.addEventListener('mouseenter', () => {
+      showTooltip(button, '使用悬浮窗打开');
+    });
+
+    button.addEventListener('mouseleave', () => {
+      hideTooltip();
+    });
+
     // 点击事件
     button.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      hideTooltip();
       handleToggle();
     });
 
