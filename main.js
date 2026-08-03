@@ -284,6 +284,7 @@ function ensureWindowInScreen(bounds) {
   const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
   const display = screen.getDisplayNearestPoint(point);
   const workArea = display.workArea;
+  const screenBounds = display.bounds; // 整个屏幕区域（包含任务栏）
   
   let { x, y, width, height } = bounds;
   
@@ -291,7 +292,7 @@ function ensureWindowInScreen(bounds) {
   width = Math.max(360, Math.min(860, width));
   height = Math.max(426, Math.min(1032, height));
   
-  // 确保不超出屏幕右边和底部
+  // 确保不超出工作区域右边和底部
   if (x + width > workArea.x + workArea.width) {
     x = workArea.x + workArea.width - width;
   }
@@ -299,14 +300,14 @@ function ensureWindowInScreen(bounds) {
     y = workArea.y + workArea.height - height;
   }
   
-  // 确保不超出屏幕左边
+  // 确保不超出工作区域左边
   if (x < workArea.x) {
     x = workArea.x;
   }
   
-  // 确保距离顶部至少30px
-  if (y < workArea.y + 30) {
-    y = workArea.y + 30;
+  // 确保距离屏幕顶部（不是工作区顶部）至少30px
+  if (y < screenBounds.y + 30) {
+    y = screenBounds.y + 30;
   }
   
   return { x, y, width, height };
@@ -322,12 +323,23 @@ function createFloatingWindow() {
   
   let bounds;
   
-  // 如果会话期间有临时保存的位置和尺寸，使用临时保存的
+  // 获取鼠标所在屏幕信息
+  const { screen } = require('electron');
+  const cursorPoint = screen.getCursorScreenPoint();
+  const mouseDisplay = screen.getDisplayNearestPoint(cursorPoint);
+  const mouseScreen = mouseDisplay.workArea;
+  
+  // 如果会话期间有临时保存的位置和尺寸，使用保存的尺寸但在鼠标屏幕中心显示
   if (floatingWindowBounds) {
-    bounds = ensureWindowInScreen(floatingWindowBounds);
+    bounds = {
+      x: Math.round(mouseScreen.x + (mouseScreen.width - floatingWindowBounds.width) / 2),
+      y: Math.round(mouseScreen.y + (mouseScreen.height - floatingWindowBounds.height) / 2),
+      width: floatingWindowBounds.width,
+      height: floatingWindowBounds.height
+    };
+    bounds = ensureWindowInScreen(bounds);
   } else {
     // 否则在鼠标所在屏幕中心创建，默认尺寸440x600
-    const mouseScreen = getMouseScreenCenter();
     bounds = {
       x: Math.round(mouseScreen.x + (mouseScreen.width - 440) / 2),
       y: Math.round(mouseScreen.y + (mouseScreen.height - 600) / 2),
@@ -409,7 +421,24 @@ function createFloatingWindow() {
   // 临时保存位置和尺寸（仅会话期间有效）
   const saveBoundsTemporarily = () => {
     if (floatingWindow && !floatingWindow.isDestroyed()) {
-      floatingWindowBounds = floatingWindow.getBounds();
+      const currentBounds = floatingWindow.getBounds();
+      const { screen } = require('electron');
+      const point = { x: currentBounds.x + currentBounds.width / 2, y: currentBounds.y + currentBounds.height / 2 };
+      const display = screen.getDisplayNearestPoint(point);
+      const screenBounds = display.bounds;
+      
+      // 实时检查并修正位置，确保距离屏幕顶部至少30px
+      if (currentBounds.y < screenBounds.y + 30) {
+        floatingWindow.setBounds({
+          x: currentBounds.x,
+          y: screenBounds.y + 30,
+          width: currentBounds.width,
+          height: currentBounds.height
+        });
+        floatingWindowBounds = floatingWindow.getBounds();
+      } else {
+        floatingWindowBounds = currentBounds;
+      }
     }
   };
   
@@ -442,7 +471,7 @@ function injectFloatingWindowDragArea(targetWindow) {
       top: 0;
       left: 0;
       right: 0;
-      height: 15px;
+      height: 30px;
       -webkit-app-region: drag;
       z-index: 99999;
       pointer-events: auto;
@@ -470,23 +499,36 @@ function toggleFloatingWindow() {
   } else if (floatingWindow.isVisible()) {
     floatingWindow.hide();
   } else {
-    // 显示在鼠标所在屏幕
-    const mouseScreen = getMouseScreenCenter();
-    const bounds = floatingWindow.getBounds();
+    // 获取鼠标所在屏幕信息
+    const { screen } = require('electron');
+    const cursorPoint = screen.getCursorScreenPoint();
+    const mouseDisplay = screen.getDisplayNearestPoint(cursorPoint);
+    const mouseScreen = mouseDisplay.workArea;
     
-    // 如果会话期间有临时保存的位置，使用临时保存的；否则显示在鼠标屏幕中心
+    const bounds = floatingWindow.getBounds();
+    let newBounds;
+    
+    // 如果会话期间有临时保存的位置和尺寸，使用保存的尺寸
     if (floatingWindowBounds) {
-      const savedBounds = ensureWindowInScreen(floatingWindowBounds);
-      floatingWindow.setBounds(savedBounds);
+      // 使用保存的尺寸，但位置调整到鼠标所在屏幕的中心
+      newBounds = {
+        x: Math.round(mouseScreen.x + (mouseScreen.width - floatingWindowBounds.width) / 2),
+        y: Math.round(mouseScreen.y + (mouseScreen.height - floatingWindowBounds.height) / 2),
+        width: floatingWindowBounds.width,
+        height: floatingWindowBounds.height
+      };
     } else {
-      const newBounds = {
+      // 没有保存的位置，使用默认尺寸并在鼠标屏幕中心显示
+      newBounds = {
         x: Math.round(mouseScreen.x + (mouseScreen.width - bounds.width) / 2),
         y: Math.round(mouseScreen.y + (mouseScreen.height - bounds.height) / 2),
         width: bounds.width,
         height: bounds.height
       };
-      floatingWindow.setBounds(ensureWindowInScreen(newBounds));
     }
+    
+    // 确保窗口在屏幕内且距离顶部至少30px
+    floatingWindow.setBounds(ensureWindowInScreen(newBounds));
     
     floatingWindow.show();
     floatingWindow.focus();
