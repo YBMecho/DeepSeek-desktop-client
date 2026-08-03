@@ -179,28 +179,25 @@
     const existing = document.querySelector('.hotkey-setting-flex');
     if (existing) {
       existing.remove();
-      console.log('移除已存在的快捷键设置');
     }
 
     // 移除悬浮窗快捷键设置
     const existingFloating = document.querySelector('.floating-hotkey-setting-flex');
     if (existingFloating) {
       existingFloating.remove();
-      console.log('移除已存在的悬浮窗快捷键设置');
     }
 
     // 移除关闭行为设置
     const existingCloseBehavior = document.querySelector('.close-behavior-setting-flex');
     if (existingCloseBehavior) {
       existingCloseBehavior.remove();
-      console.log('移除已存在的关闭行为设置');
+
     }
 
     // 移除回复通知开关设置
     const existingReplyNotify = document.querySelector('.reply-notify-setting-flex');
     if (existingReplyNotify) {
       existingReplyNotify.remove();
-      console.log('移除已存在的回复通知开关设置');
     }
 
     // 解绑主题选择器与系统主题监听
@@ -236,7 +233,6 @@
   function createHotkeySettings() {
     // 首先检查是否为通用设置标签页
     if (!isGeneralSettingsTab()) {
-      console.log('当前不是通用设置标签页，跳过创建快捷键设置');
       return;
     }
 
@@ -247,7 +243,6 @@
     // 盯一次而不是 setTimeout 重试，避免打开设置时只看到语言一行再闪一下。
     const languageContainer = findLanguageContainer();
     if (!languageContainer) {
-      console.log('未找到语言容器，等待 DOM 出现');
       const waitObserver = new MutationObserver(() => {
         if (!isGeneralSettingsTab()) return;
         const lc = findLanguageContainer();
@@ -266,7 +261,6 @@
     const languageStyles = window.getComputedStyle(languageContainer);
     if (!languageStyles.borderBottom || languageStyles.borderBottom === 'none' || languageStyles.borderBottom.includes('0px')) {
       languageContainer.style.borderBottom = '1px solid rgb(var(--ds-rgb-separator))';
-      console.log('已为语言容器添加底部边框');
     }
     
     // 创建快捷键设置容器，使用与语言/主题相同的样式（无底部边框）
@@ -325,7 +319,6 @@
     // 防御式复位（万一原生 UI 重排过 wrapper，后续兜底 observer 也会再校正一次）
     ensureHotkeySectionPlacement();
 
-    console.log('快捷键设置区域创建成功');
 
     // 绑定主题变化并根据当前主题设置外观
     bindAndApplyTheme();
@@ -458,7 +451,6 @@
       mediaDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
     }
     const systemTheme = mediaDark && mediaDark.matches ? 'dark' : 'light';
-    console.log('使用系统偏好作为回退主题:', systemTheme);
     return systemTheme;
   }
 
@@ -469,17 +461,15 @@
     if (bodyElement) {
       const bodyClasses = bodyElement.className;
       if (bodyClasses.includes('dark')) {
-        console.log('通过body class检测到深色主题');
+
         return 'dark';
       }
       if (bodyClasses.includes('light')) {
-        console.log('通过body class检测到浅色主题');
         return 'light';
       }
       
       // 检查data-ds-dark-theme属性
       if (bodyElement.getAttribute('data-ds-dark-theme') === 'dark') {
-        console.log('通过data属性检测到深色主题');
         return 'dark';
       }
     }
@@ -495,11 +485,9 @@
       if (hoverVar) {
         // 匹配新的CSS变量格式：255 255 255 / 8% 或 0 0 0 / 4%
         if (hoverVar.includes('255 255 255') || hoverVar.includes('255, 255, 255')) {
-          console.log('通过CSS变量检测到深色主题:', hoverVar);
           return 'dark';
         }
         if (hoverVar.includes('0 0 0') || hoverVar.includes('0, 0, 0')) {
-          console.log('通过CSS变量检测到浅色主题:', hoverVar);
           return 'light';
         }
       }
@@ -507,18 +495,15 @@
     
     // 方法3：检查prefers-color-scheme媒体查询作为最后的回退
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      console.log('通过系统偏好检测到深色主题');
       return 'dark';
     }
     
-    console.log('无法检测到明确的主题，返回null');
     return null;
   }
 
   // 根据主题为容器添加类（新版本使用与语言选择框一样的样式，不需要额外的主题类）
   function applyHotkeyTheme() {
     // 新版本使用的是与语言选择框相同的样式，无需额外的主题适配
-    console.log('主题已应用，使用默认的语言选择框样式');
   }
 
   // 创建悬浮窗快捷键设置区域
@@ -559,7 +544,6 @@
     
     referenceContainer.parentNode.insertBefore(floatingContainer, referenceContainer.nextSibling);
     
-    console.log('悬浮窗快捷键设置区域创建成功');
   }
 
   // 开始悬浮窗快捷键捕获
@@ -573,7 +557,6 @@
     if (currentTime - lastClickTime < DOUBLE_CLICK_THRESHOLD) {
       clickCount++;
       if (clickCount >= 2) {
-        console.log('检测到双击，恢复默认悬浮窗快捷键');
         
         if (isFloatingSettingMode) {
           exitFloatingSettingMode();
@@ -602,7 +585,6 @@
     document.addEventListener('keydown', captureFloatingKeyDown, true);
     document.addEventListener('click', handleFloatingOutsideClick, true);
     
-    console.log('进入悬浮窗快捷键设置模式');
   }
 
   // 处理悬浮窗输入框的键盘事件
@@ -628,11 +610,9 @@
     const hotkeyString = keyEventToHotkeyString(event);
     
     if (!isValidHotkey(hotkeyString)) {
-      console.log('无效的悬浮窗快捷键:', hotkeyString);
       return;
     }
     
-    console.log('捕获到悬浮窗快捷键:', hotkeyString);
     
     currentFloatingHotkey = hotkeyString;
     updateFloatingHotkeyDisplay();
@@ -668,7 +648,6 @@
     lastClickTime = 0;
     
     updateFloatingHotkeyDisplay();
-    console.log('退出悬浮窗快捷键设置模式');
   }
 
   // 确保悬浮窗状态完全重置
@@ -686,7 +665,6 @@
     clickCount = 0;
     lastClickTime = 0;
     
-    console.log('悬浮窗状态完全重置完成');
   }
 
   // 确保悬浮窗显示内容和样式都正确
@@ -701,7 +679,6 @@
         floatingHotkeySelectContainer.classList.remove('ds-select--open');
       }
       
-      console.log('悬浮窗显示内容和样式已确保正确');
     }
   }
 
@@ -720,7 +697,6 @@
 
   // 恢复默认悬浮窗快捷键
   function restoreDefaultFloatingHotkey() {
-    console.log('恢复默认悬浮窗快捷键: Alt+Space');
     
     currentFloatingHotkey = 'Alt+Space';
     updateFloatingHotkeyDisplay();
@@ -733,13 +709,10 @@
       if (window.electronAPI && window.electronAPI.setFloatingWindowHotkey) {
         const result = await window.electronAPI.setFloatingWindowHotkey(hotkey);
         if (result.success) {
-          console.log('悬浮窗快捷键设置保存成功:', hotkey);
         } else {
           console.error('悬浮窗快捷键设置失败:', result.error);
           loadCurrentFloatingHotkey();
         }
-      } else {
-        console.log('Electron API不可用，悬浮窗快捷键设置:', hotkey);
       }
     } catch (error) {
       console.error('保存悬浮窗快捷键设置时出错:', error);
@@ -753,7 +726,6 @@
       if (window.electronAPI && window.electronAPI.getFloatingWindowHotkey) {
         currentFloatingHotkey = await window.electronAPI.getFloatingWindowHotkey();
         updateFloatingHotkeyDisplay();
-        console.log('加载当前悬浮窗快捷键:', currentFloatingHotkey);
       }
     } catch (error) {
       console.error('加载悬浮窗快捷键设置时出错:', error);
@@ -799,7 +771,6 @@
       body.style.setProperty('--ds-rgb-hover', targetLight ? hoverLight : hoverDark);
     }
 
-    console.log('强制应用主题:', targetLight ? 'light' : 'dark');
     
     // ponytail: 延迟重置标志，确保 DOM 变化已被 observer 处理
     setTimeout(() => {
@@ -909,7 +880,6 @@
     const initialTheme = getCurrentThemeFromDOM();
     if (initialTheme) {
       lastSyncedTheme = initialTheme;
-      console.log('初始化主题缓存:', initialTheme);
     }
     
     syncElectronTheme();
@@ -1025,7 +995,6 @@
         });
         
         if (foundTheme) {
-          console.log('从按钮检测到主题:', themeSource);
           // ponytail: 只在主题真正变化时才调用 IPC，避免循环触发
           if (themeSource !== lastSyncedTheme) {
             lastSyncedTheme = themeSource;
@@ -1042,7 +1011,6 @@
         if (value === 'light') themeSource = 'light';
         else if (value === 'dark') themeSource = 'dark';
         else themeSource = 'system';
-        console.log('从选择器检测到主题:', themeSource);
       }
       
       // ponytail: 只在主题真正变化时才调用 IPC，避免循环触发
@@ -1116,7 +1084,6 @@
     // 插入到快捷键设置后面
     hotkeyContainer.parentNode.insertBefore(closeBehaviorContainer, hotkeyContainer.nextSibling);
     
-    console.log('关闭行为设置区域创建成功');
     
     // 初始调整宽度
     adjustSelectWidth({ target: selectContainer, value: currentCloseBehavior });
@@ -1139,7 +1106,6 @@
        container.style.maxWidth = '90px';
      }
     
-    console.log('调整选择框宽度:', selectedValue, '新宽度:', container.style.minWidth);
   }
 
   // 打开自定义下拉菜单
@@ -1237,21 +1203,17 @@
   // 处理关闭行为选择变化
   async function handleCloseBehaviorChange(event) {
     const newBehavior = event.target.value;
-    console.log('关闭行为更改为:', newBehavior);
     
     try {
       if (window.electronAPI && window.electronAPI.setCloseBehavior) {
         const result = await window.electronAPI.setCloseBehavior(newBehavior);
         if (result.success) {
           currentCloseBehavior = newBehavior;
-          console.log('关闭行为设置保存成功:', newBehavior);
         } else {
           console.error('关闭行为设置失败:', result.error);
           // 恢复之前的选择
           loadCurrentCloseBehavior();
         }
-      } else {
-        console.log('Electron API不可用，关闭行为设置:', newBehavior);
       }
     } catch (error) {
       console.error('保存关闭行为设置时出错:', error);
@@ -1308,7 +1270,6 @@
       parent.appendChild(container);
     }
 
-    console.log('回复通知开关设置区域创建成功');
   }
 
   // 处理回复通知开关切换
@@ -1322,14 +1283,12 @@
           if (replyNotifyToggleContainer) {
             replyNotifyToggleContainer.setAttribute('aria-checked', String(currentReplyNotifyEnabled));
           }
-          console.log('回复通知开关已更新:', currentReplyNotifyEnabled);
         } else {
           console.error('回复通知开关更新失败:', result && result.error);
           // 回滚 UI
           event.target.checked = currentReplyNotifyEnabled;
         }
       } else {
-        console.log('Electron API不可用，无法保存回复通知开关');
         event.target.checked = currentReplyNotifyEnabled;
       }
     } catch (error) {
@@ -1349,7 +1308,6 @@
         if (replyNotifyToggleContainer) {
           replyNotifyToggleContainer.setAttribute('aria-checked', String(currentReplyNotifyEnabled));
         }
-        console.log('加载回复通知开关:', currentReplyNotifyEnabled);
       }
     } catch (error) {
       console.error('加载回复通知开关时出错:', error);
@@ -1365,7 +1323,6 @@
           closeBehaviorDisplay.textContent = currentCloseBehavior === 'close' ? '直接关闭' : '最小化';
           adjustSelectWidth({ target: closeBehaviorSelectContainer, value: currentCloseBehavior });
         }
-        console.log('加载当前关闭行为:', currentCloseBehavior);
       }
     } catch (error) {
       console.error('加载关闭行为设置时出错:', error);
@@ -1374,7 +1331,6 @@
   
   // 恢复默认快捷键
   function restoreDefaultHotkey() {
-    console.log('恢复默认快捷键:', DEFAULT_HOTKEY);
     
     currentHotkey = DEFAULT_HOTKEY;
     updateHotkeyDisplay();
@@ -1393,7 +1349,6 @@
       clickCount++;
       if (clickCount >= 2) {
         // 检测到双击，恢复默认快捷键
-        console.log('检测到双击，恢复默认快捷键');
         
         // 先确保退出任何现有的设置模式
         if (isSettingMode) {
@@ -1429,7 +1384,6 @@
     document.addEventListener('keydown', captureKeyDown, true);
     document.addEventListener('click', handleOutsideClick, true);
     
-    console.log('进入快捷键设置模式');
   }
   
   // 处理输入框的键盘事件
@@ -1457,11 +1411,8 @@
     
     // 检查快捷键是否有效
     if (!isValidHotkey(hotkeyString)) {
-      console.log('无效的快捷键:', hotkeyString);
       return;
     }
-    
-    console.log('捕获到快捷键:', hotkeyString);
     
     // 更新显示和保存设置
     currentHotkey = hotkeyString;
@@ -1506,7 +1457,6 @@
     lastClickTime = 0;
     
     updateHotkeyDisplay();
-    console.log('退出快捷键设置模式');
   }
   
   // 确保状态完全重置（用于双击恢复后的状态清理）
@@ -1528,8 +1478,6 @@
     // 重置计数器
     clickCount = 0;
     lastClickTime = 0;
-    
-    console.log('状态完全重置完成');
   }
   
   // 确保显示内容和样式都正确
@@ -1549,8 +1497,6 @@
       if (hotkeySelectContainer) {
         hotkeySelectContainer.classList.remove('ds-select--open');
       }
-      
-      console.log('显示内容和样式已确保正确');
     }
   }
   
@@ -1574,14 +1520,12 @@
       if (window.electronAPI && window.electronAPI.setHotkey) {
         const result = await window.electronAPI.setHotkey(hotkey);
         if (result.success) {
-          console.log('快捷键设置保存成功:', hotkey);
         } else {
           console.error('快捷键设置失败:', result.error);
           // 恢复之前的快捷键显示
           loadCurrentHotkey();
         }
       } else {
-        console.log('Electron API不可用，快捷键设置:', hotkey);
       }
     } catch (error) {
       console.error('保存快捷键设置时出错:', error);
@@ -1595,7 +1539,6 @@
       if (window.electronAPI && window.electronAPI.getCurrentHotkey) {
         currentHotkey = await window.electronAPI.getCurrentHotkey();
         updateHotkeyDisplay();
-        console.log('加载当前快捷键:', currentHotkey);
       }
     } catch (error) {
       console.error('加载快捷键设置时出错:', error);
@@ -1604,7 +1547,6 @@
   
   // 监听标签页切换
   function handleTabSwitch() {
-    console.log('标签页切换事件触发');
     // ponytail: 点击事件触发时，原生 UI 还没来得及把"通用设置"高亮挪走，
     // 此刻 isGeneralSettingsTab() 仍会返回 true。
     // 延一帧再判断，等原生 UI 把 _699d482 等高亮类从旧 tab 按钮上移走。
@@ -1613,10 +1555,8 @@
       if (isGeneralSettingsTab()) {
         // 节点还在就只切回显隐；不在就重建（防御式，几乎不会发生）
         if (!document.querySelector('.hotkey-section-wrapper')) {
-          console.log('切换到通用设置，重建快捷键设置');
           createHotkeySettings();
         } else {
-          console.log('切换到通用设置，恢复快捷键设置显隐 + 复位位置');
           ensureHotkeySectionPlacement();
           syncHotkeySectionVisibility();
         }
@@ -1690,13 +1630,11 @@
   function observeBodyThemeChanges() {
     const bodyElement = document.body || document.querySelector('body');
     if (!bodyElement) {
-      console.log('找不到body元素，延迟重试');
       setTimeout(observeBodyThemeChanges, 1000);
       return;
     }
     
     let lastTheme = resolveThemeFromCssVar();
-    console.log('开始监听body主题变化，当前主题:', lastTheme);
     
     const themeObserver = new MutationObserver((mutations) => {
       // ponytail: 跳过主进程推送触发的 DOM 变化，避免循环
@@ -1720,7 +1658,6 @@
       if (themeChanged) {
         const currentTheme = resolveThemeFromCssVar();
         if (currentTheme && currentTheme !== lastTheme) {
-          console.log('检测到主题变化:', lastTheme, '->', currentTheme);
           lastTheme = currentTheme;
           
           // 应用新主题到快捷键设置
@@ -1749,8 +1686,6 @@
         attributeFilter: ['class', 'style']
       });
     }
-    
-    console.log('已设置body主题变化监听器');
   }
   
   // 添加标签切换/侧边菜单点击监听器
@@ -1769,7 +1704,6 @@
       btn.removeEventListener('click', handleTabSwitch);
       btn.addEventListener('click', handleTabSwitch);
     });
-    console.log('已添加标签/菜单点击监听器');
   }
   
   // 初始化
@@ -1799,8 +1733,6 @@
 
     // 开始监听body主题变化
     observeBodyThemeChanges();
-
-    console.log('快捷键设置功能初始化完成');
     // ponytail: 初始化时不再调 syncThemeByCssVar——它会把 CSS 推断值写进主进程覆盖 user 的 system 选择。
   }
   

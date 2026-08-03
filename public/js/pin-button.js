@@ -15,7 +15,6 @@
     try {
       if (window.electronAPI && window.electronAPI.getFloatingWindowPinState) {
         isPinned = await window.electronAPI.getFloatingWindowPinState();
-        console.log('初始置顶状态:', isPinned);
         updateAllButtonsDisplay();
       }
     } catch (error) {
@@ -30,7 +29,6 @@
         isPinned = !isPinned;
         const result = await window.electronAPI.setFloatingWindowPinState(isPinned);
         if (result.success) {
-          console.log('置顶状态已切换为:', isPinned);
           updateAllButtonsDisplay();
         } else {
           console.error('切换置顶状态失败:', result.error);
@@ -104,7 +102,6 @@
       if (svg) {
         const pinButton = createPinButton();
         btn.parentNode.insertBefore(pinButton, btn);
-        console.log('置顶按钮已添加到"新对话"按钮左侧');
         return true;
       }
     }
@@ -127,7 +124,6 @@
     if (firstButton) {
       const pinButton = createPinButton();
       firstButton.parentNode.insertBefore(pinButton, firstButton);
-      console.log('置顶按钮已添加到工具栏');
       return true;
     }
     return false;
@@ -159,15 +155,12 @@
     checkInterval = setInterval(() => {
       injectPinButtons();
     }, 2000);
-
-    console.log('置顶按钮注入器已启动');
   }
 
   // 监听置顶状态变化（从主进程广播）
   if (window.electronAPI && window.electronAPI.onFloatingWindowPinStateChanged) {
     window.electronAPI.onFloatingWindowPinStateChanged((pinned) => {
       isPinned = pinned;
-      console.log('收到置顶状态变化通知:', pinned);
       updateAllButtonsDisplay();
     });
   }
@@ -182,6 +175,4 @@
     initPinState();
     setTimeout(startButtonInjection, 1000);
   }
-
-  console.log('置顶按钮脚本已加载');
 })();

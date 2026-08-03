@@ -15,7 +15,6 @@ try {
     contextMenu = contextMenu.default;
   }
 } catch (error) {
-  console.log('electron-context-menu 导入失败:', error);
   contextMenu = null;
 }
 
@@ -57,7 +56,6 @@ function loadConfig() {
       
       // 检查文件是否为空
       if (!configData.trim()) {
-        console.log('配置文件为空，使用默认配置');
         return defaultConfig;
       }
       
@@ -95,27 +93,20 @@ function loadConfig() {
       if (typeof config.isFloatingWindowPinned === 'boolean') {
         validatedConfig.isFloatingWindowPinned = config.isFloatingWindowPinned;
       }
-
-      logDebug('配置文件加载成功:', validatedConfig);
       return validatedConfig;
     }
   } catch (error) {
-    console.log('读取配置文件失败:', error.message);
     
     // 如果是 JSON 解析错误，尝试备份损坏的文件
     if (error instanceof SyntaxError) {
       try {
         const backupPath = configPath + '.backup';
         fs.copyFileSync(configPath, backupPath);
-        console.log('已备份损坏的配置文件到:', backupPath);
-      } catch (backupError) {
-        console.log('备份损坏配置文件失败:', backupError.message);
-      }
+      } catch (e) {}
     }
   }
   
   // 如果文件不存在或读取失败，返回默认配置
-  logDebug('使用默认配置');
   return defaultConfig;
 }
 
@@ -124,7 +115,6 @@ function saveConfig(config) {
   try {
     // 验证配置数据
     if (!config || typeof config !== 'object') {
-      console.log('无效的配置数据');
       return false;
     }
     
@@ -137,11 +127,9 @@ function saveConfig(config) {
     // ponytail: Windows 上 rename 在文件被占用时会失败，直接写入更可靠
     const configJson = JSON.stringify(config, null, 2);
     fs.writeFileSync(configPath, configJson, 'utf8');
-    
-    logDebug('配置文件保存成功:', config);
+
     return true;
   } catch (error) {
-    console.log('保存配置文件失败:', error.message);
     return false;
   }
 }
@@ -152,13 +140,11 @@ function updateConfig(key, value) {
     const config = loadConfig();
     // 若值未变化则跳过保存，避免重复日志与磁盘写入
     if (config && Object.prototype.hasOwnProperty.call(config, key) && config[key] === value) {
-      logDebug('配置未变化，跳过保存:', key, value);
       return true;
     }
     config[key] = value;
     return saveConfig(config);
   } catch (error) {
-    console.log('更新配置失败:', error);
     return false;
   }
 }
@@ -189,7 +175,6 @@ function updateConfigNoRead(key, value) {
     
     return result;
   } catch (error) {
-    console.log('无读取更新配置失败:', error);
     isWritingConfig = false;
     return false;
   }
@@ -223,7 +208,6 @@ function watchConfigFile() {
           // 同步到 nativeTheme
           if (nativeTheme && nativeTheme.themeSource !== config.theme) {
             nativeTheme.themeSource = config.theme;
-            console.log('配置文件变更，同步主题:', config.theme);
             
             const isDark = nativeTheme.shouldUseDarkColors;
             
@@ -245,17 +229,13 @@ function watchConfigFile() {
               });
             }
           }
-        } catch (e) {
-          console.log('配置文件监听处理失败:', e);
-        }
+        } catch (e) {}
       }, 100); // 100ms 防抖
     });
-    
-    console.log('已启动配置文件监听');
-  } catch (error) {
-    console.log('启动配置文件监听失败:', error);
-  }
+  } catch (e) {}
 }
+
+
 
 // 根据是否为深色主题，刷新窗口的标题栏覆盖色与背景色
 function applyWindowTheme(win, isDark) {
@@ -286,30 +266,24 @@ function injectCustomAssets(targetWindow) {
   try {
     const css = fs.readFileSync(cssPath, 'utf8');
     targetWindow.webContents.insertCSS(css);
-  } catch (error) {
-    console.log('CSS文件加载失败:', error);
-  }
+  } catch (e) {}
 
   // 注入快捷键设置JavaScript
   const jsPath = path.join(__dirname, 'public/js/hotkey-settings.js');
   try {
     const js = fs.readFileSync(jsPath, 'utf8');
-    const wrapped = `(() => {\n  try {\n    if (window.__DS_HOTKEY_SCRIPT_LOADED__) {\n      console.log('检测到脚本已存在，跳过重复注入');\n      return;\n    }\n    window.__DS_HOTKEY_SCRIPT_LOADED__ = true;\n  } catch (e) {}\n})();\n` + js;
+    const wrapped = `(() => {\n  try {\n    if (window.__DS_HOTKEY_SCRIPT_LOADED__) {;\n      return;\n    }\n    window.__DS_HOTKEY_SCRIPT_LOADED__ = true;\n  } catch (e) {}\n})();\n` + js;
     targetWindow.webContents.executeJavaScript(wrapped);
-  } catch (error) {
-    console.log('JS文件加载失败:', error);
-  }
+  } catch (e) {}
 
   // 注入置顶按钮JavaScript（仅悬浮窗）
   if (targetWindow === floatingWindow) {
     const pinButtonJsPath = path.join(__dirname, 'public/js/pin-button.js');
     try {
       const pinButtonJs = fs.readFileSync(pinButtonJsPath, 'utf8');
-      const wrapped = `(() => {\n  try {\n    if (window.__DS_PIN_BUTTON_LOADED__) {\n      console.log('检测到置顶按钮脚本已存在，跳过重复注入');\n      return;\n    }\n    window.__DS_PIN_BUTTON_LOADED__ = true;\n  } catch (e) {}\n})();\n` + pinButtonJs;
+      const wrapped = `(() => {\n  try {\n    if (window.__DS_PIN_BUTTON_LOADED__) {);\n      return;\n    }\n    window.__DS_PIN_BUTTON_LOADED__ = true;\n  } catch (e) {}\n})();\n` + pinButtonJs;
       targetWindow.webContents.executeJavaScript(wrapped);
-    } catch (error) {
-      console.log('置顶按钮JS文件加载失败:', error);
-    }
+    } catch (e) {}
   }
 }
 
@@ -333,7 +307,6 @@ function setupReinjectOnAuthNavigation(targetWindow) {
     const prev = wc.__lastUrl || '';
     if (shouldReinject(prev, nextUrl)) {
       wc.__pendingReinject = true;
-      console.log('检测到从登录/注册跳转至主页，准备重新注入设置脚本');
     }
     wc.__lastUrl = nextUrl;
   };
@@ -529,10 +502,7 @@ function createFloatingWindow() {
             isDark: nativeTheme.shouldUseDarkColors,
             source: nativeTheme.themeSource
           });
-          console.log('初始主题已同步到悬浮窗:', nativeTheme.themeSource);
-        } catch (e) {
-          console.log('悬浮窗主题同步失败:', e);
-        }
+        } catch (e) {}
       }
     });
   } catch (e) {}
@@ -630,9 +600,7 @@ function injectFloatingWindowDragArea(targetWindow) {
   
   try {
     targetWindow.webContents.insertCSS(dragAreaCSS);
-  } catch (error) {
-    console.log('注入拖动区域样式失败:', error);
-  }
+  } catch (e) {}
 }
 
 // 切换悬浮窗显隐
@@ -683,52 +651,20 @@ function toggleFloatingWindow() {
 // 注册悬浮窗快捷键（独立于主窗口快捷键）
 function registerFloatingWindowHotkey(hotkey) {
   try {
-    // 先注销所有悬浮窗相关的快捷键（使用 unregisterAll 确保清理干净）
     if (floatingHotkeyRegistered && floatingWindowHotkey) {
-      const unregistered = globalShortcut.unregister(floatingWindowHotkey);
-      console.log(`尝试注销旧悬浮窗快捷键 ${floatingWindowHotkey}: ${unregistered ? '成功' : '失败'}`);
-      
-      // 如果单个注销失败，尝试检查是否真的注册了
-      if (!unregistered) {
-        const isRegistered = globalShortcut.isRegistered(floatingWindowHotkey);
-        console.log(`检查旧快捷键 ${floatingWindowHotkey} 是否已注册: ${isRegistered}`);
-        
-        // 如果确实注册了但注销失败，使用 unregisterAll 强制清理
-        if (isRegistered) {
-          console.log('单个注销失败，尝试清理所有快捷键后重新注册');
-          const oldMainHotkey = currentHotkey;
-          globalShortcut.unregisterAll();
-          
-          // 重新注册主窗口快捷键
-          if (oldMainHotkey) {
-            globalShortcut.register(oldMainHotkey, () => {
-              toggleWindow();
-            });
-            console.log(`重新注册主窗口快捷键: ${oldMainHotkey}`);
-          }
-        }
-      }
-      
+      globalShortcut.unregister(floatingWindowHotkey);
       floatingHotkeyRegistered = false;
     }
     
-    // 更新快捷键变量
     floatingWindowHotkey = hotkey;
-    
-    // 注册新的快捷键
     const ret = globalShortcut.register(hotkey, () => {
-      toggleFloatingWindow(); // 只控制悬浮窗
+      toggleFloatingWindow();
     });
     
     if (ret) {
       floatingHotkeyRegistered = true;
-      console.log(`悬浮窗快捷键 ${hotkey} 注册成功`);
-    } else {
-      console.log(`悬浮窗快捷键 ${hotkey} 注册失败（可能已被占用）`);
     }
-  } catch (error) {
-    console.log('悬浮窗快捷键注册错误:', error);
-  }
+  } catch (error) {}
 }
 
 // 注册主窗口全局快捷键（独立于悬浮窗快捷键）
@@ -747,13 +683,8 @@ function registerHotkey(hotkey) {
     
     if (ret) {
       hotkeyRegistered = true;
-      console.log(`主窗口快捷键 ${hotkey} 注册成功`);
-    } else {
-      console.log(`主窗口快捷键 ${hotkey} 注册失败`);
     }
-  } catch (error) {
-    console.log('主窗口快捷键注册错误:', error);
-  }
+  } catch (error) {}
 }
 
 // 切换主窗口显隐状态（不包括悬浮窗）
@@ -868,7 +799,6 @@ function createTray() {
     {
       label: '退出',
       click: () => {
-        console.log('从系统托盘退出应用');
         isQuitting = true;
         
         // 清理托盘
@@ -1056,19 +986,16 @@ function createWindow() {
       try { mainWindow.hide(); } catch (e) {}
       isWindowHidden = true;
       createTray();
-      console.log('窗口已最小化到系统托盘');
     }
     // 如果 closeBehavior === 'close' 或者正在退出，则不阻止默认关闭行为
   });
 
   // 当窗口关闭时清除引用
   mainWindow.on('closed', () => {
-    console.log('主窗口已关闭');
     mainWindow = null;
     
     // 如果窗口关闭时还有托盘且不是正在退出，说明是异常情况，清理托盘
     if (tray && !isQuitting) {
-      console.log('窗口异常关闭，清理托盘');
       tray.destroy();
       tray = null;
     }
@@ -1086,10 +1013,7 @@ function createWindow() {
   if (nativeTheme && config.theme) {
     try {
       nativeTheme.themeSource = config.theme;
-      console.log('应用主题设置为:', config.theme);
-    } catch (error) {
-      console.log('设置主题失败:', error);
-    }
+    } catch (error) {}
   }
   
   // ponytail: 窗口加载完成后主动推送当前主题到渲染进程，确保初始状态同步
@@ -1100,10 +1024,7 @@ function createWindow() {
           isDark: nativeTheme.shouldUseDarkColors,
           source: nativeTheme.themeSource
         });
-        console.log('初始主题已同步到主窗口:', nativeTheme.themeSource);
-      } catch (e) {
-        console.log('初始主题同步失败:', e);
-      }
+      } catch (e) {}
     }
   });
   
@@ -1129,9 +1050,7 @@ ipcMain.handle('set-hotkey', (event, hotkey) => {
     
     // 保存快捷键设置到配置文件
     const saveResult = updateConfig('hotkey', hotkey);
-    if (!saveResult) {
-      console.log('快捷键设置保存到配置文件失败，但快捷键仍然生效');
-    }
+    if (!saveResult) {}
     
     return { success: true };
   } catch (error) {
@@ -1147,13 +1066,10 @@ ipcMain.handle('get-floating-window-hotkey', () => {
 // 设置悬浮窗快捷键
 ipcMain.handle('set-floating-window-hotkey', (event, hotkey) => {
   try {
-    // 直接调用注册函数，它会处理注销旧快捷键的逻辑
     registerFloatingWindowHotkey(hotkey);
     
     const saveResult = updateConfig('floatingWindowHotkey', hotkey);
-    if (!saveResult) {
-      console.log('悬浮窗快捷键设置保存到配置文件失败，但快捷键仍然生效');
-    }
+    if (!saveResult) {}
     
     return { success: true };
   } catch (error) {
@@ -1194,9 +1110,7 @@ ipcMain.handle('set-theme-source', (event, theme) => {
 
       // ponytail: 禁止读取配置文件，直接根据内存写入以防冲突
       const saveResult = updateConfigNoRead('theme', theme);
-      if (!saveResult) {
-        console.log('主题设置保存到配置文件失败，但主题仍然生效');
-      }
+      if (!saveResult) {}
     }
     return { success: true, theme: nativeTheme ? nativeTheme.themeSource : theme };
   } catch (error) {
@@ -1222,10 +1136,7 @@ ipcMain.handle('set-reply-notify-enabled', (event, enabled) => {
     }
     replyNotifyEnabled = enabled;
     const saveResult = updateConfig('replyNotifyEnabled', enabled);
-    if (!saveResult) {
-      console.log('回复通知开关保存到配置文件失败，但开关仍然生效');
-    }
-    console.log('回复通知开关设置为:', enabled);
+    if (!saveResult) {}
     return { success: true, replyNotifyEnabled: enabled };
   } catch (error) {
     return { success: false, error: error.message };
@@ -1244,7 +1155,6 @@ ipcMain.handle('set-floating-window-pin-state', (event, pinned) => {
       return { success: false, error: '参数必须是布尔值' };
     }
     isFloatingWindowPinned = pinned;
-    console.log('悬浮窗置顶状态设置为:', pinned);
     
     // 实际设置窗口置顶
     if (floatingWindow && !floatingWindow.isDestroyed()) {
@@ -1255,9 +1165,7 @@ ipcMain.handle('set-floating-window-pin-state', (event, pinned) => {
     
     // 保存置顶状态到配置文件
     const saveResult = updateConfig('isFloatingWindowPinned', pinned);
-    if (!saveResult) {
-      console.log('悬浮窗置顶状态保存到配置文件失败，但设置仍然生效');
-    }
+    if (!saveResult) {}
     
     return { success: true, pinned: pinned };
   } catch (error) {
@@ -1273,11 +1181,8 @@ ipcMain.handle('set-close-behavior', (event, behavior) => {
       
       // 保存关闭行为设置到配置文件
       const saveResult = updateConfig('closeBehavior', behavior);
-      if (!saveResult) {
-        console.log('关闭行为设置保存到配置文件失败，但设置仍然生效');
-      }
+      if (!saveResult) {}
       
-      console.log('关闭行为设置为:', behavior);
       return { success: true, closeBehavior: behavior };
     } else {
       return { success: false, error: '无效的关闭行为设置' };
@@ -1341,9 +1246,7 @@ function registerReplyFinishedListener() {
         }
       }
     );
-  } catch (error) {
-    console.log('注册回复完成监听失败:', error);
-  }
+  } catch (error) {}
 }
 
 // 当Electron初始化完成并准备创建浏览器窗口时调用此方法
@@ -1447,12 +1350,8 @@ app.whenReady().then(() => {
           }
         ]
       });
-    } else {
-      console.log('electron-context-menu 模块未正确加载，跳过右键菜单配置');
     }
-  } catch (error) {
-    console.log('上下文菜单配置失败:', error);
-  }
+  } catch (error) {}
 
   createWindow();
 
@@ -1487,7 +1386,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     // 如果不是最小化行为或者正在退出，则退出应用
     if (closeBehavior !== 'minimize' || isQuitting) {
-      console.log('所有窗口已关闭，退出应用');
       app.quit();
     }
   }
@@ -1495,7 +1393,6 @@ app.on('window-all-closed', () => {
 
 // 应用退出前清理资源
 app.on('before-quit', () => {
-  console.log('应用准备退出，清理资源');
   isQuitting = true;
   
   // 关闭配置文件监听
@@ -1503,15 +1400,11 @@ app.on('before-quit', () => {
     try {
       configWatcher.close();
       configWatcher = null;
-      console.log('已关闭配置文件监听');
-    } catch (e) {
-      console.log('关闭配置文件监听失败:', e);
-    }
+    } catch (e) {}
   }
   
   // 如果主窗口存在且隐藏，直接关闭而不显示
   if (mainWindow && isWindowHidden) {
-    console.log('关闭隐藏的主窗口');
     mainWindow.destroy(); // 使用 destroy() 而不是 close() 避免触发 close 事件
   }
   
