@@ -765,7 +765,11 @@
   // ponytail: 直接改 DOM 三要素强制应用主题（body class / data-ds-dark-theme / .ds-theme 内联样式），
   // 绕过 React 自身的 select 状态机。这是 OS 主题下行通道的唯一落点——React 在 select='system'
   // 时不一定能立刻重读 prefers-color-scheme，所以我们替它改。
+  let isApplyingThemeFromMain = false; // ponytail: 标志位，防止 forceApplyTheme 触发 themeObserver
+  
   function forceApplyTheme(isDark) {
+    isApplyingThemeFromMain = true; // 设置标志，阻止 observer 响应
+    
     const targetLight = !isDark;
     const hoverLight = '0 0 0 / 4%';
     const hoverDark = '255 255 255 / 8%';
@@ -797,6 +801,11 @@
     }
 
     console.log('强制应用主题:', targetLight ? 'light' : 'dark');
+    
+    // ponytail: 延迟重置标志，确保 DOM 变化已被 observer 处理
+    setTimeout(() => {
+      isApplyingThemeFromMain = false;
+    }, 100);
   }
 
   // 监听系统主题变化，仅当选择“跟随系统”时启用
@@ -896,6 +905,14 @@
     
     ensureSystemThemeWatcher();
     applyHotkeyTheme();
+    
+    // ponytail: 初始化时读取当前主题到缓存，避免首次误判触发 IPC
+    const initialTheme = getCurrentThemeFromDOM();
+    if (initialTheme) {
+      lastSyncedTheme = initialTheme;
+      console.log('初始化主题缓存:', initialTheme);
+    }
+    
     syncElectronTheme();
     // ponytail: 删掉了原先的 syncThemeByCssVar()——它会把 CSS 变量推断出的 light/dark
     // 强行写进主进程，覆盖掉用户的"system"选择。这里只让 syncElectronTheme 走一次，干净。
@@ -905,6 +922,12 @@
     if (!unsubscribeNativeTheme && window.electronAPI && window.electronAPI.onNativeThemeUpdated) {
       unsubscribeNativeTheme = window.electronAPI.onNativeThemeUpdated((payload) => {
         if (!payload || typeof payload.isDark !== 'boolean') return;
+        
+        // ponytail: 更新缓存，避免 forceApplyTheme 触发的 DOM 变化再次调用 setThemeSource
+        if (payload.source) {
+          lastSyncedTheme = payload.source;
+        }
+        
         forceApplyTheme(payload.isDark);
       });
     }
@@ -930,7 +953,42 @@
     return null;
   }
 
+  // ponytail: 从 DOM 读取当前用户选择的主题（light/dark/system）
+  function getCurrentThemeFromDOM() {
+    // 先尝试从新版本按钮获取主题
+    const themeContainer = findThemeContainer();
+    if (themeContainer) {
+      const buttons = themeContainer.querySelectorAll('button, div[role="button"]');
+      
+      for (const button of buttons) {
+        const text = button.textContent.trim();
+        const isSelected = button.classList.contains('_16a7dbe') || 
+                          button.classList.contains('_699d482') ||
+                          button.getAttribute('aria-pressed') === 'true';
+        
+        if (isSelected) {
+          if (text.includes('浅色')) return 'light';
+          if (text.includes('深色')) return 'dark';
+          if (text.includes('跟随系统')) return 'system';
+        }
+      }
+    }
+    
+    // 如果按钮方式失败，尝试传统的select方式
+    const selectEl = getThemeSelectElement();
+    if (selectEl && selectEl.value) {
+      const value = (selectEl.value || '').toLowerCase();
+      if (value === 'light') return 'light';
+      if (value === 'dark') return 'dark';
+      if (value === 'system') return 'system';
+    }
+    
+    return null;
+  }
+
   // 将网页主题同步到 Electron 主进程窗口
+  let lastSyncedTheme = null; // ponytail: 缓存上次同步的主题，避免重复写入
+  
   function syncElectronTheme() {
     if (!window.electronAPI || !window.electronAPI.setThemeSource) return;
     
@@ -969,7 +1027,11 @@
         
         if (foundTheme) {
           console.log('从按钮检测到主题:', themeSource);
-          window.electronAPI.setThemeSource(themeSource);
+          // ponytail: 只在主题真正变化时才调用 IPC，避免循环触发
+          if (themeSource !== lastSyncedTheme) {
+            lastSyncedTheme = themeSource;
+            window.electronAPI.setThemeSource(themeSource);
+          }
           return;
         }
       }
@@ -984,7 +1046,11 @@
         console.log('从选择器检测到主题:', themeSource);
       }
       
-      window.electronAPI.setThemeSource(themeSource);
+      // ponytail: 只在主题真正变化时才调用 IPC，避免循环触发
+      if (themeSource !== lastSyncedTheme) {
+        lastSyncedTheme = themeSource;
+        window.electronAPI.setThemeSource(themeSource);
+      }
     }, 50);
   }
 
@@ -1634,6 +1700,9 @@
     console.log('开始监听body主题变化，当前主题:', lastTheme);
     
     const themeObserver = new MutationObserver((mutations) => {
+      // ponytail: 跳过主进程推送触发的 DOM 变化，避免循环
+      if (isApplyingThemeFromMain) return;
+      
       let themeChanged = false;
       
       mutations.forEach((mutation) => {

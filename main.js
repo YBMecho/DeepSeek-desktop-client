@@ -128,30 +128,14 @@ function saveConfig(config) {
       fs.mkdirSync(userDataPath, { recursive: true });
     }
     
-    // 创建临时文件路径，先写入临时文件以保证原子性操作
-    const tempPath = configPath + '.tmp';
-    
-    // 写入临时文件
-    fs.writeFileSync(tempPath, JSON.stringify(config, null, 2), 'utf8');
-    
-    // 将临时文件重命名为正式配置文件
-    fs.renameSync(tempPath, configPath);
+    // ponytail: Windows 上 rename 在文件被占用时会失败，直接写入更可靠
+    const configJson = JSON.stringify(config, null, 2);
+    fs.writeFileSync(configPath, configJson, 'utf8');
     
     logDebug('配置文件保存成功:', config);
     return true;
   } catch (error) {
     console.log('保存配置文件失败:', error.message);
-    
-    // 清理可能创建的临时文件
-    try {
-      const tempPath = configPath + '.tmp';
-      if (fs.existsSync(tempPath)) {
-        fs.unlinkSync(tempPath);
-      }
-    } catch (cleanupError) {
-      console.log('清理临时文件失败:', cleanupError.message);
-    }
-    
     return false;
   }
 }
@@ -176,6 +160,9 @@ function updateConfig(key, value) {
 // ponytail: 禁止读取配置，直接根据内存状态写入（避免与文件监听器冲突）
 function updateConfigNoRead(key, value) {
   try {
+    // 设置写入标志，防止监听器递归触发
+    isWritingConfig = true;
+    
     // 从内存中的当前状态构造配置对象，不从文件读
     const config = {
       hotkey: currentHotkey,
@@ -186,16 +173,25 @@ function updateConfigNoRead(key, value) {
     };
     
     config[key] = value;
-    return saveConfig(config);
+    const result = saveConfig(config);
+    
+    // 延迟重置标志，确保文件操作完全完成
+    setTimeout(() => {
+      isWritingConfig = false;
+    }, 150);
+    
+    return result;
   } catch (error) {
     console.log('无读取更新配置失败:', error);
+    isWritingConfig = false;
     return false;
   }
 }
 
 // ponytail: 监听配置文件变更，同步主题到所有窗口
 let configWatcher = null;
-let lastConfigMtime = null;
+let isWritingConfig = false; // 写入标志，防止递归触发
+let watcherDebounceTimer = null;
 
 function watchConfigFile() {
   if (configWatcher) return;
@@ -203,45 +199,49 @@ function watchConfigFile() {
   try {
     configWatcher = fs.watch(configPath, (eventType) => {
       if (eventType !== 'change') return;
+      if (isWritingConfig) return; // 跳过自己写入触发的事件
       
-      // 防抖：检查文件修改时间，避免重复触发
-      try {
-        const stats = fs.statSync(configPath);
-        if (lastConfigMtime && stats.mtimeMs === lastConfigMtime) return;
-        lastConfigMtime = stats.mtimeMs;
-      } catch (e) {
-        return;
-      }
-      
-      // 读取配置，仅处理 theme 变更
-      const config = loadConfig();
-      if (!config || !config.theme) return;
-      
-      // 同步到 nativeTheme
-      if (nativeTheme && nativeTheme.themeSource !== config.theme) {
-        nativeTheme.themeSource = config.theme;
-        console.log('配置文件变更，同步主题:', config.theme);
+      // 防抖：合并短时间内的多次触发
+      if (watcherDebounceTimer) clearTimeout(watcherDebounceTimer);
+      watcherDebounceTimer = setTimeout(() => {
+        if (isWritingConfig) return;
         
-        const isDark = nativeTheme.shouldUseDarkColors;
-        
-        // 同步到主窗口
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          applyWindowTheme(mainWindow, isDark);
-          mainWindow.webContents.send('native-theme-updated', {
-            isDark,
-            source: config.theme
-          });
+        try {
+          if (!fs.existsSync(configPath)) return;
+          
+          // 读取配置，仅处理 theme 变更
+          const config = loadConfig();
+          if (!config || !config.theme) return;
+          
+          // 同步到 nativeTheme
+          if (nativeTheme && nativeTheme.themeSource !== config.theme) {
+            nativeTheme.themeSource = config.theme;
+            console.log('配置文件变更，同步主题:', config.theme);
+            
+            const isDark = nativeTheme.shouldUseDarkColors;
+            
+            // 同步到主窗口
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              applyWindowTheme(mainWindow, isDark);
+              mainWindow.webContents.send('native-theme-updated', {
+                isDark,
+                source: config.theme
+              });
+            }
+            
+            // 同步到悬浮窗
+            if (floatingWindow && !floatingWindow.isDestroyed()) {
+              applyWindowTheme(floatingWindow, isDark);
+              floatingWindow.webContents.send('native-theme-updated', {
+                isDark,
+                source: config.theme
+              });
+            }
+          }
+        } catch (e) {
+          console.log('配置文件监听处理失败:', e);
         }
-        
-        // 同步到悬浮窗
-        if (floatingWindow && !floatingWindow.isDestroyed()) {
-          applyWindowTheme(floatingWindow, isDark);
-          floatingWindow.webContents.send('native-theme-updated', {
-            isDark,
-            source: config.theme
-          });
-        }
-      }
+      }, 100); // 100ms 防抖
     });
     
     console.log('已启动配置文件监听');
@@ -508,6 +508,19 @@ function createFloatingWindow() {
     floatingWindow.webContents.on('dom-ready', () => {
       injectCustomAssets(floatingWindow);
       injectFloatingWindowDragArea(floatingWindow);
+      
+      // ponytail: 悬浮窗加载完成后主动推送当前主题，确保与主窗口一致
+      if (nativeTheme) {
+        try {
+          floatingWindow.webContents.send('native-theme-updated', {
+            isDark: nativeTheme.shouldUseDarkColors,
+            source: nativeTheme.themeSource
+          });
+          console.log('初始主题已同步到悬浮窗:', nativeTheme.themeSource);
+        } catch (e) {
+          console.log('悬浮窗主题同步失败:', e);
+        }
+      }
     });
   } catch (e) {}
   
@@ -1037,6 +1050,21 @@ function createWindow() {
       console.log('设置主题失败:', error);
     }
   }
+  
+  // ponytail: 窗口加载完成后主动推送当前主题到渲染进程，确保初始状态同步
+  mainWindow.webContents.once('did-finish-load', () => {
+    if (nativeTheme) {
+      try {
+        mainWindow.webContents.send('native-theme-updated', {
+          isDark: nativeTheme.shouldUseDarkColors,
+          source: nativeTheme.themeSource
+        });
+        console.log('初始主题已同步到主窗口:', nativeTheme.themeSource);
+      } catch (e) {
+        console.log('初始主题同步失败:', e);
+      }
+    }
+  });
   
   // 注册加载的快捷键
   registerHotkey(currentHotkey);
