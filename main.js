@@ -25,15 +25,15 @@ let floatingWindowBounds = null; // 临时保存悬浮窗位置尺寸（仅会�
 let floatingWindowRelativePosition = null; // 保存悬浮窗在屏幕中的相对位置
 let tray = null;
 let isWindowHidden = false;
-let currentHotkey = 'Alt+`'; // 默认快捷键
-let floatingWindowHotkey = 'Alt+Space'; // 悬浮窗快捷键
+let currentHotkey = 'Alt+`'; // 默认主窗口快捷键
+let floatingWindowHotkey = 'Alt+Space'; // 默认悬浮窗快捷键（独立控制）
 let hotkeyRegistered = false;
 let floatingHotkeyRegistered = false;
 let closeBehavior = 'minimize'; // 当前关闭行为设置
 let replyNotifyEnabled = true; // 回复完成后系统通知开关（默认开启）
 let isQuitting = false; // 标记是否正在退出应用
-let areAllWindowsHidden = false; // 是否通过快捷键隐藏了所有窗口
-let previouslyVisibleWindowIds = new Set(); // 记录上次被隐藏的可见窗口ID
+let areAllWindowsHidden = false; // 是否通过快捷键隐藏了所有主窗口（不包括悬浮窗）
+let previouslyVisibleWindowIds = new Set(); // 记录上次被隐藏的可见主窗口ID（不包括悬浮窗）
 
 // 配置文件路径
 const configPath = path.join(app.getPath('userData'), 'config.json');
@@ -467,6 +467,7 @@ function createFloatingWindow() {
   floatingWindow.on('resized', saveBoundsTemporarily);
   
   floatingWindow.on('close', (event) => {
+    // 悬浮窗关闭时只隐藏，不影响主窗口和托盘
     if (!isQuitting) {
       event.preventDefault();
       floatingWindow.hide();
@@ -556,7 +557,7 @@ function toggleFloatingWindow() {
   }
 }
 
-// 注册悬浮窗快捷键
+// 注册悬浮窗快捷键（独立于主窗口快捷键）
 function registerFloatingWindowHotkey(hotkey) {
   try {
     if (floatingHotkeyRegistered) {
@@ -566,7 +567,7 @@ function registerFloatingWindowHotkey(hotkey) {
     
     floatingWindowHotkey = hotkey;
     const ret = globalShortcut.register(hotkey, () => {
-      toggleFloatingWindow();
+      toggleFloatingWindow(); // 只控制悬浮窗
     });
     
     if (ret) {
@@ -580,36 +581,44 @@ function registerFloatingWindowHotkey(hotkey) {
   }
 }
 
-// 注册全局快捷键
+// 注册主窗口全局快捷键（独立于悬浮窗快捷键）
 function registerHotkey(hotkey) {
   try {
-    // 先注销现有快捷键
+    // 先注销现有的主窗口快捷键
     if (hotkeyRegistered) {
-      globalShortcut.unregisterAll();
+      globalShortcut.unregister(currentHotkey);
       hotkeyRegistered = false;
     }
     
-    // 注册新快捷键
+    // 注册新的主窗口快捷键
     const ret = globalShortcut.register(hotkey, () => {
-      toggleWindow();
+      toggleWindow(); // 只控制主窗口
     });
     
     if (ret) {
       hotkeyRegistered = true;
-      console.log(`快捷键 ${hotkey} 注册成功`);
+      console.log(`主窗口快捷键 ${hotkey} 注册成功`);
     } else {
-      console.log(`快捷键 ${hotkey} 注册失败`);
+      console.log(`主窗口快捷键 ${hotkey} 注册失败`);
     }
   } catch (error) {
-    console.log('快捷键注册错误:', error);
+    console.log('主窗口快捷键注册错误:', error);
   }
 }
 
-// 切换窗口显隐状态（支持多窗口）
+// 切换主窗口显隐状态（不包括悬浮窗）
 function toggleWindow() {
   if (isQuitting) return;
 
-  const windows = BrowserWindow.getAllWindows();
+  // 只操作非悬浮窗的窗口
+  const windows = BrowserWindow.getAllWindows().filter(win => {
+    try {
+      return !win.isDestroyed() && win !== floatingWindow;
+    } catch (e) {
+      return false;
+    }
+  });
+  
   if (windows.length === 0) return;
 
   // 如果之前通过快捷键隐藏了所有窗口，则恢复这些窗口
@@ -689,7 +698,7 @@ function toggleWindow() {
   }
 }
 
-// 创建系统托盘
+// 创建系统托盘（仅控制主窗口，不影响悬浮窗）
 function createTray() {
   if (tray || isQuitting) return; // 如果托盘已存在或正在退出，不创建
   
@@ -700,7 +709,7 @@ function createTray() {
     {
       label: '显示窗口',
       click: () => {
-        toggleWindow();
+        toggleWindow(); // 只切换主窗口，不影响悬浮窗
       }
     },
     {
@@ -727,7 +736,7 @@ function createTray() {
   tray.setToolTip('DeepSeek');
   tray.setContextMenu(contextMenu);
   
-  // 点击托盘图标显示窗口
+  // 点击托盘图标显示主窗口，不影响悬浮窗
   tray.on('click', () => {
     toggleWindow();
   });
@@ -1281,7 +1290,7 @@ app.on('before-quit', () => {
     mainWindow.destroy(); // 使用 destroy() 而不是 close() 避免触发 close 事件
   }
   
-  // 清理快捷键
+  // 清理所有快捷键（包括主窗口快捷键和悬浮窗快捷键）
   globalShortcut.unregisterAll();
   
   // 清理托盘
