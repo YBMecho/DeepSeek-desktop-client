@@ -302,7 +302,15 @@ function injectCustomAssets(targetWindow) {
     targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
   } catch (e) {}
 
-  // 注入置顶按钮JavaScript（仅悬浮窗）
+  // 注入悬浮窗切换按钮JavaScript（优先注入，确保在置顶按钮之前）
+  const floatingToggleJsPath = path.join(__dirname, 'public/js/floating-window-toggle.js');
+  try {
+    const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
+    const wrapped = `(() => {\n  try {\n    if (window.__DS_FLOATING_TOGGLE_LOADED__) {\n      return;\n    }\n    window.__DS_FLOATING_TOGGLE_LOADED__ = true;\n  } catch (e) {}\n})();\n` + floatingToggleJs;
+    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+  } catch (e) {}
+
+  // 注入置顶按钮JavaScript（仅悬浮窗，在悬浮窗切换按钮之后注入）
   if (targetWindow === floatingWindow) {
     const pinButtonJsPath = path.join(__dirname, 'public/js/pin-button.js');
     try {
@@ -311,14 +319,6 @@ function injectCustomAssets(targetWindow) {
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
     } catch (e) {}
   }
-
-  // 注入悬浮窗切换按钮JavaScript
-  const floatingToggleJsPath = path.join(__dirname, 'public/js/floating-window-toggle.js');
-  try {
-    const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
-    const wrapped = `(() => {\n  try {\n    if (window.__DS_FLOATING_TOGGLE_LOADED__) {\n      return;\n    }\n    window.__DS_FLOATING_TOGGLE_LOADED__ = true;\n  } catch (e) {}\n})();\n` + floatingToggleJs;
-    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
-  } catch (e) {}
 }
 
 // 监听从登录/注册页跳转到主页时，重新注入资源

@@ -65,8 +65,8 @@
       return true;
     }
 
-    // 查找分享按钮（通过SVG路径特征）
-    const buttons = toolbar.querySelectorAll('div[role="button"].ds-button--m');
+    // 查找分享按钮（通过SVG路径特征，注意分享按钮使用--l尺寸）
+    const buttons = toolbar.querySelectorAll('div[role="button"]');
     for (const btn of buttons) {
       const svg = btn.querySelector('svg path[d*="M7.95889 1.52285"]');
       if (svg) {
@@ -78,23 +78,36 @@
     return false;
   }
 
-  // 在侧边栏中注入按钮（新对话按钮左侧）
+  // 在侧边栏中注入按钮（新对话按钮左侧，置顶按钮更左侧）
   function injectInSidebar() {
     const allButtons = document.querySelectorAll('div[role="button"].ds-button--xl');
     
     for (const btn of allButtons) {
-      // 检查是否已添加（查找前面第二个兄弟元素）
-      const secondPrev = btn.previousElementSibling?.previousElementSibling;
-      if (secondPrev && secondPrev.classList.contains('ds-floating-toggle-button')) {
-        continue;
-      }
-
       // 查找新对话按钮
       const svg = btn.querySelector('svg path[d*="M9.99994 1.22943C5.15598"]');
       if (svg) {
+        // 检查是否已添加悬浮窗切换按钮
+        // 需要查找紧邻的前一个兄弟元素，如果是置顶按钮，再往前查找
+        let targetPosition = btn;
+        let prevSibling = btn.previousElementSibling;
+        
+        // 如果前面有置顶按钮，插入到置顶按钮之前
+        if (prevSibling && prevSibling.classList.contains('ds-pin-button')) {
+          targetPosition = prevSibling;
+          // 检查置顶按钮前面是否已有悬浮窗切换按钮
+          const beforePin = prevSibling.previousElementSibling;
+          if (beforePin && beforePin.classList.contains('ds-floating-toggle-button')) {
+            return true; // 已存在
+          }
+        } else {
+          // 没有置顶按钮，检查新对话按钮前面是否已有悬浮窗切换按钮
+          if (prevSibling && prevSibling.classList.contains('ds-floating-toggle-button')) {
+            return true; // 已存在
+          }
+        }
+        
         const toggleButton = createToggleButton();
-        // 插入到新对话按钮之前
-        btn.parentNode.insertBefore(toggleButton, btn);
+        targetPosition.parentNode.insertBefore(toggleButton, targetPosition);
         return true;
       }
     }
