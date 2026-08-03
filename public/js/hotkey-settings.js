@@ -267,15 +267,21 @@
       console.log('已订阅主进程主题更新');
       
       // ponytail: 订阅后立即主动获取当前主题并应用，避免初始状态不一致
+      // 但只在缓存未初始化时应用，避免覆盖用户的快速点击
       if (window.electronAPI && window.electronAPI.getCurrentTheme) {
         window.electronAPI.getCurrentTheme().then((theme) => {
           if (theme && typeof theme.isDark === 'boolean') {
-            if (theme.source) {
-              lastSyncedTheme = theme.source;
-              isCacheInitialized = true; // 标记缓存已初始化
+            // 只在缓存未初始化时才应用主题
+            if (!isCacheInitialized) {
+              if (theme.source) {
+                lastSyncedTheme = theme.source;
+                isCacheInitialized = true; // 标记缓存已初始化
+              }
+              forceApplyTheme(theme.isDark, theme.source);
+              console.log('初始主题已应用:', theme);
+            } else {
+              console.log('缓存已初始化，跳过初始主题应用（用户已操作）');
             }
-            forceApplyTheme(theme.isDark, theme.source);
-            console.log('初始主题已应用:', theme);
           }
         }).catch((e) => {
           console.log('获取初始主题失败:', e);
@@ -1850,9 +1856,9 @@
           // 应用新主题到快捷键设置
           applyHotkeyTheme();
           
-          // 同步到Electron窗口
-          syncElectronTheme();
-          // ponytail: 删掉了多余的 syncThemeByCssVar 调用——会覆盖 user 的 'system' 选择。
+          // ponytail: 删除 syncElectronTheme 调用
+          // themeObserver 只能检测视觉变化（light/dark），无法判断用户选择（system）
+          // 用户点击主题按钮时会直接触发 themeChangeHandler，不需要 observer 再同步一次
         }
       }
     });
