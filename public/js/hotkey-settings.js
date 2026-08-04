@@ -10,7 +10,6 @@
   let themeChangeHandler = null;
   let mediaDark = null;
   let mediaDarkChangeHandler = null;
-  let themeSyncTimer = null;
   // ponytail: 主进程推送"原生主题变化"事件的解绑句柄，cleanup 时调用避免重入泄漏。
   let unsubscribeNativeTheme = null;
   
@@ -462,7 +461,8 @@
     const buttons = container.querySelectorAll('button, div[role="button"]');
     if (buttons.length > 0) {
       // 判断当前选中的主题
-      let selectedTheme = 'system'; // 默认值
+      // ponytail: 检测不到选中项时留空，绝不假设 'system'——那会把用户刚选的浅色写回跟随系统
+      let selectedTheme = '';
       
       buttons.forEach(button => {
         const text = button.textContent.trim();
@@ -490,37 +490,6 @@
     }
     
     return null;
-  }
-
-  // 解析当前主题（返回 'light' 或 'dark'），优先使用网页实际状态
-  function resolveCurrentTheme() {
-    // 优先检查网页的实际主题状态（最准确）
-    const actualTheme = resolveThemeFromCssVar();
-    if (actualTheme) {
-      return actualTheme;
-    }
-    
-    // 如果无法从网页状态检测，则使用设置选择器的值
-    const selectEl = getThemeSelectElement();
-    if (selectEl) {
-      const value = (selectEl.value || '').toLowerCase();
-      if (value === 'light') return 'light';
-      if (value === 'dark') return 'dark';
-      // system: 跟随系统
-      if (value === 'system') {
-        if (!mediaDark) {
-          mediaDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
-        }
-        return mediaDark && mediaDark.matches ? 'dark' : 'light';
-      }
-    }
-    
-    // 最后的回退：使用系统偏好
-    if (!mediaDark) {
-      mediaDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
-    }
-    const systemTheme = mediaDark && mediaDark.matches ? 'dark' : 'light';
-    return systemTheme;
   }
 
   // 通过多种方式判断当前网页主题
@@ -809,56 +778,35 @@
   function forceApplyTheme(isDark, source) {
     isApplyingThemeFromMain = true; // 设置标志，阻止 syncElectronTheme 响应
     
-    // ponytail: 根据 source 决定点击哪个按钮
-    let targetButtonText;
-    if (source === 'system') {
-      targetButtonText = '跟随系统';
-    } else if (source === 'light') {
-      targetButtonText = '浅色';
-    } else if (source === 'dark') {
-      targetButtonText = '深色';
-    } else {
-      // 如果没有 source，回退到根据 isDark 判断（兼容旧调用）
-      targetButtonText = isDark ? '深色' : '浅色';
-    }
+    // ponytail: 目标主题以 source 为准；没有 source 时只能按 isDark 猜（兼容旧调用）
+    const targetTheme = (source === 'system' || source === 'light' || source === 'dark')
+      ? source
+      : (isDark ? 'dark' : 'light');
     
-    // 查找主题按钮容器
-    const themeContainer = findThemeContainer();
-    if (themeContainer) {
-      const buttons = themeContainer.querySelectorAll('button, div[role="button"]');
+    try {
+      const themeContainer = findThemeContainer();
+      const buttons = themeContainer
+        ? themeContainer.querySelectorAll('button, div[role="button"]')
+        : [];
       
-      // 找到目标主题的按钮并点击
       for (const button of buttons) {
-        const text = button.textContent.trim();
+        if (themeFromButtonText(button) !== targetTheme) continue;
         
-        if (text.includes(targetButtonText)) {
-          // 检查是否已经选中
-          const isSelected = button.classList.contains('_16a7dbe') || 
-                            button.classList.contains('_699d482') ||
-                            button.getAttribute('aria-pressed') === 'true';
-          
-          if (!isSelected) {
-            console.log('触发主题按钮点击:', targetButtonText, '(source:', source, ')');
-            button.click(); // 触发 React 的点击事件
-          } else {
-            console.log('主题按钮已选中，跳过点击:', targetButtonText);
-          }
-          
-          setTimeout(() => {
-            isApplyingThemeFromMain = false;
-          }, 150);
-          return;
-        }
+        const isSelected = button.classList.contains('_16a7dbe') || 
+                          button.classList.contains('_699d482') ||
+                          button.getAttribute('aria-pressed') === 'true';
+        // 已选中就不点，避免 React 重复渲染
+        if (!isSelected) button.click(); // click() 同步派发，返回时监听器已跑完
+        return;
       }
-    }
-    
-    // 如果找不到按钮，回退到强制修改 DOM（兼容旧版本）
-    console.log('未找到主题按钮，回退到强制修改 DOM:', targetButtonText);
-    forceApplyThemeDOM(isDark);
-    
-    setTimeout(() => {
+      
+      // 找不到按钮时回退到强制修改 DOM（兼容旧版本）
+      forceApplyThemeDOM(isDark);
+    } finally {
+      // ponytail: 同步清标志。原来靠 150ms 定时器，事件晚一点冒泡就漏进 themeChangeHandler，
+      // 把主进程推来的主题当成用户点击再写回去。
       isApplyingThemeFromMain = false;
-    }, 150);
+    }
   }
   
   // ponytail: 强制修改 DOM（备用方案，仅在找不到按钮时使用）
@@ -959,31 +907,28 @@
     const themeContainer = findThemeContainer();
     if (themeContainer) {
       const buttons = themeContainer.querySelectorAll('button, div[role="button"]');
+      if (!themeChangeHandler) {
+        // ponytail: 用被点击的按钮直接定主题，而不是延迟后回读 DOM 选中态。
+        // 回读会撞上 React 还没更新选中类名的窗口期，读到上一个选中项（常是"跟随系统"）再写回主进程。
+        themeChangeHandler = (event) => {
+          if (isApplyingThemeFromMain) return; // 主进程推送触发的合成点击，不要写回
+          const el = event.currentTarget;
+          // select 的 change 事件里 value 已更新，交给 getCurrentThemeFromDOM 读；
+          // 按钮则用被点的那个直接定值
+          const clicked = el.tagName === 'SELECT' ? null : themeFromButtonText(el);
+          applyHotkeyTheme();
+          ensureSystemThemeWatcher();
+          syncElectronTheme(clicked);
+        };
+      }
       buttons.forEach(button => {
-        if (!themeChangeHandler) {
-          themeChangeHandler = () => {
-            // 延迟一点执行，等待DOM更新
-            setTimeout(() => {
-              applyHotkeyTheme();
-              ensureSystemThemeWatcher();
-              syncElectronTheme();
-            }, 100);
-          };
-        }
         button.removeEventListener('click', themeChangeHandler);
         button.addEventListener('click', themeChangeHandler);
       });
     }
     
     // 保持原有的select监听逻辑作为备用
-    if (selectEl && selectEl.addEventListener && typeof selectEl.addEventListener === 'function') {
-      if (!themeChangeHandler) {
-        themeChangeHandler = () => {
-          applyHotkeyTheme();
-          ensureSystemThemeWatcher();
-          syncElectronTheme();
-        };
-      }
+    if (selectEl && typeof selectEl.addEventListener === 'function' && themeChangeHandler) {
       boundThemeSelectEl.removeEventListener('change', themeChangeHandler);
       boundThemeSelectEl.addEventListener('change', themeChangeHandler);
     }
@@ -991,24 +936,17 @@
     ensureSystemThemeWatcher();
     applyHotkeyTheme();
 
-    // ponytail: 首次进入设置界面时，按当前 OS 强制对齐一次 DOM。
-    // 否则 OS 是深色但用户之前手动选了浅色的话，"跟随系统"状态已经对了但视觉还停在浅色。
-    try {
-      const initialIsDark = readCurrentDarkFromDom();
-      if (initialIsDark !== null) forceApplyTheme(initialIsDark);
-    } catch (e) {}
+    // ponytail: 这里原本按 readCurrentDarkFromDom() 无 source 地对齐一次 DOM，会在用户选了
+    // "跟随系统"时去点"浅色/深色"，把选中项改掉再写回主进程。初始对齐已由
+    // subscribeNativeThemeUpdates 带着正确 source 完成，这里不需要再来一次。
   }
 
-  // ponytail: 通过 CSS 变量读出当前实际明暗，避免依赖 prefers-color-scheme 在 Electron 内的不可靠行为。
-  function readCurrentDarkFromDom() {
-    const el = document.querySelector('.ds-modal-content .ds-theme')
-      || document.querySelector('.ds-theme')
-      || document.body;
-    if (!el) return null;
-    const hover = (window.getComputedStyle(el).getPropertyValue('--ds-rgb-hover') || '').trim();
-    if (!hover) return null;
-    if (hover.includes('255 255 255') || hover.includes('255, 255, 255')) return true;
-    if (hover.includes('0 0 0') || hover.includes('0, 0, 0')) return false;
+  // ponytail: 按钮文案 → 主题值，唯一的文案映射入口
+  function themeFromButtonText(el) {
+    const text = el && el.textContent ? el.textContent.trim() : '';
+    if (text.includes('浅色')) return 'light';
+    if (text.includes('深色')) return 'dark';
+    if (text.includes('跟随系统')) return 'system';
     return null;
   }
 
@@ -1049,82 +987,21 @@
   let lastSyncedTheme = null; // ponytail: 缓存上次同步的主题，避免重复写入
   let isCacheInitialized = false; // ponytail: 标记缓存是否已初始化
   
-  function syncElectronTheme() {
+  // explicitTheme: 用户点击按钮时直接给出的主题值，优先于回读 DOM
+  function syncElectronTheme(explicitTheme) {
     if (!window.electronAPI || !window.electronAPI.setThemeSource) return;
     
-    // 限制节流，避免频繁调用
-    if (themeSyncTimer) {
-      clearTimeout(themeSyncTimer);
-    }
+    // ponytail: 明确知道用户点了哪个时立即写入，不节流也不回读——延迟就是这个 bug 的窗口期
+    const themeSource = explicitTheme || getCurrentThemeFromDOM();
     
-    themeSyncTimer = setTimeout(() => {
-      let themeSource = 'system';
-      
-      // 先尝试从新版本按钮获取主题
-      const themeContainer = findThemeContainer();
-      if (themeContainer) {
-        // 查找 button 元素和 div[role="button"] 元素
-        const buttons = themeContainer.querySelectorAll('button, div[role="button"]');
-        let foundTheme = false;
-        
-        buttons.forEach(button => {
-          const text = button.textContent.trim();
-          const isSelected = button.classList.contains('_16a7dbe') || 
-                            button.classList.contains('_699d482') ||
-                            button.getAttribute('aria-pressed') === 'true';
-          
-          if (isSelected && !foundTheme) {
-            foundTheme = true;
-            if (text.includes('浅色')) {
-              themeSource = 'light';
-            } else if (text.includes('深色')) {
-              themeSource = 'dark';
-            } else if (text.includes('跟随系统')) {
-              themeSource = 'system';
-            }
-          }
-        });
-        
-        if (foundTheme) {
-          console.log('从按钮检测到主题:', themeSource);
-          
-          // ponytail: 如果缓存未初始化，先初始化再判断；如果已初始化，只在变化时写入
-          if (!isCacheInitialized) {
-            console.log('首次同步主题，初始化缓存并写入:', themeSource);
-            lastSyncedTheme = themeSource;
-            isCacheInitialized = true;
-            window.electronAPI.setThemeSource(themeSource);
-          } else if (themeSource !== lastSyncedTheme) {
-            console.log('主题变化，从', lastSyncedTheme, '到', themeSource);
-            lastSyncedTheme = themeSource;
-            window.electronAPI.setThemeSource(themeSource);
-          }
-          return;
-        }
-      }
-      
-      // 如果按钮方式失败，尝试传统的select方式
-      const selectEl = getThemeSelectElement();
-      if (selectEl && selectEl.value) {
-        const value = (selectEl.value || '').toLowerCase();
-        if (value === 'light') themeSource = 'light';
-        else if (value === 'dark') themeSource = 'dark';
-        else themeSource = 'system';
-        console.log('从选择器检测到主题:', themeSource);
-      }
-      
-      // ponytail: 如果缓存未初始化，先初始化再判断；如果已初始化，只在变化时写入
-      if (!isCacheInitialized) {
-        console.log('首次同步主题，初始化缓存并写入:', themeSource);
-        lastSyncedTheme = themeSource;
-        isCacheInitialized = true;
-        window.electronAPI.setThemeSource(themeSource);
-      } else if (themeSource !== lastSyncedTheme) {
-        console.log('主题变化，从', lastSyncedTheme, '到', themeSource);
-        lastSyncedTheme = themeSource;
-        window.electronAPI.setThemeSource(themeSource);
-      }
-    }, 50);
+    // ponytail: 检测不到就什么都不做。以前这里兜底成 'system'，把用户刚选的浅色改回跟随系统
+    if (!themeSource) return;
+    
+    if (isCacheInitialized && themeSource === lastSyncedTheme) return;
+    
+    lastSyncedTheme = themeSource;
+    isCacheInitialized = true;
+    window.electronAPI.setThemeSource(themeSource);
   }
 
   // ponytail: 旧的 syncThemeByCssVar 已删除——它把 CSS 推断值写进主进程，会覆盖 user 的 'system' 选择。
