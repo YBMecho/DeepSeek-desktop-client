@@ -53,7 +53,7 @@
       button.className = 'ds-button ds-button--iconLabelPrimary ds-button--icon ds-button--capsule ds-button--xl ds-button--icon-relative-m ds-floating-toggle-button-floating';
       button.style.cssText = '--dsl-button-height: 42px;';
     } else {
-      button.className = 'ds-button ds-button--iconLabelPrimary ds-button--icon ds-button--capsule ds-button--l ds-button--icon-relative-m _57370c5 _5dedc1e ds-floating-toggle-button-floating';
+      button.className = 'ds-button ds-button--iconLabelPrimary ds-button--icon ds-button--capsule ds-button--m ds-button--icon-relative-m ds-floating-toggle-button-floating';
       button.style.cssText = '--dsl-button-height: 34px;';
     }
     
@@ -136,8 +136,31 @@
     return false;
   }
 
+  // 在工具栏注入按钮（置顶按钮右侧）
+  function injectInToolbar() {
+    const toolbar = document.querySelector('.e5bf614e');
+    if (!toolbar) return false;
+
+    if (toolbar.querySelector('.ds-floating-toggle-button-floating')) {
+      return true;
+    }
+
+    // 查找置顶按钮，插入到它右侧
+    const pinButton = toolbar.querySelector('.ds-pin-button');
+    if (pinButton) {
+      const toggleButton = createToggleButton(false);
+      pinButton.parentNode.insertBefore(toggleButton, pinButton.nextSibling);
+      console.log('[悬浮窗-悬浮窗按钮] 工具栏注入成功（置顶按钮右侧）');
+      return true;
+    }
+    return false;
+  }
+
   function injectToggleButtons() {
-    return injectInSidebar();
+    let injected = false;
+    if (injectInSidebar()) injected = true;
+    if (injectInToolbar()) injected = true;
+    return injected;
   }
 
   function startButtonInjection() {
