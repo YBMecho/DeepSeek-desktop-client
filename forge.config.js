@@ -4,7 +4,7 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
-    icon: 'public/icons/lp25u-mafhn-001', // 不需要文件扩展名，Forge会自动选择合适的格式
+    icon: process.platform === 'win32' ? 'public/icons/lp25u-mafhn-001.ico' : 'public/icons/lp25u-mafhn-001.png',
   },
   rebuildConfig: {},
   makers: [
