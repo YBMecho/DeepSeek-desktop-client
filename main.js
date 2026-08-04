@@ -1480,6 +1480,27 @@ function registerReplyFinishedListener() {
   } catch (error) {}
 }
 
+// 单实例锁：防止多开，二次启动时唤醒已有窗口
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // Windows/Linux：用户再次点击应用图标时唤醒主窗口
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+      // 清理托盘（如果有）
+      isWindowHidden = false;
+      if (tray) {
+        try { tray.destroy(); } catch (e) {}
+        tray = null;
+      }
+    }
+  });
+}
+
 // 当Electron初始化完成并准备创建浏览器窗口时调用此方法
 app.whenReady().then(() => {
   // ponytail: Windows 上系统通知需要 AppUserModelId，否则会归到 electron.exe 且可能不显示

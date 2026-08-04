@@ -369,7 +369,7 @@ html {
 }
 
 .reply-notify-toggle input[type="checkbox"]:checked + .reply-notify-toggle__slider {
-  background-color: var(--ds-rgb-accent, #3C3C3D);
+  background-color: var(--ds-rgb-accent, #5686FE);
 }
 
 .reply-notify-toggle input[type="checkbox"]:checked + .reply-notify-toggle__slider::before {
