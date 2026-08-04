@@ -1127,10 +1127,9 @@ function createWindow() {
   autoLaunch = config.autoLaunch;
   floatingResetOption = config.floatingResetOption || '60min';
   
-  // 设置主题并初始化缓存
+  // 设置主题
   if (nativeTheme && config.theme) {
     try {
-      currentThemeSource = config.theme;
       nativeTheme.themeSource = config.theme;
     } catch (error) {}
   }
@@ -1196,21 +1195,10 @@ ipcMain.handle('set-floating-window-hotkey', (event, hotkey) => {
   }
 });
 
-// ponytail: 缓存当前主题源，避免相同值重复处理
-let currentThemeSource = 'system';
-
 // 设置主题来源：'light' | 'dark' | 'system'
 ipcMain.handle('set-theme-source', (event, theme) => {
   try {
     if (nativeTheme && ['light', 'dark', 'system'].includes(String(theme))) {
-      // ponytail: 如果主题源未变化，跳过所有处理避免循环触发
-      if (currentThemeSource === theme) {
-        console.log('[主进程] 主题源未变化，跳过处理:', theme);
-        return { success: true, theme: theme };
-      }
-      
-      console.log('[主进程] 设置主题源:', currentThemeSource, '->', theme);
-      currentThemeSource = theme;
       nativeTheme.themeSource = theme;
       const isDark = nativeTheme.shouldUseDarkColors;
       
