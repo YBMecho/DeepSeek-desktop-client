@@ -269,6 +269,42 @@ html {
   animation: closeBehaviorPopOut 0.15s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
 }
 
+/* 向上弹出的菜单动画 */
+.floating-reset-dropdown-menu--up {
+  animation: closeBehaviorPopInUp 0.2s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+  transform-origin: bottom center;
+}
+
+.floating-reset-dropdown-menu--up.closing {
+  animation: closeBehaviorPopOutUp 0.15s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+@keyframes closeBehaviorPopInUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02) translateY(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0px);
+  }
+}
+
+@keyframes closeBehaviorPopOutUp {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+}
+
 /* 下拉选项悬停效果 */
 .floating-reset-dropdown-menu .ds-select-option {
   transition: background-color 0.15s ease;

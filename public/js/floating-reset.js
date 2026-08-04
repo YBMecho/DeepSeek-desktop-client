@@ -114,13 +114,35 @@ c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fi
     resetSelectContainer.classList.add('ds-select--open');
 
     const rect = resetSelectContainer.getBoundingClientRect();
+    
+    // 计算菜单高度（每个选项约40px高度 + padding）
+    const estimatedMenuHeight = RESET_OPTIONS.length * 40 + 16;
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    
+    // 判断是向下还是向上弹出
+    const shouldPopUp = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+    
     resetMenuWrapper = document.createElement('div');
     resetMenuWrapper.className = 'ds-floating-position-wrapper ds-theme';
-    resetMenuWrapper.setAttribute('data-transform-origin', 'top left');
-    resetMenuWrapper.style.cssText = `--ds-rgb-hover: 255 255 255 / 8%; z-index: 1027; min-width: 150px; left: ${Math.round(rect.left)}px; top: ${Math.round(rect.bottom + 8)}px; position: fixed;`;
+    
+    let positionStyle;
+    if (shouldPopUp) {
+      // 向上弹出（菜单显示在选择框上方，菜单底部距离选择框顶部8px）
+      resetMenuWrapper.setAttribute('data-transform-origin', 'bottom left');
+      // 使用 top 定位，让菜单在选择框上方
+      const topPosition = rect.top - estimatedMenuHeight - -10;
+      positionStyle = `--ds-rgb-hover: 255 255 255 / 8%; z-index: 1027; min-width: 150px; left: ${Math.round(rect.left)}px; top: ${Math.round(topPosition)}px; position: fixed;`;
+    } else {
+      // 向下弹出
+      resetMenuWrapper.setAttribute('data-transform-origin', 'top left');
+      positionStyle = `--ds-rgb-hover: 255 255 255 / 8%; z-index: 1027; min-width: 150px; left: ${Math.round(rect.left)}px; top: ${Math.round(rect.bottom + 8)}px; position: fixed;`;
+    }
+    resetMenuWrapper.style.cssText = positionStyle;
 
     const menu = document.createElement('div');
-    menu.className = 'ds-select-menu ds-elevated _9afb5f9 ds-scroll-area ds-fade-in-zoom-in-enter ds-fade-in-zoom-in-active floating-reset-dropdown-menu';
+    menu.className = 'ds-select-menu ds-elevated _9afb5f9 ds-scroll-area ds-fade-in-zoom-in-enter ds-fade-in-zoom-in-active floating-reset-dropdown-menu' + (shouldPopUp ? ' floating-reset-dropdown-menu--up' : '');
 
     RESET_OPTIONS.forEach(option => {
       const optionElement = document.createElement('div');
@@ -139,6 +161,10 @@ c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fi
 
     resetMenuWrapper.appendChild(menu);
     document.body.appendChild(resetMenuWrapper);
+
+    // 监听窗口resize和scroll，自动关闭菜单
+    window.addEventListener('resize', closeResetMenu);
+    window.addEventListener('scroll', closeResetMenu, true);
 
     // 外部点击关闭
     document.addEventListener('mousedown', handleOutsideMouseDown, true);

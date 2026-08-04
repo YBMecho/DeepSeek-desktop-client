@@ -1250,6 +1250,10 @@
     closeBehaviorMenuWrapper.appendChild(menu);
     document.body.appendChild(closeBehaviorMenuWrapper);
 
+    // 监听窗口resize和scroll，自动关闭菜单
+    window.addEventListener('resize', closeCloseBehaviorMenu);
+    window.addEventListener('scroll', closeCloseBehaviorMenu, true);
+
     // 外部点击关闭：捕获阶段 + 常驻监听，确保 React / SPA 内部的 stopPropagation
     // 也拦不住——这是"点空白处不收回"最常见的原因（页面里其它组件吃了 click）。
     // ponytail: mousedown 在 React 的 onClick 之前派发，能抢在前面把菜单关掉；
@@ -1293,6 +1297,11 @@
         closeBehaviorMenuWrapper = null;
       }
     }
+
+    // 移除事件监听
+    document.removeEventListener('mousedown', handleOutsideMouseDown, true);
+    window.removeEventListener('resize', closeCloseBehaviorMenu);
+    window.removeEventListener('scroll', closeCloseBehaviorMenu, true);
   }
 
   function selectCloseBehavior(value) {
