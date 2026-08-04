@@ -108,13 +108,40 @@
     return false;
   }
 
-  // 移除旧的工具栏注入函数（置顶按钮不应该出现在工具栏）
-  // function injectPinButtonInToolbar() { ... }
+  // 在"框"页面的第一个按钮右侧添加置顶按钮
+  function injectPinButtonInToolbar() {
+    // 查找工具栏容器 .e5bf614e
+    const toolbar = document.querySelector('.e5bf614e');
+    if (!toolbar) return false;
+
+    // 检查是否已经添加过置顶按钮
+    if (toolbar.querySelector('.ds-pin-button')) {
+      return true;
+    }
+
+    // 查找第一个按钮（分屏按钮）
+    const firstButton = toolbar.querySelector('div[role="button"].ds-button--m');
+    if (firstButton) {
+      const pinButton = createPinButton();
+      firstButton.parentNode.insertBefore(pinButton, firstButton);
+      return true;
+    }
+    return false;
+  }
 
   // 主注入函数
   function injectPinButtons() {
-    // 只在侧边栏注入置顶按钮
-    return injectPinButtonBeforeNewChat();
+    let injected = false;
+
+    // 尝试在两个位置注入
+    if (injectPinButtonBeforeNewChat()) {
+      injected = true;
+    }
+    if (injectPinButtonInToolbar()) {
+      injected = true;
+    }
+
+    return injected;
   }
 
   // 使用 MutationObserver 监听 DOM 变化，立即注入
