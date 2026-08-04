@@ -255,6 +255,17 @@
       unsubscribeNativeTheme = window.electronAPI.onNativeThemeUpdated((payload) => {
         if (!payload || typeof payload.isDark !== 'boolean') return;
         
+        console.log('收到主进程主题推送:', payload);
+        
+        // ponytail: 先检查当前DOM状态，如果已经匹配就跳过
+        const currentDomTheme = getCurrentThemeFromDOM();
+        if (currentDomTheme === payload.source) {
+          console.log('DOM主题已匹配，仅更新缓存:', payload.source);
+          lastSyncedTheme = payload.source;
+          isCacheInitialized = true;
+          return;
+        }
+        
         // ponytail: 更新缓存，避免 forceApplyTheme 触发的 DOM 变化再次调用 setThemeSource
         if (payload.source) {
           lastSyncedTheme = payload.source;
@@ -267,20 +278,24 @@
       console.log('已订阅主进程主题更新');
       
       // ponytail: 订阅后立即主动获取当前主题并应用，避免初始状态不一致
-      // 但只在缓存未初始化时应用，避免覆盖用户的快速点击
       if (window.electronAPI && window.electronAPI.getCurrentTheme) {
         window.electronAPI.getCurrentTheme().then((theme) => {
           if (theme && typeof theme.isDark === 'boolean') {
-            // 只在缓存未初始化时才应用主题
-            if (!isCacheInitialized) {
-              if (theme.source) {
-                lastSyncedTheme = theme.source;
-                isCacheInitialized = true; // 标记缓存已初始化
-              }
-              forceApplyTheme(theme.isDark, theme.source);
-              console.log('初始主题已应用:', theme);
+            console.log('获取到初始主题:', theme);
+            
+            // ponytail: 初始化缓存，但不一定要应用
+            if (theme.source) {
+              lastSyncedTheme = theme.source;
+              isCacheInitialized = true;
+            }
+            
+            // 检查 DOM 是否已经匹配
+            const currentDomTheme = getCurrentThemeFromDOM();
+            if (currentDomTheme === theme.source) {
+              console.log('初始DOM主题已匹配，跳过应用:', theme.source);
             } else {
-              console.log('缓存已初始化，跳过初始主题应用（用户已操作）');
+              console.log('初始DOM主题不匹配，应用主题:', currentDomTheme, '->', theme.source);
+              forceApplyTheme(theme.isDark, theme.source);
             }
           }
         }).catch((e) => {
@@ -807,6 +822,15 @@
   let isApplyingThemeFromMain = false; // ponytail: 标志位，防止触发循环
   
   function forceApplyTheme(isDark, source) {
+    // ponytail: 先检查当前按钮状态是否已经匹配目标，避免不必要的点击
+    const currentDomTheme = getCurrentThemeFromDOM();
+    
+    // 如果 DOM 状态已经是目标值，跳过点击和标志设置
+    if (currentDomTheme === source) {
+      console.log('主题已匹配，跳过点击:', source);
+      return;
+    }
+    
     isApplyingThemeFromMain = true; // 设置标志，阻止 syncElectronTheme 响应
     
     // ponytail: 根据 source 决定点击哪个按钮
@@ -846,7 +870,7 @@
           
           setTimeout(() => {
             isApplyingThemeFromMain = false;
-          }, 150);
+          }, 200);
           return;
         }
       }
@@ -858,7 +882,7 @@
     
     setTimeout(() => {
       isApplyingThemeFromMain = false;
-    }, 150);
+    }, 200);
   }
   
   // ponytail: 强制修改 DOM（备用方案，仅在找不到按钮时使用）
@@ -962,12 +986,15 @@
       buttons.forEach(button => {
         if (!themeChangeHandler) {
           themeChangeHandler = () => {
-            // 延迟一点执行，等待DOM更新
+            // ponytail: 延迟执行，等待React更新DOM后再同步
             setTimeout(() => {
               applyHotkeyTheme();
               ensureSystemThemeWatcher();
-              syncElectronTheme();
-            }, 100);
+              // ponytail: 只有用户主动点击时才同步到主进程
+              if (!isApplyingThemeFromMain) {
+                syncElectronTheme();
+              }
+            }, 150);
           };
         }
         button.removeEventListener('click', themeChangeHandler);
@@ -981,7 +1008,9 @@
         themeChangeHandler = () => {
           applyHotkeyTheme();
           ensureSystemThemeWatcher();
-          syncElectronTheme();
+          if (!isApplyingThemeFromMain) {
+            syncElectronTheme();
+          }
         };
       }
       boundThemeSelectEl.removeEventListener('change', themeChangeHandler);
@@ -991,12 +1020,8 @@
     ensureSystemThemeWatcher();
     applyHotkeyTheme();
 
-    // ponytail: 首次进入设置界面时，按当前 OS 强制对齐一次 DOM。
-    // 否则 OS 是深色但用户之前手动选了浅色的话，"跟随系统"状态已经对了但视觉还停在浅色。
-    try {
-      const initialIsDark = readCurrentDarkFromDom();
-      if (initialIsDark !== null) forceApplyTheme(initialIsDark);
-    } catch (e) {}
+    // ponytail: 删除首次强制对齐逻辑，避免覆盖用户选择
+    // 让主进程推送的初始主题通过 subscribeNativeThemeUpdates 自然同步
   }
 
   // ponytail: 通过 CSS 变量读出当前实际明暗，避免依赖 prefers-color-scheme 在 Electron 内的不可靠行为。
@@ -1052,12 +1077,24 @@
   function syncElectronTheme() {
     if (!window.electronAPI || !window.electronAPI.setThemeSource) return;
     
+    // ponytail: 如果正在应用主进程推送的主题，跳过同步避免循环
+    if (isApplyingThemeFromMain) {
+      console.log('跳过同步（主进程推送中）');
+      return;
+    }
+    
     // 限制节流，避免频繁调用
     if (themeSyncTimer) {
       clearTimeout(themeSyncTimer);
     }
     
     themeSyncTimer = setTimeout(() => {
+      // ponytail: 再次检查标志，避免延迟执行时主进程推送正在进行
+      if (isApplyingThemeFromMain) {
+        console.log('跳过延迟同步（主进程推送中）');
+        return;
+      }
+      
       let themeSource = 'system';
       
       // 先尝试从新版本按钮获取主题
@@ -1098,6 +1135,8 @@
             console.log('主题变化，从', lastSyncedTheme, '到', themeSource);
             lastSyncedTheme = themeSource;
             window.electronAPI.setThemeSource(themeSource);
+          } else {
+            console.log('主题未变化，跳过同步:', themeSource);
           }
           return;
         }
@@ -1123,8 +1162,10 @@
         console.log('主题变化，从', lastSyncedTheme, '到', themeSource);
         lastSyncedTheme = themeSource;
         window.electronAPI.setThemeSource(themeSource);
+      } else {
+        console.log('主题未变化，跳过同步:', themeSource);
       }
-    }, 50);
+    }, 100);
   }
 
   // ponytail: 旧的 syncThemeByCssVar 已删除——它把 CSS 推断值写进主进程，会覆盖 user 的 'system' 选择。
