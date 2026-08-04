@@ -162,20 +162,24 @@ c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fi
       resetSelectContainer.classList.remove('ds-select--open');
     }
 
-    const menu = resetMenuWrapper ? resetMenuWrapper.querySelector('.floating-reset-dropdown-menu') : null;
-    if (menu) {
-      menu.classList.remove('ds-fade-in-zoom-in-active');
-      menu.classList.add('ds-fade-in-zoom-out-exit-active');
+    if (resetMenuWrapper && resetMenuWrapper.parentNode) {
+      const menu = resetMenuWrapper.querySelector('.floating-reset-dropdown-menu');
+      if (menu) {
+        menu.classList.add('closing');
+        
+        setTimeout(() => {
+          if (resetMenuWrapper && resetMenuWrapper.parentNode) {
+            resetMenuWrapper.remove();
+          }
+          resetMenuWrapper = null;
+        }, 150);
+      } else {
+        resetMenuWrapper.remove();
+        resetMenuWrapper = null;
+      }
     }
 
     document.removeEventListener('mousedown', handleOutsideMouseDown, true);
-
-    setTimeout(() => {
-      if (resetMenuWrapper && resetMenuWrapper.parentNode) {
-        resetMenuWrapper.remove();
-      }
-      resetMenuWrapper = null;
-    }, 150);
   }
 
   // 选择重置选项

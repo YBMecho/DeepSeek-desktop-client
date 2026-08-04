@@ -225,6 +225,64 @@ html {
 
 /* 动态宽度调整通过JavaScript实现，确保浏览器兼容性 */
 
+/* 悬浮窗重置设置容器样式 */
+.floating-reset-setting-flex {
+  position: relative;
+}
+
+/* 悬浮窗重置选择器样式 */
+.floating-reset-select {
+  position: relative;
+  cursor: pointer;
+  width: fit-content;
+  max-width: 170px;
+  min-width: 120px;
+  transition: all 0.2s ease;
+}
+
+.floating-reset-select .ds-select__select {
+  cursor: pointer;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  padding: 8px 12px;
+  padding-right: 28px;
+  transition: all 0.2s ease;
+}
+
+/* 打开下拉时，选择框内字体变为灰色 */
+.floating-reset-select.ds-select--open .ds-select__select {
+  color: #9aa0a6;
+}
+
+/* 悬浮窗重置下拉菜单样式 */
+.floating-reset-dropdown-menu {
+  animation: closeBehaviorPopIn 0.2s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+  transform-origin: top center;
+}
+
+.floating-reset-dropdown-menu.closing {
+  animation: closeBehaviorPopOut 0.15s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+/* 下拉选项悬停效果 */
+.floating-reset-dropdown-menu .ds-select-option {
+  transition: background-color 0.15s ease;
+}
+
+/* 滚动条样式 */
+.ds-scroll-area__gutters .ds-scroll-area__vertical-bar::after {
+  width: 100%;
+  height: 100%;
+  transition: background-color .1s ease-out, width .1s ease-out;
+  top: 0;
+  right: 0;
+}
+
 /* 回复通知开关容器 */
 .reply-notify-setting-flex {
   position: relative;
