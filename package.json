@@ -11,6 +11,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron-forge start",
+    "start:trace": "set NODE_OPTIONS=--trace-deprecation && electron-forge start",
     "test": "npm start",
     "package": "electron-forge package",
     "make": "electron-forge make"
