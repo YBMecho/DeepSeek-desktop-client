@@ -1594,7 +1594,7 @@ app.whenReady().then(() => {
                 type: 'info',
                 title: '关于 DeepSeek',
                 message: 'DeepSeek 桌面应用',
-                detail: '版本: 2.5.0\n\n一个简洁的DeepSeek聊天客户端\n\n作者: YBMecho\n\n辅助工具：\n\tDeeoSeek、Claude、Claude code、Trea\n\nDeepSeek桌面应用官方地址：https://github.com/YBMecho/DeepSeek-desktop-client/\n国内使用Claude API网站：https://aimoniker.top/sign-up?aff=vJij&src=direct',
+                detail: '版本: 2.5.0\n\n一个简洁的DeepSeek聊天客户端\n\n作者: YBMecho\n\n辅助工具：\n\tDeeoSeek、Claude、Claude code、Trea\n\nDeepSeek桌面应用官方网站：https://github.com/YBMecho/DeepSeek-desktop-client/\n国内使用Claude API网站：https://aimoniker.top/sign-up?aff=vJij&src=direct',
                 buttons: ['确定'],
                 defaultId: 0
               });
