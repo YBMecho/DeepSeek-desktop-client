@@ -20,6 +20,7 @@ const { BrowserWindow } = require('electron');
  * @param {Function} deps.getPreviouslyVisibleWindowIds
  * @param {Function} deps.getFloatingWindow - 获取悬浮窗实例
  * @param {Function} deps.getAdsorptionWindow - 获取吸附窗口实例
+ * @param {Function} deps.getMiniWindow - 获取 Taskbar Live Controls 窗口实例
  * @param {Function} deps.createTray
  * @param {Function} deps.destroyTray
  * @param {Function} deps.toggleFloatingWindow
@@ -30,15 +31,27 @@ function toggleWindow(deps) {
 
   const floatingWindow = deps.getFloatingWindow();
   const adsorptionWindow = deps.getAdsorptionWindow ? deps.getAdsorptionWindow() : null;
+  const miniWindow = deps.getMiniWindow ? deps.getMiniWindow() : null;
   const previousIds = deps.getPreviouslyVisibleWindowIds();
+
+  console.log('[WindowToggle] Starting toggle, floatingWindow:', !!floatingWindow, 'adsorptionWindow:', !!adsorptionWindow, 'miniWindow:', !!miniWindow);
 
   const windows = BrowserWindow.getAllWindows().filter(win => {
     try {
-      return !win.isDestroyed() && win !== floatingWindow && win !== adsorptionWindow;
+      const isExcluded = win === floatingWindow || win === adsorptionWindow || win === miniWindow;
+      if (isExcluded) {
+        console.log('[WindowToggle] Excluding special window:', win.id);
+      }
+      return !win.isDestroyed() && 
+             win !== floatingWindow && 
+             win !== adsorptionWindow && 
+             win !== miniWindow;
     } catch (e) {
       return false;
     }
   });
+
+  console.log('[WindowToggle] Total windows:', BrowserWindow.getAllWindows().length, 'filtered windows:', windows.length);
 
   if (windows.length === 0) return;
 

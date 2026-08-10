@@ -78,6 +78,7 @@ function createAdsorptionWindow() {
   });
 
   adsorptionWindow.on('close', (event) => {
+    console.log('[Adsorption] close event triggered, isQuitting:', deps.getIsQuitting());
     if (!deps.getIsQuitting()) {
       event.preventDefault();
       adsorptionWindow.hide();
@@ -85,7 +86,24 @@ function createAdsorptionWindow() {
   });
 
   adsorptionWindow.on('closed', () => {
+    console.log('[Adsorption] closed event triggered');
     adsorptionWindow = null;
+  });
+
+  adsorptionWindow.on('blur', () => {
+    console.log('[Adsorption] blur event - window lost focus');
+  });
+
+  adsorptionWindow.on('focus', () => {
+    console.log('[Adsorption] focus event - window gained focus');
+  });
+
+  adsorptionWindow.on('hide', () => {
+    console.log('[Adsorption] hide event triggered');
+  });
+
+  adsorptionWindow.on('show', () => {
+    console.log('[Adsorption] show event triggered');
   });
 }
 
