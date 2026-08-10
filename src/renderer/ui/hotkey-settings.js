@@ -440,6 +440,12 @@
   // 根据当前是否在通用设置 tab，控制 wrapper 的显隐
   function syncHotkeySectionVisibility() {
     if (!hotkeySectionWrapper) return;
+    // 快捷键 tab 激活期间，原生"主题/语言"行被 settings-menu-hotkey.js 主动
+    // 隐藏（display:none），不能再以"语言行可见"作为显隐依据，直接保持显示
+    if (window.__hotkeyTabActive) {
+      hotkeySectionWrapper.style.display = '';
+      return;
+    }
     // ponytail: 用"语言行现在是否能查到且可见"来判定通用的 tab 状态，
     // 比判断左侧按钮高亮类更稳定——切瞬态时唯一可靠的信号是结构变化。
     const lc = findLanguageContainer();

@@ -6,6 +6,8 @@
  *   - 在设置面板菜单中添加快捷键设置入口
  *   - SVG图标自适应浅色/深色主题（使用 currentColor）
  *   - 处理按钮点击事件，切换到快捷键设置页面
+ *   - 快捷键页以原生"通用设置"页为宿主，激活时隐藏原生"主题/语言"行，
+ *     只保留 hotkey-settings.js 注入的设置行，形成独立的快捷键设置界面
  */
 
 (function() {
@@ -28,6 +30,11 @@
   // 程序化点击原生"通用设置"按钮时置位，避免我们绑在原生按钮上的
   // "取消激活"监听器把刚点亮的快捷键设置按钮又灭掉
   let suppressNativeDeactivate = false;
+
+  // 跨脚本共享的 tab 状态：hotkey-settings.js 靠它判断注入行的显隐。
+  // 快捷键 tab 激活时原生"语言"行会被我们隐藏，若仍按"语言行可见"判断，
+  // hotkey-settings.js 会误判"已离开通用设置"而把注入行一并藏掉
+  window.__hotkeyTabActive = false;
 
   /**
    * 创建快捷键设置菜单按钮
@@ -84,13 +91,14 @@
   /**
    * 处理快捷键菜单按钮点击
    *
-   * 快捷键相关的设置行（快捷键 / 对话悬浮窗 / 关闭行为等）由 hotkey-settings.js
-   * 注入在原生"通用设置"页里，因此这里通过程序化点击原生"通用设置"按钮，
-   * 让 React 自己完成右侧内容切换，再把左侧高亮挪到本按钮上。
+   * 右侧内容区由 React 托管，无法安全地自造一个面板，因此仍通过程序化点击
+   * 原生"通用设置"按钮让 React 完成渲染；随后把原生"主题/语言"行隐藏，
+   * 只留下 hotkey-settings.js 注入的快捷键相关设置行，形成独立的快捷键页。
    */
   function handleHotkeyMenuClick() {
     // 标记当前tab为激活状态
     isHotkeyTabActive = true;
+    window.__hotkeyTabActive = true;
     updateMenuButtonState();
 
     const menuContainer = hotkeyMenuButton && hotkeyMenuButton.parentElement;
@@ -109,6 +117,57 @@
       // 取消原生按钮的激活态，保证左侧菜单只有"快捷键设置"一个高亮项
       setNativeButtonActive(generalSettingsBtn, false);
     }
+
+    // 藏掉原生"主题/语言"行。React 稍后若重渲染把行重建出来，
+    // init() 里的 MutationObserver 每帧会再压制一次
+    setNativeGeneralContentHidden(true);
+  }
+
+  /**
+   * 查找原生"通用设置"页的内容行（主题按钮组 + 语言选择行）
+   * 以语言行为锚点，主题行取同一父容器内文本含"主题"的兄弟节点
+   * @returns {{langRow: HTMLElement, themeRow: HTMLElement|undefined}|null}
+   */
+  function findNativeGeneralRows() {
+    const langRow = Array.from(document.querySelectorAll('.ds-flex._50b3d9e'))
+      .find(el => (el.textContent || '').includes('语言'));
+    if (!langRow || !langRow.parentElement) return null;
+
+    const themeRow = Array.from(langRow.parentElement.children)
+      .find(el => el !== langRow
+        && !el.classList.contains('hotkey-section-wrapper')
+        && (el.textContent || '').includes('主题'));
+
+    return { langRow, themeRow };
+  }
+
+  /**
+   * 隐藏/恢复原生"通用设置"内容行
+   * 用 dataset 标记是我们藏的，恢复时只动自己标记过的节点，不碰 React 的布局
+   * @param {boolean} hidden - true 隐藏，false 恢复
+   */
+  function setNativeGeneralContentHidden(hidden) {
+    const rows = findNativeGeneralRows();
+    if (!rows) return;
+    [rows.langRow, rows.themeRow].forEach(row => {
+      if (!row) return;
+      if (hidden) {
+        row.dataset.hotkeyHidden = '1';
+        row.style.display = 'none';
+      } else if (row.dataset.hotkeyHidden) {
+        delete row.dataset.hotkeyHidden;
+        row.style.display = '';
+      }
+    });
+  }
+
+  /**
+   * 重置 tab 状态（设置弹窗销毁重建后调用，
+   * 避免上一次会话的高亮/隐藏标记残留到全新 DOM 上）
+   */
+  function resetTabState() {
+    isHotkeyTabActive = false;
+    window.__hotkeyTabActive = false;
   }
 
   /**
@@ -183,6 +242,8 @@
       .find(btn => btn.textContent && btn.textContent.includes('快捷键设置'));
     
     if (existingButton) {
+      // 设置弹窗重建后 DOM 是全新的，旧 tab 状态（高亮/隐藏）不应残留
+      if (existingButton !== hotkeyMenuButton) resetTabState();
       console.log('[快捷键设置] 菜单中已存在快捷键设置按钮，跳过注入');
       hotkeyMenuButton = existingButton; // 保存引用
       return true;
@@ -194,7 +255,8 @@
       return true;
     }
 
-    // 创建并插入快捷键设置按钮
+    // 创建并插入快捷键设置按钮（新按钮意味着弹窗是全新 DOM，重置旧 tab 状态）
+    resetTabState();
     hotkeyMenuButton = createHotkeyMenuButton();
     
     // 插入到"通用设置"按钮之后
@@ -250,7 +312,10 @@
             if (suppressNativeDeactivate) return;
             if (isHotkeyTabActive) {
               isHotkeyTabActive = false;
+              window.__hotkeyTabActive = false;
               updateMenuButtonState();
+              // 恢复被隐藏的原生"主题/语言"行
+              setNativeGeneralContentHidden(false);
               // 通用设置原本就是 React 的选中 tab，再点一次不会触发重渲染，
               // 被我们剥掉的高亮需要手动补回
               if (btn.textContent && btn.textContent.includes('通用设置')) {
@@ -259,6 +324,10 @@
             }
           });
         });
+
+        // 强制右侧内容与当前 tab 一致：激活期间持续压制 React 重建的
+        // "主题/语言"行；非激活时把带标记的行恢复原状（无标记则不动作）
+        setNativeGeneralContentHidden(isHotkeyTabActive);
       });
     });
 
