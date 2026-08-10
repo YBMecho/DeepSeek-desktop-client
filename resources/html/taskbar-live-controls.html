@@ -17,6 +17,24 @@
       background-color: #000000;
       overflow: hidden;
     }
+
+    /* 左侧拖动区域 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 25px;
+      height: 100%;
+      -webkit-app-region: drag;
+      z-index: 99999;
+      pointer-events: auto;
+    }
+
+    /* 确保拖动区域内的交互元素可点击 */
+    body::before ~ * {
+      -webkit-app-region: no-drag;
+    }
   </style>
 </head>
 <body>
