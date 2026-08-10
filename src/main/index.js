@@ -211,8 +211,8 @@ app.whenReady().then(() => {
 
   const loginItemSettings = app.getLoginItemSettings();
   const wasLaunchedByOS = loginItemSettings.wasOpenedAtLogin || loginItemSettings.wasOpenedAsHidden;
-  const config_silentAutoLaunch = state.getSilentAutoLaunch();
-  const startHidden = wasLaunchedByOS && config_silentAutoLaunch;
+  const configSilentAutoLaunch = state.getSilentAutoLaunch();
+  const startHidden = wasLaunchedByOS && configSilentAutoLaunch;
 
   createWindow({
     state,
