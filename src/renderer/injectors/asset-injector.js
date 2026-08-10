@@ -60,19 +60,12 @@ function injectCustomAssets(targetWindow, floatingWindow) {
   } catch (e) {}
 
   // 注入设置菜单快捷键入口JavaScript
+  // 注意：不加前置去重包装。前置 IIFE 的 return 无法中断其后拼接的脚本主体，
+  // 却会提前写入标记把主体自己的 guard 顶死。去重由脚本内部自行负责。
   const settingsMenuHotkeyJsPath = path.join(constants.RENDERER_UI_DIR, 'settings-menu-hotkey.js');
   try {
     const settingsMenuHotkeyJs = fs.readFileSync(settingsMenuHotkeyJsPath, 'utf8');
-    const wrapped = `(() => {
-  try {
-    if (window.__DS_SETTINGS_MENU_HOTKEY_LOADED__) {
-      return;
-    }
-    window.__DS_SETTINGS_MENU_HOTKEY_LOADED__ = true;
-  } catch (e) {}
-})();
-` + settingsMenuHotkeyJs;
-    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+    targetWindow.webContents.executeJavaScript(settingsMenuHotkeyJs).catch(() => {});
   } catch (e) {}
 
   // 注入悬浮窗切换按钮JavaScript

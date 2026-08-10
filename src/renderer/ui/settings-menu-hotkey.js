@@ -11,6 +11,12 @@
 (function() {
   'use strict';
 
+  // 防止脚本重复初始化（使用独立的标记名，不与 injector 冲突）
+  if (window.__SETTINGS_MENU_HOTKEY_INITIALIZED__) {
+    return;
+  }
+  window.__SETTINGS_MENU_HOTKEY_INITIALIZED__ = true;
+
   // 快捷键图标SVG（使用 currentColor 自适应主题）
   const HOTKEY_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
     <path d="M793.6 251.2H225.6c-30.4 0-54.4 24-54.4 54.4v411.2c0 30.4 24 54.4 54.4 54.4h568c30.4 0 54.4-24 54.4-54.4V305.6c0-30.4-24-54.4-54.4-54.4z m8 467.2c0 4.8-3.2 8-8 8H225.6c-4.8 0-8-3.2-8-8V305.6c0-4.8 3.2-8 8-8h568c4.8 0 8 3.2 8 8v412.8z" fill="currentColor"></path>
@@ -143,9 +149,19 @@
       return false;
     }
 
+    // 检查容器中是否已经存在快捷键设置按钮（DOM级别的去重）
+    const existingButton = Array.from(menuContainer.children)
+      .find(btn => btn.textContent && btn.textContent.includes('快捷键设置'));
+    
+    if (existingButton) {
+      console.log('[快捷键设置] 菜单中已存在快捷键设置按钮，跳过注入');
+      hotkeyMenuButton = existingButton; // 保存引用
+      return true;
+    }
+
     // 检查是否已经注入
     if (hotkeyMenuButton && hotkeyMenuButton.parentElement) {
-      console.log('[快捷键设置] 菜单按钮已存在');
+      console.log('[快捷键设置] 菜单按钮已存在（通过变量引用）');
       return true;
     }
 
@@ -204,25 +220,12 @@
   function waitForSettingsPanel() {
     console.log('[快捷键设置] 开始等待设置面板');
     
-    // 先尝试立即注入
-    if (injectHotkeyMenuButton()) {
-      console.log('[快捷键设置] 立即注入成功');
-      return;
-    }
-
-    console.log('[快捷键设置] 立即注入失败，启动 MutationObserver 监听');
-
-    // 使用 MutationObserver 监听
-    let attemptCount = 0;
+    // 使用 MutationObserver 持续监听，每次打开设置面板时都尝试注入
     const observer = new MutationObserver(() => {
-      attemptCount++;
-      if (attemptCount % 10 === 0) {
-        console.log(`[快捷键设置] MutationObserver 已触发 ${attemptCount} 次`);
-      }
-      
-      if (injectHotkeyMenuButton()) {
-        console.log(`[快捷键设置] MutationObserver 注入成功（第 ${attemptCount} 次尝试）`);
-        observer.disconnect();
+      // 只在找到设置菜单容器时才尝试注入
+      const menuContainer = findSettingsMenuContainer();
+      if (menuContainer) {
+        injectHotkeyMenuButton();
       }
     });
 
@@ -231,11 +234,13 @@
       subtree: true
     });
 
-    // 添加超时保护，10秒后如果还没注入就停止监听
+    // 页面加载后也立即尝试一次
     setTimeout(() => {
-      observer.disconnect();
-      console.log('[快捷键设置] 10秒超时，停止监听。总尝试次数:', attemptCount);
-    }, 10000);
+      const menuContainer = findSettingsMenuContainer();
+      if (menuContainer) {
+        injectHotkeyMenuButton();
+      }
+    }, 1000);
   }
 
   /**
