@@ -275,7 +275,7 @@ function computeAdsorptionPosition(display, windowWidth, windowHeight, elements)
 
   // 计算两者之间的中点，窗口水平居中对齐到中点
   const centerX = Math.round((leftEdge + rightEdge) / 2);
-  const x = centerX - Math.round(windowWidth / 2);
+  const x = centerX - Math.round(windowWidth / 2) - 42;  // 向左偏移42px
 
   // 窗口垂直位置：置于任务栏内部，垂直居中
   const y = Math.round(taskbar.y + (taskbar.height - windowHeight) / 2);
