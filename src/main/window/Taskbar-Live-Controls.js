@@ -64,6 +64,7 @@ function createMiniWindow() {
     skipTaskbar: true,
     show: false,
     backgroundColor: '#000000',
+    opacity: 0.7,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

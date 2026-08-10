@@ -4,38 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Taskbar Live Controls</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      width: 388px;
-      height: 40px;
-      background-color: #000000;
-      overflow: hidden;
-    }
-
-    /* 左侧拖动区域 */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 25px;
-      height: 100%;
-      -webkit-app-region: drag;
-      z-index: 99999;
-      pointer-events: auto;
-    }
-
-    /* 确保拖动区域内的交互元素可点击 */
-    body::before ~ * {
-      -webkit-app-region: no-drag;
-    }
-  </style>
+  <link rel="stylesheet" href="../styles/taskbar-live-controls.css">
 </head>
 <body>
   <!-- 内容区域 -->

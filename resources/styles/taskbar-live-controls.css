@@ -1,0 +1,53 @@
+/* Taskbar Live Controls 样式文件 */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 388px;
+  height: 40px;
+  background-color: #000000;
+  overflow: hidden;
+}
+
+/* 左侧拖动区域 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 25px;
+  height: 100%;
+  -webkit-app-region: drag;
+  z-index: 99999;
+  pointer-events: auto;
+}
+
+/* 拖动区域中心的灰色竖线 */
+body::after {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 11.5px;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 15px;
+  background-color: #666666;
+  border-radius: 1px;
+  z-index: 100000;
+  pointer-events: none;
+  transition: background-color 0.2s ease;
+}
+
+/* 拖动区域悬停时竖线变亮 */
+body:hover::after {
+  background-color: #999999;
+}
+
+/* 确保拖动区域内的交互元素可点击 */
+body::before ~ * {
+  -webkit-app-region: no-drag;
+}
