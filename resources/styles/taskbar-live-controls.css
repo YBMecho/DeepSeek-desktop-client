@@ -13,8 +13,9 @@ html, body {
   overflow: hidden;
 }
 
-/* 左侧拖动区域（真实元素承载 drag，保证内部 no-drag 子元素可交互） */
-.drag-region {
+/* 左侧拖动区域 */
+body::before {
+  content: '';
   position: fixed;
   top: 0;
   left: 0;
@@ -22,24 +23,31 @@ html, body {
   height: 100%;
   -webkit-app-region: drag;
   z-index: 99999;
+  pointer-events: auto;
 }
 
-/* 拖动区域中心的灰色竖线 */
+/* 拖动区域中心的灰色竖线（真实 DOM 元素） */
 .drag-handle {
-  position: absolute;
+  position: fixed;
   top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  left: 11.5px;
+  transform: translateY(-50%);
   width: 2px;
   height: 15px;
   background-color: #666666;
   border-radius: 1px;
-  /* drag 区域按标题栏命中、鼠标事件不进页面；竖条自身 no-drag，hover 判定仅限竖条 2x15px 范围 */
-  -webkit-app-region: no-drag;
+  z-index: 100000;
+  -webkit-app-region: drag;
+  pointer-events: auto;
   transition: background-color 0.2s ease;
 }
 
-/* 竖线悬停效果 */
+/* 竖线悬停效果 - 仅在竖线自身范围内触发 */
 .drag-handle:hover {
   background-color: #999999;
+}
+
+/* 确保拖动区域内的交互元素可点击 */
+body::before ~ *:not(.drag-handle) {
+  -webkit-app-region: no-drag;
 }
