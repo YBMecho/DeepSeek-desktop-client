@@ -48,6 +48,7 @@ module.exports = {
     replyNotifyEnabled: true,
     isFloatingWindowPinned: false,
     autoLaunch: true,
+    silentAutoLaunch: true,
     floatingResetOption: '60min'
   }
 };
