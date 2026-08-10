@@ -23,30 +23,10 @@ body::before {
   bottom: 0;
   background-color: transparent;
   border-radius: 10px;
-  background-image: 
-    /* 上边：水平虚线 */
-    repeating-linear-gradient(90deg, rgba(128, 128, 128, 0.5) 0px, rgba(128, 128, 128, 0.5) 5px, transparent 5px, transparent 10px),
-    /* 下边：水平虚线 */
-    repeating-linear-gradient(90deg, rgba(128, 128, 128, 0.5) 0px, rgba(128, 128, 128, 0.5) 5px, transparent 5px, transparent 10px),
-    /* 左边：竖直虚线 */
-    repeating-linear-gradient(180deg, rgba(128, 128, 128, 0.5) 0px, rgba(128, 128, 128, 0.5) 5px, transparent 5px, transparent 10px),
-    /* 右边：竖直虚线 */
-    repeating-linear-gradient(180deg, rgba(128, 128, 128, 0.5) 0px, rgba(128, 128, 128, 0.5) 5px, transparent 5px, transparent 10px);
-  background-size: 
-    100% 1px,
-    100% 1px,
-    1px 100%,
-    1px 100%;
-  background-position: 
-    0 0,
-    0 100%,
-    0 0,
-    100% 0;
-  background-repeat: 
-    repeat-x,
-    repeat-x,
-    repeat-y,
-    repeat-y;
+  border: 1px solid transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='388' height='40'%3E%3Crect x='0.5' y='0.5' width='387' height='39' rx='10' ry='10' fill='none' stroke='rgba(128,128,128,0.5)' stroke-width='1' stroke-dasharray='5,5'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   z-index: -1;
 }
 
