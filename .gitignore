@@ -3,3 +3,4 @@
 任务.md
 resource\使用浏览器内置的Web_Speech_API实现语音转文字.md
 out/*
+.cursor/*
