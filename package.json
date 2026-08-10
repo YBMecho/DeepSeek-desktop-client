@@ -9,6 +9,39 @@
   "author": "YBMecho",
   "type": "commonjs",
   "main": "main.js",
+  "build": {
+    "appId": "com.deepseek.app",
+    "productName": "DeepSeek",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "**/node_modules/electron*/**"
+    ],
+    "files": [
+      "**/*",
+      "!**/*.ts",
+      "!**/*.map",
+      "!**/*.md",
+      "!**/docs{,/**}",
+      "!**/test{,/**}",
+      "!**/tests{,/**}",
+      "!**/.git*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "resources/assets/icons/lp25u-mafhn-001.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "afterPack": "scripts/optimize-asar.js"
+  },
   "scripts": {
     "start": "electron-forge start",
     "start:trace": "set NODE_OPTIONS=--trace-deprecation && electron-forge start",
@@ -28,6 +61,7 @@
     "@electron/fuses": "^1.8.0",
     "@types/node": "^26.2.0",
     "electron": "^37.2.6",
+    "electron-builder": "^26.15.3",
     "ts-loader": "^9.6.2",
     "typescript": "^7.0.2"
   },
