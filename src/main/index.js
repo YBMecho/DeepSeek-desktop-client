@@ -39,6 +39,7 @@ const themeManager = require('./system/theme-manager');
 const assetInjector = require('../renderer/injectors/asset-injector');
 const floatingMgr = require('./window/floating-window-manager');
 const taskbarMgr = require('./window/Taskbar-Live-Controls');
+const adsorptionMgr = require('./window/adsorption');
 const trayManager = require('./system/tray-manager');
 const notifyManager = require('./system/notification-manager');
 const autoLaunchMgr = require('./system/auto-launch-manager');
@@ -80,6 +81,11 @@ floatingMgr.init({
 
 // ---- Taskbar Live Controls 模块依赖注入 ----
 taskbarMgr.init({
+  getIsQuitting: state.getIsQuitting
+});
+
+// ---- 吸附窗口模块依赖注入 ----
+adsorptionMgr.init({
   getIsQuitting: state.getIsQuitting
 });
 
@@ -244,6 +250,9 @@ app.whenReady().then(() => {
 
   // 创建 Taskbar Live Controls 窗口
   taskbarMgr.createMiniWindow();
+
+  // 创建吸附窗口
+  adsorptionMgr.createAdsorptionWindow();
 
   // 启动配置文件监听
   themeManager.watchConfigFile(
