@@ -323,8 +323,9 @@
     }
     
     // 创建快捷键设置容器，使用与语言/主题相同的样式（无底部边框）
+    // hotkey-tab-row: 只属于"快捷键设置"页，通用设置页不显示
     const hotkeyContainer = document.createElement('div');
-    hotkeyContainer.className = 'ds-flex _50b3d9e hotkey-setting-flex';
+    hotkeyContainer.className = 'ds-flex _50b3d9e hotkey-setting-flex hotkey-tab-row';
     hotkeyContainer.style.cssText = `
       padding: 12px 0px; 
       justify-content: space-between; 
@@ -437,20 +438,29 @@
     });
   }
 
-  // 根据当前是否在通用设置 tab，控制 wrapper 的显隐
+  // 根据当前 tab 控制 wrapper 及各行显隐
+  // 行级分流约定（class 标记）：
+  //   .hotkey-tab-row  —— 快捷键相关行，只在"快捷键设置"页显示
+  //   .general-tab-row —— 其余应用设置行，只在"通用设置"页显示
   function syncHotkeySectionVisibility() {
     if (!hotkeySectionWrapper) return;
-    // 快捷键 tab 激活期间，原生"主题/语言"行被 settings-menu-hotkey.js 主动
-    // 隐藏（display:none），不能再以"语言行可见"作为显隐依据，直接保持显示
-    if (window.__hotkeyTabActive) {
-      hotkeySectionWrapper.style.display = '';
-      return;
-    }
+    const hotkeyTab = !!window.__hotkeyTabActive;
     // ponytail: 用"语言行现在是否能查到且可见"来判定通用的 tab 状态，
     // 比判断左侧按钮高亮类更稳定——切瞬态时唯一可靠的信号是结构变化。
+    // 注意：快捷键 tab 激活时语言行被 settings-menu-hotkey.js 主动隐藏，不能用作依据。
     const lc = findLanguageContainer();
-    hotkeySectionWrapper.style.display = (lc && isElementVisible(lc)) ? '' : 'none';
+    const generalVisible = !!(lc && isElementVisible(lc));
+
+    hotkeySectionWrapper.style.display = (hotkeyTab || generalVisible) ? '' : 'none';
+    hotkeySectionWrapper.querySelectorAll('.hotkey-tab-row')
+      .forEach(row => { row.style.display = hotkeyTab ? 'flex' : 'none'; });
+    hotkeySectionWrapper.querySelectorAll('.general-tab-row')
+      .forEach(row => { row.style.display = hotkeyTab ? 'none' : 'flex'; });
   }
+
+  // 暴露给 settings-menu-hotkey.js：tab 切换后立即同步行显隐，
+  // 不必等 MutationObserver 转一圈，消除"先露出错误内容再被纠正"的窗口期
+  window.__hotkeySettingsSync = syncHotkeySectionVisibility;
 
   // 读取主题选择器元素（新版本使用按钮而不是select）
   function getThemeSelectElement() {
@@ -553,7 +563,7 @@
   // 创建悬浮窗快捷键设置区域
   function createFloatingHotkeySettings(referenceContainer) {
     const floatingContainer = document.createElement('div');
-    floatingContainer.className = 'ds-flex _50b3d9e floating-hotkey-setting-flex';
+    floatingContainer.className = 'ds-flex _50b3d9e floating-hotkey-setting-flex hotkey-tab-row';
     floatingContainer.style.cssText = `
       padding: 12px 0px; 
       justify-content: space-between; 
@@ -1016,8 +1026,9 @@
   // 创建关闭行为设置区域
   function createCloseBehaviorSettings(hotkeyContainer) {
     // 创建关闭行为设置容器，模仿快捷键设置的样式
+    // general-tab-row: 只属于"通用设置"页，快捷键设置页不显示
     const closeBehaviorContainer = document.createElement('div');
-    closeBehaviorContainer.className = 'ds-flex _50b3d9e close-behavior-setting-flex';
+    closeBehaviorContainer.className = 'ds-flex _50b3d9e close-behavior-setting-flex general-tab-row';
     closeBehaviorContainer.style.cssText = `
       padding: 12px 0px; 
       justify-content: space-between; 
@@ -1222,7 +1233,7 @@
   // 创建回复完成系统提示音开关区域
   function createReplyNotifyToggle(referenceContainer) {
     const container = document.createElement('div');
-    container.className = 'ds-flex _50b3d9e reply-notify-setting-flex';
+    container.className = 'ds-flex _50b3d9e reply-notify-setting-flex general-tab-row';
     container.style.cssText = `
       padding: 12px 0px;
       justify-content: space-between;
@@ -1273,7 +1284,7 @@
   // 创建开机自启动开关区域
   function createAutoLaunchToggle(referenceContainer) {
     const container = document.createElement('div');
-    container.className = 'ds-flex _50b3d9e auto-launch-setting-flex';
+    container.className = 'ds-flex _50b3d9e auto-launch-setting-flex general-tab-row';
     container.style.cssText = `
       padding: 12px 0px;
       justify-content: space-between;

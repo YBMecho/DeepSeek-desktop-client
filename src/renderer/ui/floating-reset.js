@@ -22,7 +22,8 @@
   // 创建重置设置区域
   function createFloatingResetSettings(referenceContainer) {
     const container = document.createElement('div');
-    container.className = 'ds-flex _50b3d9e floating-reset-setting-flex';
+    // general-tab-row: 只属于"通用设置"页，快捷键设置页不显示
+    container.className = 'ds-flex _50b3d9e floating-reset-setting-flex general-tab-row';
     container.style.cssText = `
       padding: 12px 0px;
       justify-content: space-between;

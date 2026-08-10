@@ -36,6 +36,44 @@
   // hotkey-settings.js 会误判"已离开通用设置"而把注入行一并藏掉
   window.__hotkeyTabActive = false;
 
+  // 切换 tab 期间遮蔽右侧内容区的状态。用 CSS 属性开关而不是直接改节点
+  // style：React 重渲染/替换节点时遮蔽依然生效，不会露出通用设置的内容
+  let contentConcealed = false;
+  let concealSafetyTimer = null;
+  const CONCEAL_STYLE_ID = 'hotkey-tab-conceal-style';
+
+  function ensureConcealStyle() {
+    if (document.getElementById(CONCEAL_STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = CONCEAL_STYLE_ID;
+    style.textContent = 'html[data-hotkey-conceal="1"] .ds-modal-content .ds-scroll-area { visibility: hidden; }';
+    document.head.appendChild(style);
+  }
+
+  /** 快捷键页是否已就绪：注入的快捷键行已存在于 DOM */
+  function isHotkeyPanelReady() {
+    const wrapper = document.querySelector('.hotkey-section-wrapper');
+    return !!(wrapper && wrapper.querySelector('.hotkey-tab-row'));
+  }
+
+  /** 遮蔽右侧内容区，直到快捷键页就绪或兜底超时 */
+  function concealContentArea() {
+    ensureConcealStyle();
+    document.documentElement.setAttribute('data-hotkey-conceal', '1');
+    contentConcealed = true;
+    clearTimeout(concealSafetyTimer);
+    // 兜底：注入行若迟迟未就位（如原网页改版），最多遮蔽 600ms，避免面板永久空白
+    concealSafetyTimer = setTimeout(revealContentArea, 600);
+  }
+
+  function revealContentArea() {
+    clearTimeout(concealSafetyTimer);
+    concealSafetyTimer = null;
+    if (!contentConcealed) return;
+    contentConcealed = false;
+    document.documentElement.removeAttribute('data-hotkey-conceal');
+  }
+
   /**
    * 创建快捷键设置菜单按钮
    * @returns {HTMLElement} 按钮元素
@@ -101,6 +139,10 @@
     window.__hotkeyTabActive = true;
     updateMenuButtonState();
 
+    // 先遮蔽右侧内容区，再触发 React 渲染通用设置内容——
+    // 这样"主题/语言"行从渲染出来到被我们藏掉的中间态不会被绘制出来
+    concealContentArea();
+
     const menuContainer = hotkeyMenuButton && hotkeyMenuButton.parentElement;
     if (!menuContainer) return;
 
@@ -121,6 +163,14 @@
     // 藏掉原生"主题/语言"行。React 稍后若重渲染把行重建出来，
     // init() 里的 MutationObserver 每帧会再压制一次
     setNativeGeneralContentHidden(true);
+
+    // 立即同步注入行的显隐，不必等 MutationObserver 转一圈
+    if (window.__hotkeySettingsSync) window.__hotkeySettingsSync();
+
+    // 内容本就已就绪（如从通用设置切来）时不会有 DOM 变化，下一帧直接恢复显示
+    requestAnimationFrame(() => {
+      if (contentConcealed && isHotkeyPanelReady()) revealContentArea();
+    });
   }
 
   /**
@@ -168,6 +218,7 @@
   function resetTabState() {
     isHotkeyTabActive = false;
     window.__hotkeyTabActive = false;
+    revealContentArea();
   }
 
   /**
@@ -314,8 +365,10 @@
               isHotkeyTabActive = false;
               window.__hotkeyTabActive = false;
               updateMenuButtonState();
-              // 恢复被隐藏的原生"主题/语言"行
+              // 恢复被隐藏的原生"主题/语言"行，并解除内容区遮蔽
               setNativeGeneralContentHidden(false);
+              revealContentArea();
+              if (window.__hotkeySettingsSync) window.__hotkeySettingsSync();
               // 通用设置原本就是 React 的选中 tab，再点一次不会触发重渲染，
               // 被我们剥掉的高亮需要手动补回
               if (btn.textContent && btn.textContent.includes('通用设置')) {
@@ -328,6 +381,12 @@
         // 强制右侧内容与当前 tab 一致：激活期间持续压制 React 重建的
         // "主题/语言"行；非激活时把带标记的行恢复原状（无标记则不动作）
         setNativeGeneralContentHidden(isHotkeyTabActive);
+
+        // 快捷键页的就绪行是 hotkey-settings.js 异步注入的，
+        // 在这里检测到就位后再解除遮蔽
+        if (isHotkeyTabActive && contentConcealed && isHotkeyPanelReady()) {
+          revealContentArea();
+        }
       });
     });
 
