@@ -41,8 +41,9 @@ function init(injectedDeps) {
  */
 function createAdsorptionWindow() {
   if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
-    adsorptionWindow.show();
-    adsorptionWindow.focus();
+    // 吸附窗口是被动落点提示，不参与焦点竞争：
+    // 抢焦点会把自己插到任务栏小组件之上，拖拽时看起来像压住了小组件
+    adsorptionWindow.showInactive();
     refreshAdsorptionPosition();
     return;
   }

@@ -34,16 +34,15 @@ const HOVER_POLL_INTERVAL = 80;   // 悬停检测轮询间隔（毫秒）
 
 /**
  * 将任务栏小组件窗口重新置顶，确保在系统任务栏之上
- * Windows 在 setPosition 移动到任务栏区域时会重置 z-order
  * @param {BrowserWindow} win - 窗口实例
  */
-function raiseMiniWindowAboveTaskbar(win) {
+function keepMiniWindowOnTop(win) {
   if (!win || win.isDestroyed()) return;
   
   try {
-    // 先取消置顶再重新设置，强制刷新 z-order
-    win.setAlwaysOnTop(false);
-    win.setAlwaysOnTop(true, 'screen-saver');
+    // 使用 moveTop 重新提升 z-order，避免破坏 alwaysOnTop 状态
+    // setAlwaysOnTop(false) 会导致窗口在全屏程序切换后掉到任务栏下方
+    win.moveTop();
   } catch (e) {
     console.warn('[AdsorptionCoordinator] 重新置顶失败:', e);
   }
@@ -118,6 +117,9 @@ function resetAdsorptionDefault(text) {
 
 /**
  * 显示吸附窗口
+ * 吸附窗口是拖拽时的落点提示，属于被动背景层：
+ * 用 showInactive 避免抢占焦点，并在显示后把小组件重新提到最上层，
+ * 否则新显示的窗口会插到小组件之上，拖拽中看起来像被吸附窗口压住
  */
 function showAdsorptionWindow() {
   const adsorptionWin = deps.getAdsorptionWindow();
@@ -125,8 +127,9 @@ function showAdsorptionWindow() {
   
   // 仅在不可见时 show：重复 show 会持续触发 show/focus/blur 事件循环
   if (!adsorptionWin.isVisible()) {
-    adsorptionWin.show();
+    adsorptionWin.showInactive();
     resetAdsorptionDefault('将控制组件移动到此处');
+    keepMiniWindowOnTop(deps.getMiniWindow());
   }
 }
 
@@ -283,7 +286,7 @@ function handleMoved() {
     // 移动到任务栏区域会让 Windows 重置窗口 z-order，
     // 导致窗口落到系统任务栏下方，光标命中测试随之失效（悬停无响应），
     // 因此必须在定位后重新置顶
-    raiseMiniWindowAboveTaskbar(miniWin);
+    keepMiniWindowOnTop(miniWin);
     
     // 隐藏吸附窗口
     hideAdsorptionWindow();
@@ -308,9 +311,20 @@ function handleMoved() {
 
 /**
  * 处理拖拽开始事件（通过 will-move 触发）
+ * 
+ * 自愈逻辑：
+ * - 如果 isDragging 已经为 true，但吸附窗口不可见，说明上次拖拽的 moved 事件丢失导致状态卡死
+ * - 直接重新显示吸附窗口，让流程继续运行（幂等操作，不会二次触发状态切换）
  */
 function handleWillMove() {
-  if (isDragging) return;
+  // 自愈检查：如果已处于拖拽状态但吸附窗口不可见，重新显示（修复状态卡死）
+  if (isDragging) {
+    const adsorptionWin = deps.getAdsorptionWindow();
+    if (adsorptionWin && !adsorptionWin.isDestroyed() && !adsorptionWin.isVisible()) {
+      showAdsorptionWindow();
+    }
+    return;
+  }
   
   isDragging = true;
   
@@ -320,6 +334,8 @@ function handleWillMove() {
     removeAdsorbedStyle();
     stopAdsorbedHoverWatcher();
     deps.startDragRegionHoverWatcher();
+    // 从任务栏区域拖回桌面时，窗口可能仍停留在被压低的 z-order 上
+    keepMiniWindowOnTop(deps.getMiniWindow());
   }
   
   // 显示吸附窗口
