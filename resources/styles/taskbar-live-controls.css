@@ -49,7 +49,7 @@ body::before {
   border-radius: 1px;
   -webkit-app-region: drag;
   pointer-events: auto;
-  opacity: 0;
+  opacity: 0.19;
   transition: opacity 0.2s ease;
 }
 
