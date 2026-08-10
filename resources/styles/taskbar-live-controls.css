@@ -26,9 +26,8 @@ body::before {
   pointer-events: auto;
 }
 
-/* 拖动区域中心的灰色竖线 */
-body::after {
-  content: '';
+/* 拖动区域中心的灰色竖线（真实 DOM 元素） */
+.drag-handle {
   position: fixed;
   top: 50%;
   left: 11.5px;
@@ -38,16 +37,17 @@ body::after {
   background-color: #666666;
   border-radius: 1px;
   z-index: 100000;
-  pointer-events: none;
+  -webkit-app-region: drag;
+  pointer-events: auto;
   transition: background-color 0.2s ease;
 }
 
-/* 拖动区域悬停时竖线变亮 */
-body:hover::after {
+/* 竖线悬停效果 - 仅在竖线自身范围内触发 */
+.drag-handle:hover {
   background-color: #999999;
 }
 
 /* 确保拖动区域内的交互元素可点击 */
-body::before ~ * {
+body::before ~ *:not(.drag-handle) {
   -webkit-app-region: no-drag;
 }
