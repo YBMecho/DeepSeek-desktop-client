@@ -56,6 +56,7 @@ function getCurrentConfigState() {
     replyNotifyEnabled: state.getReplyNotifyEnabled(),
     isFloatingWindowPinned: floatingMgr.isPinned(),
     autoLaunch: state.getAutoLaunch(),
+    silentAutoLaunch: state.getSilentAutoLaunch(),
     floatingResetOption: floatingMgr.getFloatingResetOption()
   };
 }
@@ -208,7 +209,11 @@ app.whenReady().then(() => {
     }
   } catch (error) {}
 
-  // 创建主窗口
+  const loginItemSettings = app.getLoginItemSettings();
+  const wasLaunchedByOS = loginItemSettings.wasOpenedAtLogin || loginItemSettings.wasOpenedAsHidden;
+  const config_silentAutoLaunch = state.getSilentAutoLaunch();
+  const startHidden = wasLaunchedByOS && config_silentAutoLaunch;
+
   createWindow({
     state,
     configManager,
@@ -217,7 +222,8 @@ app.whenReady().then(() => {
     floatingMgr,
     trayManager,
     registerHotkey,
-    toggleWindow: toggleWindowWrapper
+    toggleWindow: toggleWindowWrapper,
+    startHidden
   });
 
   // 应用自启动设置

@@ -99,6 +99,7 @@ function createNewWindow(url, deps) {
  * @param {Function} deps.floatingMgr
  * @param {Function} deps.trayManager
  * @param {Function} deps.registerHotkey
+ * @param {boolean} [deps.startHidden]
  * @returns {BrowserWindow}
  */
 function createWindow(deps) {
@@ -150,13 +151,24 @@ function createWindow(deps) {
   });
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    if (!deps.startHidden) {
+      mainWindow.show();
+    }
     mainWindow.setTitle(constants.APP_NAME);
     try {
       deps.themeManager.applyWindowTheme(mainWindow, nativeTheme ? nativeTheme.shouldUseDarkColors : false);
     } catch (e) {}
     deps.assetInjector.injectCustomAssets(mainWindow, deps.floatingMgr.getFloatingWindow());
   });
+
+  if (deps.startHidden) {
+    deps.trayManager.createTray({
+      getIsQuitting: state.getIsQuitting,
+      setIsQuitting: state.setIsQuitting,
+      toggleWindow: deps.toggleWindow,
+      toggleFloatingWindow: deps.floatingMgr.toggleFloatingWindow
+    });
+  }
 
   try {
     mainWindow.webContents.on('dom-ready', () => {
