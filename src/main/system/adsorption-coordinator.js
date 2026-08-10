@@ -33,6 +33,23 @@ const PROXIMITY_THRESHOLD = 20;  // 吸附距离阈值（像素）
 const HOVER_POLL_INTERVAL = 80;   // 悬停检测轮询间隔（毫秒）
 
 /**
+ * 将任务栏小组件窗口重新置顶，确保在系统任务栏之上
+ * Windows 在 setPosition 移动到任务栏区域时会重置 z-order
+ * @param {BrowserWindow} win - 窗口实例
+ */
+function raiseMiniWindowAboveTaskbar(win) {
+  if (!win || win.isDestroyed()) return;
+  
+  try {
+    // 先取消置顶再重新设置，强制刷新 z-order
+    win.setAlwaysOnTop(false);
+    win.setAlwaysOnTop(true, 'screen-saver');
+  } catch (e) {
+    console.warn('[AdsorptionCoordinator] 重新置顶失败:', e);
+  }
+}
+
+/**
  * 初始化模块依赖
  * @param {Object} injectedDeps
  * @param {Function} injectedDeps.getAdsorptionWindow - 获取吸附窗口实例
@@ -262,6 +279,11 @@ function handleMoved() {
   if (distance < PROXIMITY_THRESHOLD) {
     // 吸附固定：移动到吸附位置
     miniWin.setPosition(adsorptionBounds.x, adsorptionBounds.y);
+    
+    // 移动到任务栏区域会让 Windows 重置窗口 z-order，
+    // 导致窗口落到系统任务栏下方，光标命中测试随之失效（悬停无响应），
+    // 因此必须在定位后重新置顶
+    raiseMiniWindowAboveTaskbar(miniWin);
     
     // 隐藏吸附窗口
     hideAdsorptionWindow();

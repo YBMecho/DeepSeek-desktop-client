@@ -83,9 +83,9 @@ function createMiniWindow() {
     }
   });
 
-  // 设置窗口层级高于吸附窗口，确保在上层显示
+  // 设置窗口层级高于吸附窗口和系统任务栏，确保始终在最上层
   try {
-    miniWindow.setAlwaysOnTop(true, 'floating');
+    miniWindow.setAlwaysOnTop(true, 'screen-saver');
   } catch (e) {
     console.warn('[TaskbarLiveControls] 设置窗口层级失败:', e);
   }
