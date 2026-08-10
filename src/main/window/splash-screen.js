@@ -3,117 +3,102 @@
  *
  * 功能：在窗口加载时显示居中的 DeepSeek logo 启动画面
  * 职责：
- *   - 创建临时 HTML 启动画面并注入到窗口
+ *   - 窗口创建后立即显示启动画面（不等待网页加载）
+ *   - 将 logo 转换为 base64 内嵌，避免路径问题
  *   - 在页面完全加载后自动移除启动画面
  *   - 提供平滑的淡出动画效果
  */
 
+const fs = require('fs');
 const path = require('path');
 const constants = require('../../common/constants');
 
+// 将 logo 转换为 base64（启动时只读取一次）
+let logoBase64 = null;
+function getLogoBase64() {
+  if (!logoBase64) {
+    try {
+      const imageBuffer = fs.readFileSync(constants.APP_ICON_PATH);
+      logoBase64 = `data:image/png;base64,${imageBuffer.toString('base64')}`;
+    } catch (e) {
+      console.error('Failed to read logo:', e);
+      logoBase64 = ''; // 失败时使用空字符串
+    }
+  }
+  return logoBase64;
+}
+
 /**
- * 生成启动画面的 HTML 内容
+ * 生成启动画面的完整 HTML 页面
  * @param {boolean} isDark - 是否为深色主题
- * @returns {string} HTML 字符串
+ * @returns {string} 完整的 HTML 页面
  */
 function generateSplashHTML(isDark = false) {
   const bgColor = isDark ? '#1a1a1a' : '#ffffff';
-  const logoPath = constants.APP_ICON_PATH.replace(/\\/g, '/');
+  const logo = getLogoBase64();
   
   return `
-    <div id="deepseek-splash-screen" style="
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: ${bgColor};
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 999999;
-      transition: opacity 0.3s ease-out;
-    ">
-      <img src="file:///${logoPath}" alt="DeepSeek" style="
-        width: 120px;
-        height: 120px;
-        object-fit: contain;
-        animation: pulse 2s ease-in-out infinite;
-      " />
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
       <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          width: 100vw;
+          height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: ${bgColor};
+          overflow: hidden;
+        }
+        #logo {
+          width: 120px;
+          height: 120px;
+          object-fit: contain;
+          animation: pulse 2s ease-in-out infinite;
+        }
         @keyframes pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.8; transform: scale(0.95); }
         }
       </style>
-    </div>
+    </head>
+    <body>
+      <img id="logo" src="${logo}" alt="DeepSeek" />
+    </body>
+    </html>
   `;
-}
-
-/**
- * 生成移除启动画面的脚本
- * @returns {string} JavaScript 代码字符串
- */
-function generateRemovalScript() {
-  return `
-    (function() {
-      const splash = document.getElementById('deepseek-splash-screen');
-      if (splash) {
-        splash.style.opacity = '0';
-        setTimeout(() => {
-          splash.remove();
-        }, 300);
-      }
-    })();
-  `;
-}
-
-/**
- * 为窗口注入启动画面
- * @param {BrowserWindow} window - Electron 窗口实例
- * @param {boolean} isDark - 是否为深色主题
- */
-function injectSplashScreen(window, isDark = false) {
-  if (!window || !window.webContents) return;
-
-  const splashHTML = generateSplashHTML(isDark);
-
-  // 在 DOM 准备就绪时立即注入启动画面
-  window.webContents.on('dom-ready', () => {
-    try {
-      window.webContents.executeJavaScript(`
-        (function() {
-          // 移除可能存在的旧启动画面
-          const oldSplash = document.getElementById('deepseek-splash-screen');
-          if (oldSplash) oldSplash.remove();
-          
-          // 注入新启动画面
-          document.body.insertAdjacentHTML('afterbegin', \`${splashHTML}\`);
-        })();
-      `).catch(() => {});
-    } catch (e) {}
-  });
-
-  // 在页面完全加载后移除启动画面
-  window.webContents.on('did-finish-load', () => {
-    try {
-      setTimeout(() => {
-        window.webContents.executeJavaScript(generateRemovalScript()).catch(() => {});
-      }, 500); // 延迟 500ms 确保页面渲染完成
-    } catch (e) {}
-  });
 }
 
 /**
  * 设置窗口的启动画面
  * @param {BrowserWindow} window - Electron 窗口实例
  * @param {boolean} isDark - 是否为深色主题
+ * @param {string} targetUrl - 最终要加载的目标 URL
  */
-function setupSplashScreen(window, isDark = false) {
-  injectSplashScreen(window, isDark);
+function setupSplashScreen(window, isDark = false, targetUrl = constants.DEFAULT_URL) {
+  if (!window || !window.webContents) return;
+
+  // 先加载启动画面（data URL 立即显示）
+  const splashHTML = generateSplashHTML(isDark);
+  window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHTML)}`);
+
+  // 等待启动画面显示后再开始加载实际页面
+  window.webContents.once('did-finish-load', () => {
+    // 给用户至少看到 300ms 的启动画面
+    setTimeout(() => {
+      // 开始加载实际的网页
+      window.loadURL(targetUrl);
+    }, 300);
+  });
 }
 
 module.exports = {
-  setupSplashScreen,
-  injectSplashScreen
+  setupSplashScreen
 };
