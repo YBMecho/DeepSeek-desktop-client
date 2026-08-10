@@ -61,11 +61,6 @@ function generateSplashHTML(isDark = false) {
           width: 120px;
           height: 120px;
           object-fit: contain;
-          animation: pulse 2s ease-in-out infinite;
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(0.95); }
         }
       </style>
     </head>
