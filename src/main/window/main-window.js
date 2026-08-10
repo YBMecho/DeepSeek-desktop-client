@@ -204,6 +204,7 @@ function createWindow(deps) {
   state.setCloseBehavior(config.closeBehavior);
   state.setReplyNotifyEnabled(config.replyNotifyEnabled);
   state.setAutoLaunch(config.autoLaunch);
+  state.setSilentAutoLaunch(config.silentAutoLaunch);
 
   deps.floatingMgr.setPinned(config.isFloatingWindowPinned);
   deps.floatingMgr.setFloatingResetOption(config.floatingResetOption || '60min');

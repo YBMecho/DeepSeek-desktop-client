@@ -1,0 +1,9 @@
+{
+  "proxy": "127.0.0.1:10808",
+  "compression": "lzma2/ultra64",
+  "noAdmin": false,
+  "noDesktopIcon": false,
+  "noAutoLaunch": false,
+  "lang": "english",
+  "lastCommand": "inno"
+}

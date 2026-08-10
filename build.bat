@@ -1,1 +1,1 @@
-npm run make
+node build.js inno --proxy 127.0.0.1:10808

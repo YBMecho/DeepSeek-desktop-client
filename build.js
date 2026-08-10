@@ -40,7 +40,6 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
-const readline = require('readline');
 
 // ---------- 路径与常量 ----------
 const PROJECT_ROOT = __dirname;
@@ -51,6 +50,103 @@ const INNO_CC_DEFAULT = path.join(
   'ISCC.exe'
 );
 const INNO_CC_ALT = path.join('C:\\Program Files\\Inno Setup 6', 'ISCC.exe');
+const CONFIG_PATH = path.join(PROJECT_ROOT, 'build.config.json');
+
+/**
+ * build.config.json 默认配置
+ *  - proxy:  上次使用的代理地址 (例 "127.0.0.1:10808")
+ *  - compression: 默认压缩算法
+ *  - noAdmin / noDesktopIcon / noAutoLaunch / lang: 默认构建偏好
+ */
+const DEFAULT_CONFIG = {
+  proxy: '',
+  compression: 'lzma2/ultra64',
+  noAdmin: false,
+  noDesktopIcon: false,
+  noAutoLaunch: false,
+  lang: 'english',
+};
+
+// ---------- 持久化配置模块 ----------
+
+/**
+ * 从磁盘读取持久化配置；若文件不存在或格式错误则返回默认值
+ * @returns {object} 当前配置对象
+ */
+function loadConfig() {
+  try {
+    if (!fs.existsSync(CONFIG_PATH)) {
+      return { ...DEFAULT_CONFIG };
+    }
+    const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
+    const data = JSON.parse(raw);
+    return { ...DEFAULT_CONFIG, ...data };
+  } catch (e) {
+    log(`读取配置文件失败，使用默认配置: ${e.message}`, 'warn');
+    return { ...DEFAULT_CONFIG };
+  }
+}
+
+/**
+ * 原子化写入配置文件（写临时文件 + rename 覆盖，避免并发损坏）
+ * @param {object} data 完整配置对象
+ */
+function saveConfig(data) {
+  const tmp = `${CONFIG_PATH}.tmp`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+    fs.renameSync(tmp, CONFIG_PATH);
+  } catch (e) {
+    if (fs.existsSync(tmp)) {
+      try { fs.unlinkSync(tmp); } catch (_) { /* noop */ }
+    }
+    throw e;
+  }
+}
+
+/**
+ * 局部更新持久化配置（只覆写传入的字段）
+ * @param {object} patch 要修改的键值
+ */
+function patchConfig(patch) {
+  const cfg = loadConfig();
+  const merged = { ...cfg, ...patch };
+  saveConfig(merged);
+  return merged;
+}
+
+/**
+ * 规范化代理地址：自动补全 http:// 协议头
+ * @param {string} proxy 原始代理字符串
+ * @returns {string|null} 规范化后的代理 URL，空输入返回 null
+ */
+function normalizeProxy(proxy) {
+  if (!proxy || String(proxy).trim() === '') return null;
+  const p = String(proxy).trim();
+  if (/^https?:\/\//i.test(p)) return p;
+  return `http://${p}`;
+}
+
+/**
+ * 将代理写入 npm 全局配置（让子进程里的 npm/npx/electron 安装都生效）
+ * 失败只警告，不中断流程
+ * @param {string|null} proxyUrl 规范化后的代理地址；null 表示清除
+ */
+function applyNpmProxy(proxyUrl) {
+  try {
+    if (proxyUrl) {
+      execSync(`npm config set proxy "${proxyUrl}"`, { stdio: 'ignore' });
+      execSync(`npm config set https-proxy "${proxyUrl}"`, { stdio: 'ignore' });
+      log(`npm 代理已设置: ${proxyUrl}`);
+    } else {
+      execSync('npm config delete proxy', { stdio: 'ignore' });
+      execSync('npm config delete https-proxy', { stdio: 'ignore' });
+      log('已清除 npm 代理配置');
+    }
+  } catch (e) {
+    log(`设置 npm 代理失败（不影响主流程）: ${e.message}`, 'warn');
+  }
+}
 
 // ---------- 工具函数 ----------
 
@@ -373,43 +469,90 @@ function findISCC() {
 }
 
 /**
- * 准备构建环境：设置代理等
- * @param {object} opts CLI 选项
+ * 解析 CLI 选项 + 持久化配置，合并得到最终生效的运行时配置
+ * 优先级：CLI 显式参数 > 持久化 build.config.json > 默认值
+ * 返回对象同时附带 "effectiveProxyUrl" (已补全协议头)
+ * @param {object} opts    CLI 解析后的选项
+ * @param {object} savedCfg 持久化配置
+ * @returns {object} { runtimeOpts, effectiveProxyUrl, cliProxyOverridden }
  */
-function prepareEnv(opts) {
-  const env = { ...process.env };
-  if (opts.proxy) {
-    const proxyUrl = opts.proxy.startsWith('http')
-      ? opts.proxy
-      : `http://${opts.proxy}`;
+function resolveRuntimeConfig(opts, savedCfg) {
+  const runtimeOpts = { ...savedCfg };
+
+  // 代理：CLI 显式传入才覆盖持久化值；否则沿用持久化
+  let cliProxyOverridden = false;
+  if (opts.proxy !== undefined) {
+    runtimeOpts.proxy = opts.proxy;
+    cliProxyOverridden = true;
+  }
+
+  // 其他偏好：CLI 显式传入时覆盖（值为 undefined 表示用户未传，用持久化）
+  if (opts.compression !== undefined) runtimeOpts.compression = opts.compression;
+  if (opts.noAdmin !== undefined) runtimeOpts.noAdmin = opts.noAdmin;
+  if (opts.noDesktopIcon !== undefined) runtimeOpts.noDesktopIcon = opts.noDesktopIcon;
+  if (opts.noAutoLaunch !== undefined) runtimeOpts.noAutoLaunch = opts.noAutoLaunch;
+  if (opts.lang !== undefined) runtimeOpts.lang = opts.lang;
+  if (opts.appName !== undefined) runtimeOpts.appName = opts.appName;
+  if (opts.publisher !== undefined) runtimeOpts.publisher = opts.publisher;
+  if (opts.icon !== undefined) runtimeOpts.icon = opts.icon;
+  if (opts.outputDir !== undefined) runtimeOpts.outputDir = opts.outputDir;
+  if (opts.outputName !== undefined) runtimeOpts.outputName = opts.outputName;
+  if (opts.version !== undefined) runtimeOpts.version = opts.version;
+
+  const effectiveProxyUrl = normalizeProxy(runtimeOpts.proxy);
+
+  return { runtimeOpts, effectiveProxyUrl, cliProxyOverridden };
+}
+
+/**
+ * 准备构建环境：设置代理 + 环境变量
+ *  - 按 "CLI > 持久化" 生效的代理写入子进程环境变量和 npm config
+ *  - 持久化偏好值会反向填充到 opts 中缺失的字段（在调用本函数之前已通过 resolveRuntimeConfig 完成）
+ * @param {string|null} proxyUrl 已规范化的代理地址，null 表示无代理
+ * @param {object} extraEnv 额外需要注入的环境变量
+ */
+function prepareEnv(proxyUrl, extraEnv = {}) {
+  const env = { ...process.env, ...extraEnv };
+
+  if (proxyUrl) {
     env.HTTP_PROXY = proxyUrl;
     env.HTTPS_PROXY = proxyUrl;
+    env.http_proxy = proxyUrl;
+    env.https_proxy = proxyUrl;
     env.ELECTRON_GET_USE_PROXY = 'true';
     env.GLOBAL_AGENT_HTTP_PROXY = proxyUrl;
     env.GLOBAL_AGENT_HTTPS_PROXY = proxyUrl;
+    env.NODE_TLS_REJECT_UNAUTHORIZED = env.NODE_TLS_REJECT_UNAUTHORIZED || '0';
+    applyNpmProxy(proxyUrl);
     log(`使用代理: ${proxyUrl}`);
+  } else {
+    applyNpmProxy(null);
+    log('未使用代理（直连）');
   }
+
   return env;
 }
 
 /**
  * 执行 electron-forge package 打包应用目录
- * @param {object} opts CLI 选项
+ * @param {string|null} proxyUrl  已规范化的代理地址
+ * @param {object}      runtimeOpts 运行时配置（含构建偏好）
  */
-function doPackage(opts) {
+function doPackage(proxyUrl, runtimeOpts) {
   log('开始执行 electron-forge package ...');
-  const env = prepareEnv(opts);
+  const env = prepareEnv(proxyUrl);
   run('npx electron-forge package', { env });
   log('package 完成', 'success');
 }
 
 /**
  * 构建 electron-forge Squirrel 安装包
- * @param {object} opts CLI 选项
+ * @param {string|null} proxyUrl    已规范化的代理地址
+ * @param {object}      runtimeOpts 运行时配置
  */
-function buildSquirrel(opts) {
+function buildSquirrel(proxyUrl, runtimeOpts) {
   log('开始构建 Squirrel 安装包 (electron-forge make) ...');
-  const env = prepareEnv(opts);
+  const env = prepareEnv(proxyUrl);
   run('npx electron-forge make', { env });
   const outDir = path.join(PROJECT_ROOT, 'out', 'make', 'squirrel.windows', 'x64');
   if (fs.existsSync(outDir)) {
@@ -423,9 +566,10 @@ function buildSquirrel(opts) {
 
 /**
  * 构建 Inno Setup 安装包
- * @param {object} opts CLI 选项
+ * @param {string|null} proxyUrl    已规范化的代理地址
+ * @param {object}      runtimeOpts 运行时配置
  */
-function buildInnoSetup(opts) {
+function buildInnoSetup(proxyUrl, runtimeOpts) {
   log('开始构建 Inno Setup 安装包 ...');
 
   // 检查编译器
@@ -441,14 +585,15 @@ function buildInnoSetup(opts) {
 
   // 先确保 package 阶段已完成
   const pkgDir = path.join(PROJECT_ROOT, 'out', 'DeepSeek-win32-x64');
-  if (!fs.existsSync(pkgDir) || !fs.existsSync(path.join(pkgDir, 'DeepSeek.exe'))) {
+  const exeName = (runtimeOpts.appName ? `${runtimeOpts.appName}.exe` : 'DeepSeek.exe');
+  if (!fs.existsSync(pkgDir) || !fs.existsSync(path.join(pkgDir, exeName))) {
     log('未检测到 package 产物，先执行 package ...', 'warn');
-    doPackage(opts);
+    doPackage(proxyUrl, runtimeOpts);
   } else {
     log('已存在 package 产物，跳过 package 阶段');
   }
 
-  const env = prepareEnv(opts);
+  const env = prepareEnv(proxyUrl);
   run(`"${iscc}" "${ISS_PATH}"`, { env });
 
   const outDir = path.join(
@@ -467,6 +612,24 @@ function buildInnoSetup(opts) {
 // ---------- CLI 解析与主入口 ----------
 
 /**
+ * 显示当前持久化配置内容
+ */
+function showStoredConfig() {
+  const cfg = loadConfig();
+  const effective = normalizeProxy(cfg.proxy);
+  log('========  持久化构建偏好 (build.config.json)  ========', 'success');
+  log(`代理地址 (proxy)        : ${cfg.proxy || '(未设置)'}`);
+  log(`代理地址 (规范化后)       : ${effective || '(未设置)'}`);
+  log(`压缩算法 (compression)   : ${cfg.compression}`);
+  log(`非管理员安装 (noAdmin)    : ${cfg.noAdmin}`);
+  log(`不默认勾选桌面图标         : ${cfg.noDesktopIcon}`);
+  log(`安装完不自动启动            : ${cfg.noAutoLaunch}`);
+  log(`界面语言 (lang)            : ${cfg.lang}`);
+  log(`配置文件路径                : ${CONFIG_PATH}`);
+  log('======================================================', 'success');
+}
+
+/**
  * 打印命令帮助
  */
 function printHelp() {
@@ -483,44 +646,73 @@ DeepSeek 桌面客户端构建脚本
   package        仅执行 electron-forge package（不打安装包）
   iss:show       显示当前 .iss 脚本中的关键配置
   iss:set        修改 .iss 脚本配置并退出（需配合 --xxx 选项使用）
+  config:show    显示当前持久化构建偏好 (build.config.json)
+  config:clear   清空持久化配置（重置为默认值）
 
-iss:set / iss:show 示例:
+iss / config 示例:
   node build.js iss:show
   node build.js iss:set --version 2.6.0
-  node build.js iss:set --publisher "MyCompany" --no-admin
+  node build.js config:show
+  node build.js config:clear
 
- 构建示例:
-   node build.js --interactive                          交互式构建
-   node build.js inno --version 2.6.0 --lang chinesesimp --proxy 127.0.0.1:10808
-   node build.js squirrel --proxy 127.0.0.1:10808
-   node build.js all --no-admin --no-desktop-icon --no-auto-launch
+构建示例:
+  # 首次使用时保存代理：加 --save，下次构建将自动使用
+  node build.js inno --proxy 127.0.0.1:10808 --save
 
-  完整选项列表:
-   --interactive               交互式配置（引导用户逐步选择构建选项）
-   --version <x.y.z>           指定版本号（同步修改 package.json 和 .iss）
-   --app-name <名称>           修改应用名称
-   --publisher <发布者>        修改发布者
-   --icon <相对路径>           修改安装包图标路径
-   --output-dir <相对路径>     修改 Inno Setup 输出目录
-   --output-name <文件名>      修改 Inno Setup 输出文件名（不含 .exe）
-   --compression <算法>        压缩算法 (lzma2/ultra64, lzma, zip, none)
-   --no-desktop-icon           不默认勾选桌面快捷方式
-   --desktop-icon              默认勾选桌面快捷方式（与 --no-desktop-icon 反向）
-   --no-admin                  不要求管理员权限安装
-   --admin                     要求管理员权限安装（与 --no-admin 反向）
-   --lang <语言>               安装界面语言 (english, chinesesimp)
-   --no-auto-launch            安装完成后不自动启动应用
-   --auto-launch               安装完成后自动启动应用（与 --no-auto-launch 反向）
-   --dry-run                   仅修改配置不执行构建
-   --proxy <host:port>         构建过程中使用的代理地址 (例: 127.0.0.1:10808)
-   -h, --help                  显示帮助
+  # 后续只需要执行（自动读取上次保存的代理）
+  node build.js inno
+
+  # 临时使用另一个代理，不覆盖保存的值
+  node build.js inno --proxy 127.0.0.1:8080
+
+  # 清除已保存的代理
+  node build.js inno --clear-proxy --save
+
+  # 一步到位：修改版本号 + 使用保存的代理 + 打两种包
+  node build.js all --version 2.6.0 --no-admin
+
+完整选项列表:
+  --version <x.y.z>           指定版本号（同步修改 package.json 和 .iss）
+  --app-name <名称>           修改应用名称
+  --publisher <发布者>        修改发布者
+  --icon <相对路径>           修改安装包图标路径
+  --output-dir <相对路径>     修改 Inno Setup 输出目录
+  --output-name <文件名>      修改 Inno Setup 输出文件名（不含 .exe）
+  --compression <算法>        压缩算法 (lzma2/ultra64, lzma, zip, none)
+  --no-desktop-icon           不默认勾选桌面快捷方式
+  --desktop-icon              默认勾选桌面快捷方式（与 --no-desktop-icon 反向）
+  --no-admin                  不要求管理员权限安装
+  --admin                     要求管理员权限安装（与 --no-admin 反向）
+  --lang <语言>               安装界面语言 (english, chinesesimp)
+  --no-auto-launch            安装完成后不自动启动应用
+  --auto-launch               安装完成后自动启动应用（与 --no-auto-launch 反向）
+  --dry-run                   仅修改配置不执行构建
+  --proxy <host:port>         构建过程中使用的代理地址 (例: 127.0.0.1:10808)
+  --save                      将本次使用的代理/构建偏好写入 build.config.json（持久化）
+  --clear-proxy               清空代理（若同时指定 --save 则清除持久化代理）
+  -h, --help                  显示帮助
 `;
   // eslint-disable-next-line no-console
   console.log(helpText);
 }
 
 /**
- * 解析 process.argv 为 { command, opts }
+ * 判断字符串是否像 "host:port" 形式的代理地址（含或不含协议头）
+ * @param {string} s
+ */
+function looksLikeProxy(s) {
+  if (!s || typeof s !== 'string') return false;
+  if (/^https?:\/\//i.test(s)) return true;
+  // host:port 形式：localhost:8080 / 127.0.0.1:10808 / example.com:3128
+  return /^[\w\-.]+:\d{1,5}$/.test(s);
+}
+
+/**
+ * 解析 process.argv 为 { command, opts, positional, noArgs }
+ * 特殊规则：
+ *  - 未传入任何命令行参数（除 node 文件路径外）时，noArgs=true，触发交互式面板
+ *  - 位置参数中若出现 host:port 形式，视为代理地址（等价于 --proxy xxx），不再覆盖 command
+ * @returns {{command:string, opts:object, positional:string[], noArgs:boolean}}
  */
 function parseArgs(argv) {
   const args = argv.slice(2);
@@ -532,8 +724,9 @@ function parseArgs(argv) {
     'no-auto-launch': 'noAutoLaunch',
     'auto-launch': 'autoLaunch',
     'dry-run': 'dryRun',
-    interactive: 'interactive',
     help: 'help',
+    save: 'save',
+    'clear-proxy': 'clearProxy',
   };
   const knownVals = {
     version: 'version',
@@ -546,14 +739,30 @@ function parseArgs(argv) {
     lang: 'lang',
     proxy: 'proxy',
   };
+  const validCommands = new Set([
+    'all', 'squirrel', 'inno', 'package',
+    'iss:show', 'iss:set',
+    'config:show', 'config:clear',
+  ]);
 
-  let command = 'all';
+  let command = null;      // 为 null 时：未显式指定命令 → 触发交互面板或默认 all
   const opts = {};
+  const positional = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (!arg.startsWith('-')) {
-      command = arg;
+      // 位置参数：可能是 command / 代理 / 其他位置参数
+      if (command === null && validCommands.has(arg)) {
+        command = arg;
+        continue;
+      }
+      if (opts.proxy === undefined && looksLikeProxy(arg)) {
+        opts.proxy = arg;
+        positional.push(`(proxy:${arg})`);
+        continue;
+      }
+      positional.push(arg);
       continue;
     }
     const pure = arg.replace(/^-+/, '');
@@ -563,7 +772,6 @@ function parseArgs(argv) {
     }
     if (knownBools[pure] !== undefined) {
       const target = knownBools[pure];
-      // desktop-icon 与 no-desktop-icon 互为反向，最终归一化到 noDesktopIcon
       if (pure === 'desktop-icon') opts.noDesktopIcon = false;
       else if (pure === 'no-desktop-icon') opts.noDesktopIcon = true;
       else if (pure === 'admin') opts.noAdmin = false;
@@ -585,211 +793,238 @@ function parseArgs(argv) {
     log(`未知选项: ${arg}`, 'warn');
   }
 
+  // 未传任何参数（既没有 - 选项，也没有位置参数） → noArgs=true
+  const noArgs = args.length === 0;
+
+  return {
+    command: command || 'all',
+    opts,
+    positional,
+    noArgs,
+  };
+}
+
+/**
+ * 同步读取终端一行输入（用于交互式菜单，Windows 兼容）
+ * @param {string} prompt 提示文字
+ * @returns {string} 用户输入（去除首尾空白）
+ */
+function readLineSync(prompt) {
+  const buf = Buffer.alloc(1024);
+  process.stdout.write(prompt);
+  const bytesRead = require('fs').readSync(process.stdin.fd, buf, 0, buf.length, null);
+  return buf.toString('utf-8', 0, bytesRead).trim();
+}
+
+/**
+ * 交互式构建面板：无参数运行 build.js 时触发
+ * 返回 { command, opts } 与命令行解析结果结构保持一致
+ */
+function runInteractivePanel() {
+  // eslint-disable-next-line no-console
+  console.log('');
+  // eslint-disable-next-line no-console
+  console.log('\x1b[36m%s\x1b[0m', '┌──────────────────────────────────────────────┐');
+  // eslint-disable-next-line no-console
+  console.log('\x1b[36m%s\x1b[0m', '│     DeepSeek 桌面客户端 · 交互式构建面板      │');
+  // eslint-disable-next-line no-console
+  console.log('\x1b[36m%s\x1b[0m', '└──────────────────────────────────────────────┘');
+  // eslint-disable-next-line no-console
+  console.log('');
+
+  // —— 步骤 1：选择构建命令 ——
+  const cmdMenu = [
+    { key: '1', value: 'inno',     label: '仅构建 Inno Setup 安装包（推荐）' },
+    { key: '2', value: 'squirrel', label: '仅构建 Squirrel 安装包' },
+    { key: '3', value: 'all',      label: '同时构建 Inno Setup + Squirrel' },
+    { key: '4', value: 'package',  label: '仅执行 package（不打安装包）' },
+    { key: '5', value: 'iss:show', label: '查看 .iss 脚本配置' },
+    { key: '6', value: 'config:show', label: '查看持久化构建偏好' },
+    { key: '0', value: 'quit',     label: '退出脚本' },
+  ];
+  // eslint-disable-next-line no-console
+  console.log('请选择要执行的命令：');
+  cmdMenu.forEach((m) => {
+    // eslint-disable-next-line no-console
+    console.log(`  \x1b[33m${m.key})\x1b[0m ${m.label}`);
+  });
+
+  const savedCfg = loadConfig();
+  const defaultChoice = savedCfg.lastCommand && cmdMenu.some(m => m.value === savedCfg.lastCommand)
+    ? cmdMenu.find(m => m.value === savedCfg.lastCommand).key
+    : '1';
+  let cmdKey = readLineSync(`\x1b[36m请输入编号 [默认 ${defaultChoice}]: \x1b[0m`);
+  if (cmdKey === '') cmdKey = defaultChoice;
+  const pickedCmd = cmdMenu.find(m => m.key === cmdKey);
+  if (!pickedCmd || pickedCmd.value === 'quit') {
+    log('已取消');
+    process.exit(0);
+  }
+  const command = pickedCmd.value;
+
+  // —— 步骤 2：代理地址 ——
+  const defProxy = savedCfg.proxy || '';
+  const proxyHint = defProxy ? `[默认 ${defProxy}]` : '[直连]';
+  let proxyInput = readLineSync(`\x1b[36m代理地址 host:port ${proxyHint}: \x1b[0m`);
+  const proxy = proxyInput.trim() ? proxyInput.trim() : (defProxy || undefined);
+
+  const opts = {};
+  if (proxy !== undefined) opts.proxy = proxy;
+
+  // —— 步骤 3：附加偏好（仅构建类命令询问） ——
+  const buildCommands = new Set(['all', 'squirrel', 'inno', 'package']);
+  if (buildCommands.has(command)) {
+    const ynAdmin = readLineSync(`\x1b[36m要求管理员权限安装? (Y/n) [Y]: \x1b[0m`);
+    if (/^n/i.test(ynAdmin)) opts.noAdmin = true;
+
+    const ynDesktop = readLineSync(`\x1b[36m默认勾选桌面快捷方式? (Y/n) [Y]: \x1b[0m`);
+    if (/^n/i.test(ynDesktop)) opts.noDesktopIcon = true;
+
+    const ynLaunch = readLineSync(`\x1b[36m安装完成后自动启动? (Y/n) [Y]: \x1b[0m`);
+    if (/^n/i.test(ynLaunch)) opts.noAutoLaunch = true;
+
+    const ver = readLineSync(`\x1b[36m版本号 (留空不修改): \x1b[0m`);
+    if (ver.trim()) opts.version = ver.trim();
+  }
+
+  // —— 步骤 4：是否保存偏好 ——
+  const saveHint = savedCfg.proxy || savedCfg.noAdmin || savedCfg.noDesktopIcon || savedCfg.noAutoLaunch ? ' (覆盖已保存的值)' : '';
+  const ynSave = readLineSync(`\x1b[36m是否保存以上代理和偏好供下次直接使用? (y/N): \x1b[0m`.replace('YN', 'yn'));
+  const shouldSave = /^y/i.test(ynSave);
+  if (shouldSave) opts.save = true;
+
+  // —— 步骤 5：dry-run 预览 ——
+  const ynDry = readLineSync(`\x1b[36m仅修改配置不执行真实构建 (dry-run)? (y/N): \x1b[0m`);
+  if (/^y/i.test(ynDry)) opts.dryRun = true;
+
+  // eslint-disable-next-line no-console
+  console.log('');
+  log(`交互式面板选择 → 命令: ${command}, 代理: ${proxy || '(直连)'}, 保存偏好: ${shouldSave ? '是' : '否'}`);
+
+  // 记住最后一次使用的命令
+  if (shouldSave) {
+    const patch = { lastCommand: command };
+    patchConfig(patch);
+  } else if (savedCfg.lastCommand !== command) {
+    // 即便用户不保存偏好，也记住上次的命令号（便捷下一次选择）
+    patchConfig({ lastCommand: command });
+  }
+
   return { command, opts };
 }
 
 /**
- * 创建 readline 接口
+ * 构建结束时，根据 --save / --clear-proxy 把代理和偏好持久化
+ * @param {object} opts          CLI 选项
+ * @param {object} runtimeOpts   合并后的运行时配置（含 CLI 覆盖和持久化原值）
  */
-function createRL() {
-  return readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-}
+function handlePersistenceOnExit(opts, runtimeOpts) {
+  if (!opts.save && !opts.clearProxy) return;
 
-/**
- * 提问并等待用户输入
- */
-function ask(rl, question) {
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      resolve(answer.trim());
-    });
-  });
-}
+  const toSave = { ...loadConfig() };
 
-/**
- * 显示交互式菜单并收集用户选择
- */
-async function interactiveMenu() {
-  const rl = createRL();
-  const opts = {};
-  let command = 'all';
-
-  const choices = {
-    buildTarget: { value: 'all', label: '构建目标' },
-    version: { value: null, label: '版本号' },
-    lang: { value: null, label: '安装语言' },
-    noAdmin: { value: null, label: '管理员权限' },
-    noDesktopIcon: { value: null, label: '桌面快捷方式' },
-    noAutoLaunch: { value: null, label: '安装后自动启动' },
-    proxy: { value: null, label: '代理地址' },
-  };
-
-  // 读取当前配置作为默认值
-  let currentVersion = '';
-  try {
-    currentVersion = readJSON(PKG_PATH).version;
-  } catch (e) {}
-
-  log('\n==========  DeepSeek 交互式构建  ==========', 'success');
-
-  while (true) {
-    console.log('\n┌─────────────────────────────────────────────┐');
-    console.log('│              当前构建配置                    │');
-    console.log('├─────────────────────────────────────────────┤');
-    console.log(`│  1. 构建目标: ${choices.buildTarget.value.padEnd(28)}│`);
-    console.log(`│  2. 版本号:   ${(choices.version.value || `(当前: ${currentVersion})`).padEnd(28)}│`);
-    console.log(`│  3. 安装语言: ${(choices.lang.value || '未设置 (默认 english)').padEnd(28)}│`);
-    console.log(`│  4. 管理员权限: ${(choices.noAdmin.value === true ? '不需要' : choices.noAdmin.value === false ? '需要' : '未设置 (默认需要)').padEnd(27)}│`);
-    console.log(`│  5. 桌面快捷方式: ${(choices.noDesktopIcon.value === true ? '默认不勾选' : choices.noDesktopIcon.value === false ? '默认勾选' : '未设置 (默认勾选)').padEnd(25)}│`);
-    console.log(`│  6. 安装后启动: ${(choices.noAutoLaunch.value === true ? '不自动启动' : choices.noAutoLaunch.value === false ? '自动启动' : '未设置 (默认启动)').padEnd(27)}│`);
-    console.log(`│  7. 代理地址: ${(choices.proxy.value || '未设置').padEnd(28)}│`);
-    console.log('├─────────────────────────────────────────────┤');
-    console.log('│  [S] 开始构建    [Q] 退出                    │');
-    console.log('└─────────────────────────────────────────────┘');
-
-    const choice = await ask(rl, '\n请选择要修改的项 (1-7/S/Q): ');
-
-    switch (choice.toLowerCase()) {
-      case '1': {
-        console.log('\n构建目标:');
-        console.log('  1. all      同时构建 Squirrel + Inno Setup');
-        console.log('  2. squirrel 仅构建 Squirrel 安装包');
-        console.log('  3. inno     仅构建 Inno Setup 安装包');
-        console.log('  4. package  仅打包应用目录');
-        const target = await ask(rl, '请选择 (1-4): ');
-        const targets = { '1': 'all', '2': 'squirrel', '3': 'inno', '4': 'package' };
-        if (targets[target]) {
-          choices.buildTarget.value = targets[target];
-          command = targets[target];
-        } else {
-          log('无效选择，保持原值', 'warn');
-        }
-        break;
-      }
-      case '2': {
-        const ver = await ask(rl, `版本号 (当前: ${currentVersion}, 回车跳过): `);
-        if (ver) choices.version.value = ver;
-        break;
-      }
-      case '3': {
-        console.log('\n安装语言:');
-        console.log('  1. english     英文');
-        console.log('  2. chinesesimp 简体中文');
-        const lang = await ask(rl, '请选择 (1-2): ');
-        const langs = { '1': 'english', '2': 'chinesesimp' };
-        if (langs[lang]) {
-          choices.lang.value = langs[lang];
-        } else {
-          log('无效选择，保持原值', 'warn');
-        }
-        break;
-      }
-      case '4': {
-        console.log('\n管理员权限:');
-        console.log('  1. 需要管理员权限');
-        console.log('  2. 不需要管理员权限');
-        const admin = await ask(rl, '请选择 (1-2): ');
-        if (admin === '1') choices.noAdmin.value = false;
-        else if (admin === '2') choices.noAdmin.value = true;
-        else log('无效选择，保持原值', 'warn');
-        break;
-      }
-      case '5': {
-        console.log('\n桌面快捷方式:');
-        console.log('  1. 默认勾选');
-        console.log('  2. 默认不勾选');
-        const icon = await ask(rl, '请选择 (1-2): ');
-        if (icon === '1') choices.noDesktopIcon.value = false;
-        else if (icon === '2') choices.noDesktopIcon.value = true;
-        else log('无效选择，保持原值', 'warn');
-        break;
-      }
-      case '6': {
-        console.log('\n安装后自动启动:');
-        console.log('  1. 自动启动');
-        console.log('  2. 不自动启动');
-        const launch = await ask(rl, '请选择 (1-2): ');
-        if (launch === '1') choices.noAutoLaunch.value = false;
-        else if (launch === '2') choices.noAutoLaunch.value = true;
-        else log('无效选择，保持原值', 'warn');
-        break;
-      }
-      case '7': {
-        const proxy = await ask(rl, '代理地址 (例: 127.0.0.1:10808, 回车清空): ');
-        choices.proxy.value = proxy || null;
-        break;
-      }
-      case 's': {
-        rl.close();
-        // 将 choices 转换为 opts
-        if (choices.version.value) opts.version = choices.version.value;
-        if (choices.lang.value) opts.lang = choices.lang.value;
-        if (choices.noAdmin.value !== undefined) opts.noAdmin = choices.noAdmin.value;
-        if (choices.noDesktopIcon.value !== undefined) opts.noDesktopIcon = choices.noDesktopIcon.value;
-        if (choices.noAutoLaunch.value !== undefined) opts.noAutoLaunch = choices.noAutoLaunch.value;
-        if (choices.proxy.value) opts.proxy = choices.proxy.value;
-        return { command, opts };
-      }
-      case 'q':
-        rl.close();
-        log('已取消构建', 'warn');
-        process.exit(0);
-        break;
-      default:
-        log('无效选择，请重试', 'warn');
+  // --clear-proxy：清除代理（同时会立即清除 npm config 中的代理）
+  if (opts.clearProxy) {
+    toSave.proxy = '';
+    applyNpmProxy(null);
+    log('已清空持久化代理');
+  } else if (opts.proxy !== undefined) {
+    // CLI 指定了代理 + 不是 --clear-proxy：要么由 --save 持久化
+    if (opts.save) {
+      toSave.proxy = String(opts.proxy).trim();
+      log(`已持久化代理: ${toSave.proxy}`);
     }
   }
+
+  // --save 时保存偏好（仅保存 CLI 显式传过的那些偏好字段）
+  if (opts.save) {
+    if (opts.compression !== undefined) toSave.compression = runtimeOpts.compression;
+    if (opts.noAdmin !== undefined) toSave.noAdmin = !!runtimeOpts.noAdmin;
+    if (opts.noDesktopIcon !== undefined) toSave.noDesktopIcon = !!runtimeOpts.noDesktopIcon;
+    if (opts.noAutoLaunch !== undefined) toSave.noAutoLaunch = !!runtimeOpts.noAutoLaunch;
+    if (opts.lang !== undefined) toSave.lang = runtimeOpts.lang;
+    log('已持久化构建偏好到 build.config.json');
+  }
+
+  saveConfig(toSave);
 }
 
 /**
  * 脚本主入口
  */
-async function main() {
-  const { command: cliCommand, opts: cliOpts } = parseArgs(process.argv);
+function main() {
+  const parsed = parseArgs(process.argv);
+  let { command, opts } = parsed;
+  const { noArgs } = parsed;
 
-  if (cliOpts.help) {
+  if (opts.help) {
     printHelp();
     return;
   }
 
-  let command, opts;
-
-  if (cliOpts.interactive) {
-    const result = await interactiveMenu();
-    command = result.command;
-    opts = result.opts;
-  } else {
-    command = cliCommand;
-    opts = cliOpts;
+  // 无参数运行 → 打开交互式面板（面板里会填写 command 与 opts）
+  if (noArgs) {
+    const panelRes = runInteractivePanel();
+    command = panelRes.command;
+    opts = { ...opts, ...panelRes.opts };
   }
 
   log('==========  DeepSeek 构建脚本  ==========');
   log(`命令: ${command}`);
 
-  // 先应用配置修改
-  applyConfig(opts);
+  // 1. 读取持久化配置 + 合并 CLI 得到运行时配置
+  const savedCfg = loadConfig();
+  const { runtimeOpts, effectiveProxyUrl, cliProxyOverridden } = resolveRuntimeConfig(opts, savedCfg);
 
+  // 2. 处理仅针对配置管理的命令
+  if (command === 'config:show') {
+    showStoredConfig();
+    // 命令本身允许同时携带 --save --proxy 等做变更
+    applyConfig(runtimeOpts);
+    handlePersistenceOnExit(opts, runtimeOpts);
+    log('全部任务完成', 'success');
+    return;
+  }
+  if (command === 'config:clear') {
+    saveConfig({ ...DEFAULT_CONFIG });
+    applyNpmProxy(null);
+    log('已清空 build.config.json 并重置为默认值，同时清除 npm 代理', 'success');
+    return;
+  }
+
+  // 3. 打印当前生效的代理信息，便于排错
+  if (cliProxyOverridden) {
+    log(`代理：本次使用 CLI 传入 ${opts.proxy || '(空)'}  (覆盖持久化值)`);
+  } else if (savedCfg.proxy) {
+    log(`代理：使用持久化保存的值 ${savedCfg.proxy}`);
+  } else {
+    log('代理：未设置（直连）');
+  }
+
+  // 4. 应用 .iss 配置修改
+  applyConfig(runtimeOpts);
+
+  // 5. --dry-run 直接返回
   if (opts.dryRun) {
+    handlePersistenceOnExit(opts, runtimeOpts);
     log('--dry-run 已启用，跳过实际构建', 'warn');
     return;
   }
 
+  // 6. 命令分发（传入已计算好的代理 URL 与运行时配置）
   switch (command) {
     case 'package':
-      doPackage(opts);
+      doPackage(effectiveProxyUrl, runtimeOpts);
       break;
     case 'squirrel':
-      buildSquirrel(opts);
+      buildSquirrel(effectiveProxyUrl, runtimeOpts);
       break;
     case 'inno':
-      buildInnoSetup(opts);
+      buildInnoSetup(effectiveProxyUrl, runtimeOpts);
       break;
     case 'all':
-      buildSquirrel(opts);
-      buildInnoSetup(opts);
+      buildSquirrel(effectiveProxyUrl, runtimeOpts);
+      buildInnoSetup(effectiveProxyUrl, runtimeOpts);
       break;
     case 'iss:show':
       showISSConfig();
@@ -802,6 +1037,9 @@ async function main() {
       printHelp();
       process.exit(1);
   }
+
+  // 7. 退出前持久化（若带 --save 或 --clear-proxy）
+  handlePersistenceOnExit(opts, runtimeOpts);
 
   log('全部任务完成', 'success');
 }

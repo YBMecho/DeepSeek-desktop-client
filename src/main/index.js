@@ -210,7 +210,7 @@ app.whenReady().then(() => {
   } catch (error) {}
 
   const wasLaunchedByOS = autoLaunchMgr.wasLaunchedByAutoStart();
-  const configSilentAutoLaunch = state.getSilentAutoLaunch();
+  const configSilentAutoLaunch = configManager.loadConfig().silentAutoLaunch;
   const startHidden = wasLaunchedByOS && configSilentAutoLaunch;
 
   createWindow({

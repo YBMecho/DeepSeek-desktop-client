@@ -1776,6 +1776,42 @@
   }
   
   // 监听页面变化和标签页切换
+  let settingsModalOpen = false;
+
+  function showSaveSuccessToast() {
+    const existing = document.querySelector('.ds-toast-save-success');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'ds-toast-save-success';
+    toast.textContent = '设置已保存';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 99999;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+      });
+    });
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
+  }
+
   function observeSettingsModal() {
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -1785,6 +1821,7 @@
             if (node.querySelector && node.querySelector('.ds-modal-content__title')) {
               const title = node.querySelector('.ds-modal-content__title');
               if (title && title.textContent.includes('系统设置')) {
+                settingsModalOpen = true;
                 // 立即创建，避免设置面板先只显示语言一行再闪出快捷键
                 createHotkeySettings();
                 addTabClickListeners();
@@ -1793,17 +1830,32 @@
             // 检查子节点中是否包含设置弹窗
             const settingsModal = node.querySelector('.ds-modal-content__title');
             if (settingsModal && settingsModal.textContent.includes('系统设置')) {
+              settingsModalOpen = true;
               createHotkeySettings();
               addTabClickListeners();
             }
-            
+
             // 监听标签页选中状态变化
             if (node.classList && node.classList.contains('ds-segmented-button--selected')) {
               handleTabSwitch();
             }
           }
         });
-        
+
+        // 检测弹窗关闭（节点被移除）
+        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+          mutation.removedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const hadModal = node.querySelector && node.querySelector('.ds-modal-content__title');
+              const isModal = node.classList && node.classList.contains('ds-modal');
+              if ((hadModal || isModal) && settingsModalOpen) {
+                settingsModalOpen = false;
+                showSaveSuccessToast();
+              }
+            }
+          });
+        }
+
         // 监听属性变化（标签页选中状态）
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
           const target = mutation.target;
@@ -1813,7 +1865,7 @@
         }
       });
     });
-    
+
     observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -1824,6 +1876,7 @@
     // 页面加载后立即检查是否存在设置弹窗（不延迟：弹窗存在就立刻创建）
     const existingModal = document.querySelector('.ds-modal-content__title');
     if (existingModal && existingModal.textContent.includes('系统设置')) {
+      settingsModalOpen = true;
       createHotkeySettings();
       addTabClickListeners();
     }
