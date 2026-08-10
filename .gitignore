@@ -4,6 +4,7 @@
 # 构建输出
 out/*
 dist/
+output/
 
 # IDE 和编辑器配置
 .cursor/*
