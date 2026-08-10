@@ -74,6 +74,18 @@
     document.documentElement.removeAttribute('data-hotkey-conceal');
   }
 
+  // 暴露给 hotkey-settings.js：它同步完注入行显隐后直接调用来解除遮蔽，
+  // 不依赖本文件 MutationObserver 的触发时机（observer 只盯 childList，
+  // React 纯属性切换时不会 firing，会白白掉到 600ms 兜底定时器）。
+  //
+  // 解除遮蔽前必须先压制原生"主题/语言"行：createHotkeySettings 由
+  // hotkey-settings.js 的 observer 异步驱动，此刻本文件的 observer 可能还没跑，
+  // 原生行仍是可见的——先藏后放，两步在同一微任务内完成，不给绘制留窗口
+  window.__hotkeyMenuReveal = function() {
+    setNativeGeneralContentHidden(isHotkeyTabActive);
+    revealContentArea();
+  };
+
   /**
    * 创建快捷键设置菜单按钮
    * @returns {HTMLElement} 按钮元素
@@ -139,9 +151,19 @@
     window.__hotkeyTabActive = true;
     updateMenuButtonState();
 
-    // 先遮蔽右侧内容区，再触发 React 渲染通用设置内容——
-    // 这样"主题/语言"行从渲染出来到被我们藏掉的中间态不会被绘制出来
-    concealContentArea();
+    // 只在"右侧内容即将被 React 异步重渲染"时才需要遮蔽：
+    //   - 当前不在通用设置页（语言行不存在）→ 程序化点击会触发 React 重渲染
+    //   - 注入行尚未就绪 → 需要等 hotkey-settings.js 重建
+    // 其余情况（通用设置 → 快捷键设置）所有节点已就位，同步完成显隐切换，
+    // 同一帧内直接呈现最终状态，零延迟也零闪烁。
+    // 判断"在通用设置页"需用 offsetParent：可见元素的 offsetParent 不为 null，
+    // display:none 或祖先被隐藏时为 null；而 getClientRects 在两种情况下都返回空数组
+    const nativeRows = findNativeGeneralRows();
+    const onGeneralPage = nativeRows && nativeRows.langRow
+      && nativeRows.langRow.offsetParent !== null;
+    if (!onGeneralPage || !isHotkeyPanelReady()) {
+      concealContentArea();
+    }
 
     const menuContainer = hotkeyMenuButton && hotkeyMenuButton.parentElement;
     if (!menuContainer) return;

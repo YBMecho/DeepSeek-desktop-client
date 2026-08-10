@@ -374,8 +374,6 @@
     hotkeySectionParent = languageContainer.parentNode;
     hotkeySectionParent.insertBefore(hotkeySectionWrapper, languageContainer.nextSibling);
 
-    // 根据当前 tab 状态决定初始显隐
-    syncHotkeySectionVisibility();
     // 防御式复位（万一原生 UI 重排过 wrapper，后续兜底 observer 也会再校正一次）
     ensureHotkeySectionPlacement();
 
@@ -403,6 +401,9 @@
     // 创建开机自启动开关（紧跟回复通知开关那一行）
     const replyNotifyContainer = hotkeyContainer.parentNode.querySelector('.reply-notify-setting-flex');
     createAutoLaunchToggle(replyNotifyContainer || floatingResetContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
+
+    // 所有设置行创建完毕后，才根据当前 tab 状态同步显隐（含行级分流与遮蔽解除）
+    syncHotkeySectionVisibility();
   }
 
   // 判断元素是否真的可见（不被祖先隐藏 / display:none）
@@ -456,6 +457,11 @@
       .forEach(row => { row.style.display = hotkeyTab ? 'flex' : 'none'; });
     hotkeySectionWrapper.querySelectorAll('.general-tab-row')
       .forEach(row => { row.style.display = hotkeyTab ? 'none' : 'flex'; });
+
+    // 快捷键页内容已同步到最终状态，通知 settings-menu-hotkey.js 解除遮蔽。
+    // 这是解除遮蔽的确定性路径：遮蔽本就是因为"注入行未就绪"，
+    // 那么行同步完成的一刻就是恢复显示的正确时机
+    if (hotkeyTab && window.__hotkeyMenuReveal) window.__hotkeyMenuReveal();
   }
 
   // 暴露给 settings-menu-hotkey.js：tab 切换后立即同步行显隐，
