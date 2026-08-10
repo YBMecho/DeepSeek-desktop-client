@@ -13,9 +13,8 @@ html, body {
   overflow: hidden;
 }
 
-/* 左侧拖动区域 */
-body::before {
-  content: '';
+/* 左侧拖动区域（真实元素，使 :hover 判定范围限定在该区域内） */
+.drag-region {
   position: fixed;
   top: 0;
   left: 0;
@@ -23,27 +22,27 @@ body::before {
   height: 100%;
   -webkit-app-region: drag;
   z-index: 99999;
-  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 拖动区域中心的灰色竖线（真实 DOM 元素） */
 .drag-handle {
-  position: fixed;
-  top: 50%;
-  left: 11.5px;
-  transform: translateY(-50%);
   width: 2px;
   height: 15px;
   background-color: #666666;
   border-radius: 1px;
-  z-index: 100000;
   -webkit-app-region: drag;
   pointer-events: auto;
   transition: background-color 0.2s ease;
 }
 
-/* 竖线悬停效果 - 仅在竖线自身范围内触发 */
-.drag-handle:hover {
+/* 拖动区域悬停时竖线变亮
+   说明：Windows 上 drag 区域收不到鼠标事件，:hover 仅在其他平台兜底，
+   实际由主进程轮询光标位置后切换 .is-hover 类触发 */
+   .drag-region:hover .drag-handle,
+   .drag-region.is-hover .drag-handle {
   background-color: #999999;
 }
 

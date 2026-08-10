@@ -5,16 +5,28 @@
  * 职责：
  *   - 创建、显示、隐藏迷你窗口
  *   - 管理窗口位置和状态
+ *   - 轮询光标位置，模拟拖拽区域的悬停态
+ *     （Windows 上 -webkit-app-region: drag 区域被系统当作标题栏处理，
+ *      鼠标事件不会到达渲染进程，CSS :hover 无法触发，只能在主进程模拟）
  * 
  * 层级：主进程 - 窗口管理
  */
 
-const { BrowserWindow } = require('electron');
+const { BrowserWindow, screen } = require('electron');
 const path = require('path');
 const constants = require('../../common/constants');
 
 // 模块内部状态
 let miniWindow = null;
+
+// 悬停模拟状态
+let hoverTimer = null;
+let lastHoverState = false;
+
+// 左侧拖拽区域宽度，需与 taskbar-live-controls.css 中 .drag-region 保持一致
+const DRAG_REGION_WIDTH = 25;
+const HOVER_POLL_INTERVAL = 80;
+
 
 // 外部依赖（通过 init 注入）
 let deps = {
@@ -36,12 +48,12 @@ function init(injectedDeps) {
 function createMiniWindow() {
   if (miniWindow && !miniWindow.isDestroyed()) {
     miniWindow.show();
+    startHoverWatcher();
     miniWindow.focus();
     return;
   }
 
   // 获取鼠标所在屏幕信息
-  const { screen } = require('electron');
   const cursorPoint = screen.getCursorScreenPoint();
   const mouseDisplay = screen.getDisplayNearestPoint(cursorPoint);
   const mouseScreen = mouseDisplay.workArea;
@@ -78,21 +90,62 @@ function createMiniWindow() {
   miniWindow.loadFile(htmlPath);
 
   miniWindow.once('ready-to-show', () => {
-    miniWindow.show();
+    startHoverWatcher();
   });
 
   miniWindow.on('close', (event) => {
     if (!deps.getIsQuitting()) {
       event.preventDefault();
       miniWindow.hide();
+      stopHoverWatcher();
     }
   });
 
   miniWindow.on('closed', () => {
+    stopHoverWatcher();
     miniWindow = null;
   });
 }
 
+/**
+ * 开始轮询光标位置，模拟拖拽区域悬停态
+ * 仅在状态变化时通知渲染进程，避免无意义的 executeJavaScript 调用
+ */
+function startHoverWatcher() {
+  if (hoverTimer) return;
+  lastHoverState = false;
+  hoverTimer = setInterval(() => {
+    if (!miniWindow || miniWindow.isDestroyed() || !miniWindow.isVisible()) return;
+
+    const cursor = screen.getCursorScreenPoint();
+    const bounds = miniWindow.getBounds();
+    const isHover =
+      cursor.x >= bounds.x &&
+      cursor.x < bounds.x + DRAG_REGION_WIDTH &&
+      cursor.y >= bounds.y &&
+      cursor.y < bounds.y + bounds.height;
+
+    if (isHover !== lastHoverState) {
+      lastHoverState = isHover;
+      miniWindow.webContents
+        .executeJavaScript(
+          `document.querySelector('.drag-region')?.classList.toggle('is-hover', ${isHover})`
+        )
+        .catch(() => {});
+    }
+  }, HOVER_POLL_INTERVAL);
+}
+
+/**
+ * 停止悬停轮询
+ */
+function stopHoverWatcher() {
+  if (hoverTimer) {
+    clearInterval(hoverTimer);
+    hoverTimer = null;
+  }
+  lastHoverState = false;
+}
 /**
  * 切换迷你窗口显隐
  */
@@ -104,8 +157,10 @@ function toggleMiniWindow() {
   } else if (miniWindow.isVisible()) {
     miniWindow.hide();
   } else {
+    stopHoverWatcher();
     miniWindow.show();
     miniWindow.focus();
+    startHoverWatcher();
   }
 }
 
