@@ -19,6 +19,7 @@ const { BrowserWindow } = require('electron');
  * @param {Function} deps.setIsWindowHidden
  * @param {Function} deps.getPreviouslyVisibleWindowIds
  * @param {Function} deps.getFloatingWindow - 获取悬浮窗实例
+ * @param {Function} deps.getAdsorptionWindow - 获取吸附窗口实例
  * @param {Function} deps.createTray
  * @param {Function} deps.destroyTray
  * @param {Function} deps.toggleFloatingWindow
@@ -28,11 +29,12 @@ function toggleWindow(deps) {
   if (deps.getIsQuitting()) return;
 
   const floatingWindow = deps.getFloatingWindow();
+  const adsorptionWindow = deps.getAdsorptionWindow ? deps.getAdsorptionWindow() : null;
   const previousIds = deps.getPreviouslyVisibleWindowIds();
 
   const windows = BrowserWindow.getAllWindows().filter(win => {
     try {
-      return !win.isDestroyed() && win !== floatingWindow;
+      return !win.isDestroyed() && win !== floatingWindow && win !== adsorptionWindow;
     } catch (e) {
       return false;
     }

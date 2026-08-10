@@ -99,6 +99,7 @@ function toggleWindowWrapper() {
     setIsWindowHidden: state.setIsWindowHidden,
     getPreviouslyVisibleWindowIds: state.getPreviouslyVisibleWindowIds,
     getFloatingWindow: floatingMgr.getFloatingWindow,
+    getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
     createTray: trayManager.createTray,
     destroyTray: trayManager.destroyTray,
     toggleFloatingWindow: floatingMgr.toggleFloatingWindow,
