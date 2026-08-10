@@ -195,5 +195,9 @@ module.exports = {
   init,
   createMiniWindow,
   toggleMiniWindow,
-  getMiniWindow
+  getMiniWindow,
+  // 暴露给吸附协调器：固定状态由协调器统一接管悬停检测，
+  // 需要停止本模块的拖拽区域轮询，避免两个定时器同时运行
+  startHoverWatcher,
+  stopHoverWatcher
 };

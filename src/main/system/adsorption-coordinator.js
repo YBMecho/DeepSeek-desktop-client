@@ -18,7 +18,9 @@ const state = require('../state');
 // 外部依赖（通过 init 注入）
 let deps = {
   getAdsorptionWindow: () => null,
-  getMiniWindow: () => null
+  getMiniWindow: () => null,
+  startDragRegionHoverWatcher: () => {},
+  stopDragRegionHoverWatcher: () => {}
 };
 
 // 模块内部状态
@@ -41,17 +43,26 @@ function init(injectedDeps) {
 }
 
 /**
- * 计算两个矩形中心点之间的欧氏距离
+ * 计算两个矩形边缘之间的最短距离
+ * 使用边缘距离而非中心点距离：388x40 的窗口即使边缘紧贴，
+ * 中心点距离也可能远超阈值，会导致吸附判定失效
  * @param {Object} rect1 - {x, y, width, height}
  * @param {Object} rect2 - {x, y, width, height}
- * @returns {number} 距离（像素）
+ * @returns {number} 距离（像素），重叠时为 0
  */
 function calculateDistance(rect1, rect2) {
-  const cx1 = rect1.x + rect1.width / 2;
-  const cy1 = rect1.y + rect1.height / 2;
-  const cx2 = rect2.x + rect2.width / 2;
-  const cy2 = rect2.y + rect2.height / 2;
-  return Math.sqrt((cx1 - cx2) ** 2 + (cy1 - cy2) ** 2);
+  // 计算水平方向的最短距离
+  const dx = Math.max(0, 
+    Math.max(rect1.x - (rect2.x + rect2.width), rect2.x - (rect1.x + rect1.width))
+  );
+  
+  // 计算垂直方向的最短距离
+  const dy = Math.max(0,
+    Math.max(rect1.y - (rect2.y + rect2.height), rect2.y - (rect1.y + rect1.height))
+  );
+  
+  // 返回欧氏距离（重叠时 dx 和 dy 都为 0）
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 /**
@@ -95,6 +106,7 @@ function showAdsorptionWindow() {
   const adsorptionWin = deps.getAdsorptionWindow();
   if (!adsorptionWin || adsorptionWin.isDestroyed()) return;
   
+  // 仅在不可见时 show：重复 show 会持续触发 show/focus/blur 事件循环
   if (!adsorptionWin.isVisible()) {
     adsorptionWin.show();
     resetAdsorptionDefault('将控制组件移动到此处');
@@ -170,7 +182,7 @@ function startAdsorbedHoverWatcher() {
 
     const cursor = screen.getCursorScreenPoint();
     const bounds = miniWin.getBounds();
-    
+
     const isHover =
       cursor.x >= bounds.x &&
       cursor.x < bounds.x + bounds.width &&
@@ -256,14 +268,16 @@ function handleMoved() {
     // 设置固定状态
     state.setIsTaskbarControlsAdsorbed(true);
     
-    // 启动悬停检测
+    // 固定态悬停检测覆盖整个窗口，与拖拽区域轮询职责重叠，先交出控制权
+    deps.stopDragRegionHoverWatcher();
     startAdsorbedHoverWatcher();
   } else {
     // 未吸附：隐藏吸附窗口
     hideAdsorptionWindow();
   }
   
-  isInProximity = false;
+  // 记录当前实际距离状态，避免下次拖拽时状态不一致导致样式重复更新
+  isInProximity = (distance < PROXIMITY_THRESHOLD);
 }
 
 /**
@@ -274,11 +288,12 @@ function handleWillMove() {
   
   isDragging = true;
   
-  // 如果之前处于固定状态，解除固定
+  // 如果之前处于固定状态，解除固定并把悬停检测交还给拖拽区域轮询
   if (state.getIsTaskbarControlsAdsorbed()) {
     state.setIsTaskbarControlsAdsorbed(false);
     removeAdsorbedStyle();
     stopAdsorbedHoverWatcher();
+    deps.startDragRegionHoverWatcher();
   }
   
   // 显示吸附窗口
