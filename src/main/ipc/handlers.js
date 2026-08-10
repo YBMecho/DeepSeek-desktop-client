@@ -167,6 +167,19 @@ function registerHandlers(deps) {
     }
   });
 
+  ipcMain.handle('get-silent-auto-launch', () => state.getSilentAutoLaunch());
+
+  ipcMain.handle('set-silent-auto-launch', (event, enabled) => {
+    try {
+      if (typeof enabled !== 'boolean') return { success: false, error: '参数必须是布尔值' };
+      state.setSilentAutoLaunch(enabled);
+      configManager.updateConfig('silentAutoLaunch', enabled);
+      return { success: true, silentAutoLaunch: enabled };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
   // 获取悬浮窗重置选项
   ipcMain.handle('get-floating-reset-option', () => floatingMgr.getFloatingResetOption());
 

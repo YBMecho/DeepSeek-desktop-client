@@ -62,6 +62,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 设置开机自启动
   setAutoLaunch: (enabled) => ipcRenderer.invoke('set-auto-launch', enabled),
 
+  getSilentAutoLaunch: () => ipcRenderer.invoke('get-silent-auto-launch'),
+
+  setSilentAutoLaunch: (enabled) => ipcRenderer.invoke('set-silent-auto-launch', enabled),
+
   // 获取悬浮窗重置选项
   getFloatingResetOption: () => ipcRenderer.invoke('get-floating-reset-option'),
 
