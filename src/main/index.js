@@ -40,6 +40,7 @@ const assetInjector = require('../renderer/injectors/asset-injector');
 const floatingMgr = require('./window/floating-window-manager');
 const taskbarMgr = require('./window/Taskbar-Live-Controls');
 const adsorptionMgr = require('./window/adsorption');
+const adsorptionCoordinator = require('./system/adsorption-coordinator');
 const trayManager = require('./system/tray-manager');
 const notifyManager = require('./system/notification-manager');
 const autoLaunchMgr = require('./system/auto-launch-manager');
@@ -255,6 +256,15 @@ app.whenReady().then(() => {
 
   // 创建吸附窗口
   adsorptionMgr.createAdsorptionWindow();
+
+  // 初始化吸附协调器
+  adsorptionCoordinator.init({
+    getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
+    getMiniWindow: taskbarMgr.getMiniWindow
+  });
+
+  // 启动吸附协调器监听
+  adsorptionCoordinator.startMonitoring();
 
   // 启动配置文件监听
   themeManager.watchConfigFile(

@@ -19,6 +19,8 @@ let autoLaunch = constants.DEFAULT_CONFIG.autoLaunch;
 let isQuitting = false;
 let areAllWindowsHidden = false;
 const previouslyVisibleWindowIds = new Set();
+let isTaskbarControlsAdsorbed = false;
+let adsorbedHoverWatcher = null;
 
 module.exports = {
   getMainWindow: () => mainWindow,
@@ -49,5 +51,11 @@ module.exports = {
   setAreAllWindowsHidden: (v) => { areAllWindowsHidden = v; },
 
   // Set 本身可变，直接返回引用供调用方 add/has/clear/delete
-  getPreviouslyVisibleWindowIds: () => previouslyVisibleWindowIds
+  getPreviouslyVisibleWindowIds: () => previouslyVisibleWindowIds,
+
+  getIsTaskbarControlsAdsorbed: () => isTaskbarControlsAdsorbed,
+  setIsTaskbarControlsAdsorbed: (v) => { isTaskbarControlsAdsorbed = v; },
+
+  getAdsorbedHoverWatcher: () => adsorbedHoverWatcher,
+  setAdsorbedHoverWatcher: (v) => { adsorbedHoverWatcher = v; }
 };

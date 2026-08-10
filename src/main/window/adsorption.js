@@ -69,6 +69,13 @@ function createAdsorptionWindow() {
     }
   });
 
+  // 设置窗口层级低于 taskbar-live-controls（确保被覆盖）
+  try {
+    adsorptionWindow.setAlwaysOnTop(true, 'normal');
+  } catch (e) {
+    console.warn('[Adsorption] 设置窗口层级失败:', e);
+  }
+
   // 加载本地 HTML 文件
   const htmlPath = path.join(constants.ROOT_DIR, 'resources', 'html', 'adsorption.html');
   adsorptionWindow.loadFile(htmlPath);
@@ -150,9 +157,43 @@ function getAdsorptionWindow() {
   return adsorptionWindow;
 }
 
+/**
+ * 设置吸附窗口高亮状态
+ * @param {string} text - 提示文字
+ */
+function setHighlight(text) {
+  if (!adsorptionWindow || adsorptionWindow.isDestroyed()) return;
+
+  adsorptionWindow.webContents.executeJavaScript(`
+    (() => {
+      document.body.classList.add('highlight');
+      const hintText = document.querySelector('.hint-text');
+      if (hintText) hintText.textContent = '${text}';
+    })();
+  `).catch(() => {});
+}
+
+/**
+ * 重置吸附窗口为默认状态
+ * @param {string} text - 提示文字
+ */
+function resetDefault(text) {
+  if (!adsorptionWindow || adsorptionWindow.isDestroyed()) return;
+
+  adsorptionWindow.webContents.executeJavaScript(`
+    (() => {
+      document.body.classList.remove('highlight');
+      const hintText = document.querySelector('.hint-text');
+      if (hintText) hintText.textContent = '${text}';
+    })();
+  `).catch(() => {});
+}
+
 module.exports = {
   init,
   createAdsorptionWindow,
   toggleAdsorptionWindow,
-  getAdsorptionWindow
+  getAdsorptionWindow,
+  setHighlight,
+  resetDefault
 };

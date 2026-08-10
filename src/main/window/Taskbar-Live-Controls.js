@@ -83,6 +83,13 @@ function createMiniWindow() {
     }
   });
 
+  // 设置窗口层级高于吸附窗口，确保在上层显示
+  try {
+    miniWindow.setAlwaysOnTop(true, 'floating');
+  } catch (e) {
+    console.warn('[TaskbarLiveControls] 设置窗口层级失败:', e);
+  }
+
   // 加载本地 HTML 文件
   const htmlPath = path.join(constants.ROOT_DIR, 'resources', 'html', 'taskbar-live-controls.html');
   miniWindow.loadFile(htmlPath);
@@ -158,6 +165,7 @@ function stopHoverWatcher() {
   }
   lastHoverState = false;
 }
+
 /**
  * 切换迷你窗口显隐
  */

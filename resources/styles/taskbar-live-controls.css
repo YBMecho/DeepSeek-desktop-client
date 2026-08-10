@@ -65,3 +65,22 @@ body::before {
 body::before ~ *:not(.drag-handle) {
   -webkit-app-region: no-drag;
 }
+
+/* 固定状态：完全透明 */
+body.adsorbed::before {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+body.adsorbed .drag-handle {
+  opacity: 0;
+}
+
+/* 固定状态悬停：显示描边和竖条 */
+body.adsorbed.hover::before {
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.5);
+}
+
+body.adsorbed.hover .drag-handle {
+  opacity: 0.19;
+}
