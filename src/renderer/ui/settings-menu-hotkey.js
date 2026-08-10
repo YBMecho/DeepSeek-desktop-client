@@ -25,6 +25,9 @@
 
   let hotkeyMenuButton = null;
   let isHotkeyTabActive = false;
+  // 程序化点击原生"通用设置"按钮时置位，避免我们绑在原生按钮上的
+  // "取消激活"监听器把刚点亮的快捷键设置按钮又灭掉
+  let suppressNativeDeactivate = false;
 
   /**
    * 创建快捷键设置菜单按钮
@@ -80,21 +83,47 @@
 
   /**
    * 处理快捷键菜单按钮点击
+   *
+   * 快捷键相关的设置行（快捷键 / 对话悬浮窗 / 关闭行为等）由 hotkey-settings.js
+   * 注入在原生"通用设置"页里，因此这里通过程序化点击原生"通用设置"按钮，
+   * 让 React 自己完成右侧内容切换，再把左侧高亮挪到本按钮上。
    */
   function handleHotkeyMenuClick() {
-    console.log('[快捷键设置] 切换到快捷键设置页面');
-    
     // 标记当前tab为激活状态
     isHotkeyTabActive = true;
-    
-    // 更新按钮激活状态
     updateMenuButtonState();
-    
-    // TODO: 切换到快捷键设置页面内容
-    // 这里将来需要：
-    // 1. 隐藏其他设置页面内容
-    // 2. 显示快捷键设置页面内容
-    // 3. 取消其他菜单按钮的激活状态
+
+    const menuContainer = hotkeyMenuButton && hotkeyMenuButton.parentElement;
+    if (!menuContainer) return;
+
+    // 找到原生"通用设置"按钮（排除注入的自身）
+    const generalSettingsBtn = Array.from(menuContainer.children)
+      .find(btn => btn !== hotkeyMenuButton && btn.textContent && btn.textContent.includes('通用设置'));
+
+    if (generalSettingsBtn) {
+      // click() 同步派发，期间置位抑制标记，监听器返回后即复位
+      suppressNativeDeactivate = true;
+      generalSettingsBtn.click();
+      suppressNativeDeactivate = false;
+
+      // 取消原生按钮的激活态，保证左侧菜单只有"快捷键设置"一个高亮项
+      setNativeButtonActive(generalSettingsBtn, false);
+    }
+  }
+
+  /**
+   * 设置原生菜单按钮的激活态（与原生选中样式保持一致）
+   * @param {HTMLElement} btn - 原生菜单按钮
+   * @param {boolean} active - 是否激活
+   */
+  function setNativeButtonActive(btn, active) {
+    if (active) {
+      btn.classList.add('_699d482');
+      btn.style.setProperty('--dsl-button-color', 'var(--dsw-alias-interactive-bg-hover)');
+    } else {
+      btn.classList.remove('_699d482');
+      btn.style.removeProperty('--dsl-button-color');
+    }
   }
 
   /**
@@ -210,13 +239,23 @@
           });
 
         nativeButtons.forEach(btn => {
+          // 快捷键设置 tab 激活期间，若 React 重渲染把原生按钮高亮加回来，则再剥掉一次
+          if (isHotkeyTabActive) setNativeButtonActive(btn, false);
+
           if (btn.__hotkeyMenuListenerBound) return;
           btn.__hotkeyMenuListenerBound = true;
 
           btn.addEventListener('click', () => {
+            // 快捷键设置按钮触发的程序化点击，不视为用户切换 tab
+            if (suppressNativeDeactivate) return;
             if (isHotkeyTabActive) {
               isHotkeyTabActive = false;
               updateMenuButtonState();
+              // 通用设置原本就是 React 的选中 tab，再点一次不会触发重渲染，
+              // 被我们剥掉的高亮需要手动补回
+              if (btn.textContent && btn.textContent.includes('通用设置')) {
+                setNativeButtonActive(btn, true);
+              }
             }
           });
         });
