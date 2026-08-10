@@ -10,6 +10,7 @@
 
 const { BrowserWindow, Menu, shell, nativeTheme } = require('electron');
 const constants = require('../../common/constants');
+const { setupSplashScreen } = require('./splash-screen');
 
 /**
  * 创建新窗口
@@ -41,6 +42,9 @@ function createNewWindow(url, deps) {
   });
 
   newWindow.loadURL(url || constants.DEFAULT_URL);
+
+  // 设置启动画面
+  setupSplashScreen(newWindow, nativeTheme && nativeTheme.shouldUseDarkColors);
 
   // 锁定标题
   newWindow.webContents.on('page-title-updated', (event) => {
@@ -122,6 +126,9 @@ function createWindow(deps) {
   });
 
   mainWindow.loadURL(constants.DEFAULT_URL);
+
+  // 设置启动画面
+  setupSplashScreen(mainWindow, nativeTheme && nativeTheme.shouldUseDarkColors);
 
   // 锁定标题
   mainWindow.webContents.on('page-title-updated', (event) => {
