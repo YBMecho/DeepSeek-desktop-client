@@ -184,76 +184,52 @@
   }
 
   /**
-   * 监听其他菜单按钮的点击，取消快捷键tab的激活状态
+   * 初始化
    */
-  function setupOtherMenuButtonListeners() {
+  function init() {
+    // 立即尝试注入一次
+    injectHotkeyMenuButton();
+
+    // 合并为单一 MutationObserver，减少性能开销和重复触发
+    let rafId = null;
     const observer = new MutationObserver(() => {
-      const menuButtons = Array.from(document.querySelectorAll('.ds-button'))
-        .filter(btn => {
-          const text = btn.textContent || '';
-          return /通用设置|账号管理|数据管理|服务协议/.test(text);
-        });
+      // 使用 requestAnimationFrame 去抖，避免频繁重复执行
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const menuContainer = findSettingsMenuContainer();
+        if (!menuContainer) return;
 
-      menuButtons.forEach(btn => {
-        // 避免重复绑定
-        if (btn.__hotkeyMenuListenerBound) return;
-        btn.__hotkeyMenuListenerBound = true;
+        // 注入快捷键设置按钮
+        injectHotkeyMenuButton();
 
-        btn.addEventListener('click', () => {
-          if (isHotkeyTabActive) {
-            isHotkeyTabActive = false;
-            updateMenuButtonState();
-          }
+        // 为原生菜单按钮绑定点击事件（仅绑定一次）
+        const nativeButtons = Array.from(menuContainer.children)
+          .filter(btn => {
+            const text = btn.textContent || '';
+            return /通用设置|账号管理|数据管理|服务协议/.test(text);
+          });
+
+        nativeButtons.forEach(btn => {
+          if (btn.__hotkeyMenuListenerBound) return;
+          btn.__hotkeyMenuListenerBound = true;
+
+          btn.addEventListener('click', () => {
+            if (isHotkeyTabActive) {
+              isHotkeyTabActive = false;
+              updateMenuButtonState();
+            }
+          });
         });
       });
     });
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  }
-
-  /**
-   * 使用 MutationObserver 监听设置面板出现
-   */
-  function waitForSettingsPanel() {
-    console.log('[快捷键设置] 开始等待设置面板');
-    
-    // 使用 MutationObserver 持续监听，每次打开设置面板时都尝试注入
-    const observer = new MutationObserver(() => {
-      // 只在找到设置菜单容器时才尝试注入
-      const menuContainer = findSettingsMenuContainer();
-      if (menuContainer) {
-        injectHotkeyMenuButton();
-      }
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-
-    // 页面加载后也立即尝试一次
+    // 只在需要时启用 observer（延迟启动，避免初始化时频繁触发）
     setTimeout(() => {
-      const menuContainer = findSettingsMenuContainer();
-      if (menuContainer) {
-        injectHotkeyMenuButton();
-      }
-    }, 1000);
-  }
-
-  /**
-   * 初始化
-   */
-  function init() {
-    console.log('[快捷键设置] 菜单入口脚本已加载');
-
-    // 等待设置面板出现并注入按钮
-    waitForSettingsPanel();
-
-    // 监听其他菜单按钮的点击
-    setupOtherMenuButtonListeners();
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }, 500);
   }
 
   // 页面加载完成后初始化
