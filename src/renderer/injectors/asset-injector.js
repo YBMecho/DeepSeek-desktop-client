@@ -59,6 +59,22 @@ function injectCustomAssets(targetWindow, floatingWindow) {
     targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
   } catch (e) {}
 
+  // 注入设置菜单快捷键入口JavaScript
+  const settingsMenuHotkeyJsPath = path.join(constants.RENDERER_UI_DIR, 'settings-menu-hotkey.js');
+  try {
+    const settingsMenuHotkeyJs = fs.readFileSync(settingsMenuHotkeyJsPath, 'utf8');
+    const wrapped = `(() => {
+  try {
+    if (window.__DS_SETTINGS_MENU_HOTKEY_LOADED__) {
+      return;
+    }
+    window.__DS_SETTINGS_MENU_HOTKEY_LOADED__ = true;
+  } catch (e) {}
+})();
+` + settingsMenuHotkeyJs;
+    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+  } catch (e) {}
+
   // 注入悬浮窗切换按钮JavaScript
   if (targetWindow === floatingWindow) {
     // 悬浮窗：注入悬浮窗专用按钮（侧边栏）+ 置顶按钮

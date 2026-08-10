@@ -1,0 +1,248 @@
+/**
+ * 渲染进程 - 设置菜单快捷键入口
+ * 
+ * 功能：在设置面板的左侧菜单中注入"快捷键设置"按钮
+ * 职责：
+ *   - 在设置面板菜单中添加快捷键设置入口
+ *   - SVG图标自适应浅色/深色主题（使用 currentColor）
+ *   - 处理按钮点击事件，切换到快捷键设置页面
+ */
+
+(function() {
+  'use strict';
+
+  // 防止重复加载
+  if (window.__DS_SETTINGS_MENU_HOTKEY_LOADED__) {
+    return;
+  }
+  window.__DS_SETTINGS_MENU_HOTKEY_LOADED__ = true;
+
+  // 快捷键图标SVG（使用 currentColor 自适应主题）
+  const HOTKEY_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+    <path d="M793.6 251.2H225.6c-30.4 0-54.4 24-54.4 54.4v411.2c0 30.4 24 54.4 54.4 54.4h568c30.4 0 54.4-24 54.4-54.4V305.6c0-30.4-24-54.4-54.4-54.4z m8 467.2c0 4.8-3.2 8-8 8H225.6c-4.8 0-8-3.2-8-8V305.6c0-4.8 3.2-8 8-8h568c4.8 0 8 3.2 8 8v412.8z" fill="currentColor"></path>
+    <path d="M376 616h265.6v46.4H376zM267.2 488h48v48h-48zM355.2 488h48v48h-48zM441.6 488h48v48h-48zM529.6 488h48v48h-48zM616 488h48v48h-48zM704 488h48v48h-48zM267.2 379.2h48v48h-48zM355.2 379.2h48v48h-48zM441.6 379.2h48v48h-48zM529.6 379.2h48v48h-48zM616 379.2h48v48h-48zM704 379.2h48v48h-48z" fill="currentColor"></path>
+  </svg>`;
+
+  let hotkeyMenuButton = null;
+  let isHotkeyTabActive = false;
+
+  /**
+   * 创建快捷键设置菜单按钮
+   * @returns {HTMLElement} 按钮元素
+   */
+  function createHotkeyMenuButton() {
+    // 创建按钮容器
+    const button = document.createElement('div');
+    button.setAttribute('role', 'button');
+    button.setAttribute('tabindex', '0');
+    button.className = 'ds-button ds-button--outlinedNeutral ds-button--borderless ds-button--capsule ds-button--m ds-button--icon-relative-m ds-button--min-width _266abb8';
+    
+    // 设置按钮样式变量
+    button.style.cssText = `
+      --dsl-button-text-color: var(--dsw-alias-label-primary);
+      --dsl-button-padding: 0 10px 0 8px;
+      --dsl-button-border-radius: 12px;
+      --dsl-button-icon-gap: 8px;
+      --dsl-button-color-hover: var(--dsw-alias-interactive-bg-hover);
+      --dsl-button-text-color-hover: var(--dsw-alias-label-primary);
+    `;
+
+    // 创建背景层（用于hover效果）
+    const background = document.createElement('div');
+    background.className = 'ds-button__background';
+    button.appendChild(background);
+
+    // 创建图标容器
+    const iconContainer = document.createElement('div');
+    iconContainer.className = 'ds-button__icon';
+    iconContainer.innerHTML = HOTKEY_ICON_SVG;
+    button.appendChild(iconContainer);
+
+    // 创建文本内容
+    const textContent = document.createElement('span');
+    textContent.className = 'ds-button__content';
+    textContent.textContent = '快捷键设置';
+    button.appendChild(textContent);
+
+    // 添加点击事件
+    button.addEventListener('click', handleHotkeyMenuClick);
+
+    // 添加键盘事件（无障碍支持）
+    button.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleHotkeyMenuClick();
+      }
+    });
+
+    return button;
+  }
+
+  /**
+   * 处理快捷键菜单按钮点击
+   */
+  function handleHotkeyMenuClick() {
+    console.log('[快捷键设置] 切换到快捷键设置页面');
+    
+    // 标记当前tab为激活状态
+    isHotkeyTabActive = true;
+    
+    // 更新按钮激活状态
+    updateMenuButtonState();
+    
+    // TODO: 切换到快捷键设置页面内容
+    // 这里将来需要：
+    // 1. 隐藏其他设置页面内容
+    // 2. 显示快捷键设置页面内容
+    // 3. 取消其他菜单按钮的激活状态
+  }
+
+  /**
+   * 更新菜单按钮的激活状态
+   */
+  function updateMenuButtonState() {
+    if (!hotkeyMenuButton) return;
+
+    if (isHotkeyTabActive) {
+      // 激活状态：添加背景色
+      hotkeyMenuButton.style.setProperty('--dsl-button-color', 'var(--dsw-alias-interactive-bg-hover)');
+      hotkeyMenuButton.classList.add('_699d482'); // 激活状态的class
+    } else {
+      // 非激活状态：移除背景色
+      hotkeyMenuButton.style.removeProperty('--dsl-button-color');
+      hotkeyMenuButton.classList.remove('_699d482');
+    }
+  }
+
+  /**
+   * 查找设置面板的菜单容器
+   * @returns {HTMLElement|null} 菜单容器元素
+   */
+  function findSettingsMenuContainer() {
+    // 查找包含"通用设置"、"账号管理"等按钮的容器
+    const buttons = Array.from(document.querySelectorAll('.ds-button'))
+      .filter(btn => {
+        const text = btn.textContent || '';
+        return /通用设置|账号管理|数据管理|服务协议/.test(text);
+      });
+
+    if (buttons.length === 0) return null;
+
+    // 找到这些按钮的共同父容器
+    const parent = buttons[0].parentElement;
+    if (parent && parent.classList.contains('d316d158')) {
+      return parent;
+    }
+
+    return null;
+  }
+
+  /**
+   * 注入快捷键设置菜单按钮
+   */
+  function injectHotkeyMenuButton() {
+    // 查找设置菜单容器
+    const menuContainer = findSettingsMenuContainer();
+    if (!menuContainer) {
+      console.log('[快捷键设置] 未找到设置菜单容器');
+      return false;
+    }
+
+    // 检查是否已经注入
+    if (hotkeyMenuButton && hotkeyMenuButton.parentElement) {
+      console.log('[快捷键设置] 菜单按钮已存在');
+      return true;
+    }
+
+    // 创建并插入快捷键设置按钮
+    hotkeyMenuButton = createHotkeyMenuButton();
+    
+    // 插入到"通用设置"按钮之后
+    const generalSettingsBtn = Array.from(menuContainer.children)
+      .find(btn => btn.textContent && btn.textContent.includes('通用设置'));
+    
+    if (generalSettingsBtn && generalSettingsBtn.nextSibling) {
+      menuContainer.insertBefore(hotkeyMenuButton, generalSettingsBtn.nextSibling);
+    } else {
+      // 如果找不到"通用设置"，就插入到第一个位置
+      menuContainer.insertBefore(hotkeyMenuButton, menuContainer.firstChild);
+    }
+
+    console.log('[快捷键设置] 菜单按钮注入成功');
+    return true;
+  }
+
+  /**
+   * 监听其他菜单按钮的点击，取消快捷键tab的激活状态
+   */
+  function setupOtherMenuButtonListeners() {
+    const observer = new MutationObserver(() => {
+      const menuButtons = Array.from(document.querySelectorAll('.ds-button'))
+        .filter(btn => {
+          const text = btn.textContent || '';
+          return /通用设置|账号管理|数据管理|服务协议/.test(text);
+        });
+
+      menuButtons.forEach(btn => {
+        // 避免重复绑定
+        if (btn.__hotkeyMenuListenerBound) return;
+        btn.__hotkeyMenuListenerBound = true;
+
+        btn.addEventListener('click', () => {
+          if (isHotkeyTabActive) {
+            isHotkeyTabActive = false;
+            updateMenuButtonState();
+          }
+        });
+      });
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  /**
+   * 使用 MutationObserver 监听设置面板出现
+   */
+  function waitForSettingsPanel() {
+    // 先尝试立即注入
+    if (injectHotkeyMenuButton()) {
+      return;
+    }
+
+    // 使用 MutationObserver 监听
+    const observer = new MutationObserver(() => {
+      if (injectHotkeyMenuButton()) {
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  /**
+   * 初始化
+   */
+  function init() {
+    console.log('[快捷键设置] 菜单入口脚本已加载');
+
+    // 等待设置面板出现并注入按钮
+    waitForSettingsPanel();
+
+    // 监听其他菜单按钮的点击
+    setupOtherMenuButtonListeners();
+  }
+
+  // 页面加载完成后初始化
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
