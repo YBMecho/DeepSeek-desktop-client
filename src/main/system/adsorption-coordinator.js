@@ -163,7 +163,11 @@ function setHoverStyle(isHover) {
   if (!miniWin || miniWin.isDestroyed()) return;
 
   miniWin.webContents.executeJavaScript(`
-    document.body.classList.toggle('hover', ${isHover});
+    (() => {
+      // 防御性检查：只有在固定状态（body 已有 adsorbed class）时才切换 hover
+      if (!document.body.classList.contains('adsorbed')) return;
+      document.body.classList.toggle('hover', ${isHover});
+    })();
   `).catch(() => {});
 }
 
