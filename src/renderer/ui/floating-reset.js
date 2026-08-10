@@ -87,7 +87,7 @@ c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fi
     adjustResetSelectWidth();
   }
 
-  // 调整选择器宽度
+  // 调整选择器宽度（参考关闭行为选择框的逻辑）
   function adjustResetSelectWidth() {
     if (!resetSelectContainer) return;
     
@@ -96,13 +96,24 @@ c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fi
 
     // 根据文本长度动态调整宽度
     const textLength = currentOption.label.length;
-    if (textLength <= 6) {
-      resetSelectContainer.style.minWidth = '120px';
-      resetSelectContainer.style.maxWidth = '140px';
+    if (textLength <= 3) {
+      // 3个字及以下：收缩（对应"从不"等短选项）
+      resetSelectContainer.style.minWidth = '70px';
+      resetSelectContainer.style.maxWidth = '90px';
+    } else if (textLength === 4) {
+      // 4个字：适中拉伸
+      resetSelectContainer.style.minWidth = '85px';
+      resetSelectContainer.style.maxWidth = '105px';
+    } else if (textLength <= 6) {
+      // 5-6个字：正常宽度（对应"重新打开时"）
+      resetSelectContainer.style.minWidth = '110px';
+      resetSelectContainer.style.maxWidth = '130px';
     } else if (textLength <= 8) {
+      // 7-8个字：拉伸（对应"关闭后XX分钟"）
       resetSelectContainer.style.minWidth = '135px';
       resetSelectContainer.style.maxWidth = '155px';
     } else {
+      // 超过8个字：最大拉伸
       resetSelectContainer.style.minWidth = '150px';
       resetSelectContainer.style.maxWidth = '170px';
     }
