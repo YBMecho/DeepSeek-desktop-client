@@ -10,6 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const constants = require('../../common/constants');
 
 /**
  * 向指定窗口注入自定义 CSS 与 JS（可重复在新页面加载后调用）
@@ -20,14 +21,14 @@ function injectCustomAssets(targetWindow, floatingWindow) {
   if (!targetWindow || targetWindow.isDestroyed()) return;
 
   // 注入自定义CSS样式
-  const cssPath = path.join(__dirname, '../../public/css/main.css');
+  const cssPath = constants.MAIN_CSS_PATH;
   try {
     const css = fs.readFileSync(cssPath, 'utf8');
     targetWindow.webContents.insertCSS(css);
   } catch (e) {}
 
   // 注入快捷键设置JavaScript
-  const jsPath = path.join(__dirname, '../../public/js/hotkey-settings.js');
+  const jsPath = path.join(constants.RENDERER_UI_DIR, 'hotkey-settings.js');
   try {
     const js = fs.readFileSync(jsPath, 'utf8');
     const wrapped = `(() => {
@@ -43,7 +44,7 @@ function injectCustomAssets(targetWindow, floatingWindow) {
   } catch (e) {}
 
   // 注入悬浮窗重置功能JavaScript
-  const floatingResetJsPath = path.join(__dirname, '../../public/js/floating-reset.js');
+  const floatingResetJsPath = path.join(constants.RENDERER_UI_DIR, 'floating-reset.js');
   try {
     const floatingResetJs = fs.readFileSync(floatingResetJsPath, 'utf8');
     const wrapped = `(() => {
@@ -61,7 +62,7 @@ function injectCustomAssets(targetWindow, floatingWindow) {
   // 注入悬浮窗切换按钮JavaScript
   if (targetWindow === floatingWindow) {
     // 悬浮窗：注入悬浮窗专用按钮（侧边栏）+ 置顶按钮
-    const floatingToggleJsPath = path.join(__dirname, '../../public/js/floating-window-toggle-floating.js');
+    const floatingToggleJsPath = path.join(constants.RENDERER_UI_DIR, 'floating-window-toggle-floating.js');
     try {
       const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
       const wrapped = `(() => {
@@ -77,7 +78,7 @@ function injectCustomAssets(targetWindow, floatingWindow) {
     } catch (e) {}
 
     // 注入置顶按钮
-    const pinButtonJsPath = path.join(__dirname, '../../public/js/pin-button.js');
+    const pinButtonJsPath = path.join(constants.RENDERER_UI_DIR, 'pin-button.js');
     try {
       const pinButtonJs = fs.readFileSync(pinButtonJsPath, 'utf8');
       const wrapped = `(() => {
@@ -93,7 +94,7 @@ function injectCustomAssets(targetWindow, floatingWindow) {
     } catch (e) {}
   } else {
     // 主程序：只注入工具栏按钮
-    const floatingToggleJsPath = path.join(__dirname, '../../public/js/floating-window-toggle-main.js');
+    const floatingToggleJsPath = path.join(constants.RENDERER_UI_DIR, 'floating-window-toggle-main.js');
     try {
       const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
       const wrapped = `(() => {

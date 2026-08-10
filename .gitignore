@@ -1,7 +1,13 @@
 # 忽略 node_modules 目录
 /node_modules
-任务.md
-resource\使用浏览器内置的Web_Speech_API实现语音转文字.md
+
+# 构建输出
 out/*
+dist/
+
+# IDE 和编辑器配置
 .cursor/*
+
+# 项目文档（根据需要调整）
+任务.md
 style-guide.md

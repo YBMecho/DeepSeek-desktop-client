@@ -4,7 +4,7 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
-    icon: process.platform === 'win32' ? 'public/icons/lp25u-mafhn-001.ico' : 'public/icons/lp25u-mafhn-001.png',
+    icon: process.platform === 'win32' ? 'resources/assets/icons/lp25u-mafhn-001.ico' : 'resources/assets/icons/lp25u-mafhn-001.png',
   },
   rebuildConfig: {},
   makers: [
@@ -20,7 +20,7 @@ module.exports = {
       name: '@electron-forge/maker-deb',
       config: {
         options: {
-          icon: 'public/icons/lp25u-mafhn-001.png', // Linux DEB 包需要指定PNG格式
+          icon: 'resources/assets/icons/lp25u-mafhn-001.png', // Linux DEB 包需要指定PNG格式
         }
       },
     },
@@ -28,7 +28,7 @@ module.exports = {
       name: '@electron-forge/maker-rpm',
       config: {
         options: {
-          icon: 'public/icons/lp25u-mafhn-001.png', // Linux RPM 包需要指定PNG格式
+          icon: 'resources/assets/icons/lp25u-mafhn-001.png', // Linux RPM 包需要指定PNG格式
         }
       },
     },

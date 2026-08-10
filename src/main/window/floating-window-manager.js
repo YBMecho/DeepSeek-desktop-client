@@ -15,6 +15,7 @@
 
 const path = require('path');
 const { BrowserWindow, shell, nativeTheme, globalShortcut } = require('electron');
+const constants = require('../../common/constants');
 
 // 模块内部状态（悬浮窗子系统专属，不与主窗口共享）
 let floatingWindow = null;
@@ -144,12 +145,12 @@ function createFloatingWindow() {
     minHeight: 426,
     maxHeight: 1032,
     title: 'DeepSeek',
-    icon: path.join(__dirname, '../../public/images/deepseek-color.png'),
+    icon: constants.APP_ICON_PATH,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
-      preload: path.join(__dirname, '../../preload.js')
+      preload: constants.PRELOAD_PATH
     },
     frame: false,
     transparent: false,

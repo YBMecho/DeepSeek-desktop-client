@@ -9,6 +9,7 @@
 
 const path = require('path');
 const { BrowserWindow } = require('electron');
+const constants = require('../../common/constants');
 
 /**
  * 回复输出完成通知：弹出系统通知，点击唤起窗口
@@ -27,7 +28,7 @@ function showReplyFinishedNotification(deps) {
     const notify = new Notification({
       title: 'DeepSeek',
       body: '回复已完成',
-      icon: path.join(__dirname, '../../public/icons/icon.png'),
+      icon: constants.TRAY_ICON_PATH,
       silent: false
     });
 

@@ -24,8 +24,12 @@
     "@electron-forge/maker-zip": "^7.8.3",
     "@electron-forge/plugin-auto-unpack-natives": "^7.8.3",
     "@electron-forge/plugin-fuses": "^7.8.3",
+    "@electron-forge/plugin-webpack": "^7.11.2",
     "@electron/fuses": "^1.8.0",
-    "electron": "^37.2.6"
+    "@types/node": "^26.2.0",
+    "electron": "^37.2.6",
+    "ts-loader": "^9.6.2",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "electron-context-menu": "^4.1.0",

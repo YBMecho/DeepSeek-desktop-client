@@ -26,7 +26,8 @@ let tray = null;
 function createTray(deps) {
   if (tray || deps.getIsQuitting()) return; // 如果托盘已存在或正在退出，不创建
   
-  const iconPath = path.join(__dirname, '../../public/icons/icon.png');
+  const constants = require('../../common/constants');
+  const iconPath = constants.TRAY_ICON_PATH;
   tray = new Tray(iconPath);
   
   const contextMenu = Menu.buildFromTemplate([
