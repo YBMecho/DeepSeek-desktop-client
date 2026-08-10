@@ -25,6 +25,7 @@ const START_BUTTON_WIDTH = 48;  // 开始按钮宽度 - 仅用于回退方案
 
 // PowerShell脚本：使用UIAutomation获取任务栏元素位置
 const PS_SCRIPT = `
+$ProgressPreference = 'SilentlyContinue'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 
