@@ -31,19 +31,20 @@ html, body {
 .drag-handle {
   width: 2px;
   height: 15px;
-  background-color: #666666;
+  background-color: #999999;
   border-radius: 1px;
   -webkit-app-region: drag;
   pointer-events: auto;
-  transition: background-color 0.2s ease;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
 }
 
-/* 拖动区域悬停时竖线变亮
+/* 拖动区域悬停时竖线透明度变为 100%
    说明：Windows 上 drag 区域收不到鼠标事件，:hover 仅在其他平台兜底，
    实际由主进程轮询光标位置后切换 .is-hover 类触发 */
-   .drag-region:hover .drag-handle,
-   .drag-region.is-hover .drag-handle {
-  background-color: #999999;
+.drag-region:hover .drag-handle,
+.drag-region.is-hover .drag-handle {
+  opacity: 1.0;
 }
 
 /* 确保拖动区域内的交互元素可点击 */
