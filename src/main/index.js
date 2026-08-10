@@ -209,8 +209,7 @@ app.whenReady().then(() => {
     }
   } catch (error) {}
 
-  const loginItemSettings = app.getLoginItemSettings();
-  const wasLaunchedByOS = loginItemSettings.wasOpenedAtLogin || loginItemSettings.wasOpenedAsHidden;
+  const wasLaunchedByOS = autoLaunchMgr.wasLaunchedByAutoStart();
   const configSilentAutoLaunch = state.getSilentAutoLaunch();
   const startHidden = wasLaunchedByOS && configSilentAutoLaunch;
 

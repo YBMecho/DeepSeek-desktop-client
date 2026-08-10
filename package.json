@@ -14,7 +14,16 @@
     "start:trace": "set NODE_OPTIONS=--trace-deprecation && electron-forge start",
     "test": "npm start",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "build": "node build.js",
+    "build:interactive": "node build.js --interactive",
+    "build:all": "node build.js all",
+    "build:squirrel": "node build.js squirrel",
+    "build:inno": "node build.js inno",
+    "build:package": "node build.js package",
+    "iss:show": "node build.js iss:show",
+    "iss:set": "node build.js iss:set",
+    "build:help": "node build.js --help"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.8.3",
