@@ -38,6 +38,7 @@ const configManager = require('./config/config-manager');
 const themeManager = require('./system/theme-manager');
 const assetInjector = require('../renderer/injectors/asset-injector');
 const floatingMgr = require('./window/floating-window-manager');
+const taskbarMgr = require('./window/Taskbar-Live-Controls');
 const trayManager = require('./system/tray-manager');
 const notifyManager = require('./system/notification-manager');
 const autoLaunchMgr = require('./system/auto-launch-manager');
@@ -75,6 +76,11 @@ floatingMgr.init({
   applyWindowTheme: themeManager.applyWindowTheme,
   injectCustomAssets: (win, floatWin) => assetInjector.injectCustomAssets(win, floatWin),
   setupReinjectOnAuthNavigation: (win, floatWin) => assetInjector.setupReinjectOnAuthNavigation(win, floatWin)
+});
+
+// ---- Taskbar Live Controls 模块依赖注入 ----
+taskbarMgr.init({
+  getIsQuitting: state.getIsQuitting
 });
 
 // ---- 窗口切换依赖 ----
@@ -220,8 +226,24 @@ app.whenReady().then(() => {
     toggleWindow: toggleWindowWrapper
   });
 
+  // 注册所有 IPC 处理器（必须在创建任何窗口之前）
+  registerHandlers({
+    state,
+    configManager,
+    themeManager,
+    floatingMgr,
+    assetInjector,
+    autoLaunchMgr,
+    registerHotkey,
+    toggleWindow: toggleWindowWrapper,
+    updateConfigNoRead
+  });
+
   // 应用自启动设置
   autoLaunchMgr.applyAutoLaunchSetting(state.getAutoLaunch());
+
+  // 创建 Taskbar Live Controls 窗口
+  taskbarMgr.createMiniWindow();
 
   // 启动配置文件监听
   themeManager.watchConfigFile(
@@ -250,19 +272,6 @@ app.whenReady().then(() => {
       });
     }
   } catch (e) {}
-
-  // 注册所有 IPC 处理器
-  registerHandlers({
-    state,
-    configManager,
-    themeManager,
-    floatingMgr,
-    assetInjector,
-    autoLaunchMgr,
-    registerHotkey,
-    toggleWindow: toggleWindowWrapper,
-    updateConfigNoRead
-  });
 });
 
 // ---- 生命周期事件 ----
