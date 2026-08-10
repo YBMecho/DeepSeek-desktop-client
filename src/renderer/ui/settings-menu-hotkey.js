@@ -20,7 +20,11 @@
   window.__SETTINGS_MENU_HOTKEY_INITIALIZED__ = true;
 
   // 快捷键图标SVG（使用 currentColor 自适应主题）
-  const HOTKEY_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  // ponytail: 图标路径本身只占 1024 viewBox 中间约 66%×51% 的区域，四周留白过大，
+  // 导致 16×16 外框下视觉上比旁边填满 viewBox 的图标明显小一圈。
+  // 把 viewBox 收紧到贴合路径实际边界（x:171.2~848, y:251.2~771.2，居中留 15% 内边距），
+  // 再把外框尺寸从 16 提到 18，让图标视觉大小与其他菜单项协调。
+  const HOTKEY_ICON_SVG = `<svg width="18" height="18" viewBox="120 121 780 780" xmlns="http://www.w3.org/2000/svg">
     <path d="M793.6 251.2H225.6c-30.4 0-54.4 24-54.4 54.4v411.2c0 30.4 24 54.4 54.4 54.4h568c30.4 0 54.4-24 54.4-54.4V305.6c0-30.4-24-54.4-54.4-54.4z m8 467.2c0 4.8-3.2 8-8 8H225.6c-4.8 0-8-3.2-8-8V305.6c0-4.8 3.2-8 8-8h568c4.8 0 8 3.2 8 8v412.8z" fill="currentColor"></path>
     <path d="M376 616h265.6v46.4H376zM267.2 488h48v48h-48zM355.2 488h48v48h-48zM441.6 488h48v48h-48zM529.6 488h48v48h-48zM616 488h48v48h-48zM704 488h48v48h-48zM267.2 379.2h48v48h-48zM355.2 379.2h48v48h-48zM441.6 379.2h48v48h-48zM529.6 379.2h48v48h-48zM616 379.2h48v48h-48zM704 379.2h48v48h-48z" fill="currentColor"></path>
   </svg>`;
