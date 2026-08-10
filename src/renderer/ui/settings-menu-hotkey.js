@@ -11,12 +11,6 @@
 (function() {
   'use strict';
 
-  // 防止重复加载
-  if (window.__DS_SETTINGS_MENU_HOTKEY_LOADED__) {
-    return;
-  }
-  window.__DS_SETTINGS_MENU_HOTKEY_LOADED__ = true;
-
   // 快捷键图标SVG（使用 currentColor 自适应主题）
   const HOTKEY_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
     <path d="M793.6 251.2H225.6c-30.4 0-54.4 24-54.4 54.4v411.2c0 30.4 24 54.4 54.4 54.4h568c30.4 0 54.4-24 54.4-54.4V305.6c0-30.4-24-54.4-54.4-54.4z m8 467.2c0 4.8-3.2 8-8 8H225.6c-4.8 0-8-3.2-8-8V305.6c0-4.8 3.2-8 8-8h568c4.8 0 8 3.2 8 8v412.8z" fill="currentColor"></path>
@@ -126,15 +120,16 @@
         return /通用设置|账号管理|数据管理|服务协议/.test(text);
       });
 
+    console.log('[快捷键设置] 找到的菜单按钮数量:', buttons.length);
+
     if (buttons.length === 0) return null;
 
     // 找到这些按钮的共同父容器
     const parent = buttons[0].parentElement;
-    if (parent && parent.classList.contains('d316d158')) {
-      return parent;
-    }
-
-    return null;
+    console.log('[快捷键设置] 父容器:', parent, '类名:', parent?.className);
+    
+    // 不限制特定的class，只要是这些按钮的父容器就行
+    return parent;
   }
 
   /**
@@ -207,14 +202,26 @@
    * 使用 MutationObserver 监听设置面板出现
    */
   function waitForSettingsPanel() {
+    console.log('[快捷键设置] 开始等待设置面板');
+    
     // 先尝试立即注入
     if (injectHotkeyMenuButton()) {
+      console.log('[快捷键设置] 立即注入成功');
       return;
     }
 
+    console.log('[快捷键设置] 立即注入失败，启动 MutationObserver 监听');
+
     // 使用 MutationObserver 监听
+    let attemptCount = 0;
     const observer = new MutationObserver(() => {
+      attemptCount++;
+      if (attemptCount % 10 === 0) {
+        console.log(`[快捷键设置] MutationObserver 已触发 ${attemptCount} 次`);
+      }
+      
       if (injectHotkeyMenuButton()) {
+        console.log(`[快捷键设置] MutationObserver 注入成功（第 ${attemptCount} 次尝试）`);
         observer.disconnect();
       }
     });
@@ -223,6 +230,12 @@
       childList: true,
       subtree: true
     });
+
+    // 添加超时保护，10秒后如果还没注入就停止监听
+    setTimeout(() => {
+      observer.disconnect();
+      console.log('[快捷键设置] 10秒超时，停止监听。总尝试次数:', attemptCount);
+    }, 10000);
   }
 
   /**
