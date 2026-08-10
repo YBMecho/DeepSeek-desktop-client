@@ -90,6 +90,7 @@ function createMiniWindow() {
   miniWindow.loadFile(htmlPath);
 
   miniWindow.once('ready-to-show', () => {
+    miniWindow.show();
     startHoverWatcher();
   });
 
@@ -156,8 +157,8 @@ function toggleMiniWindow() {
     createMiniWindow();
   } else if (miniWindow.isVisible()) {
     miniWindow.hide();
-  } else {
     stopHoverWatcher();
+  } else {
     miniWindow.show();
     miniWindow.focus();
     startHoverWatcher();
