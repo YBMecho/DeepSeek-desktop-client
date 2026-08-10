@@ -44,7 +44,7 @@ body::before {
 .drag-handle {
   width: 2px;
   height: 15px;
-  background-color: #000000;
+  background-color: #afafaf;
   border-radius: 1px;
   -webkit-app-region: drag;
   pointer-events: auto;
