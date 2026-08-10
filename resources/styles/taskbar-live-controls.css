@@ -9,8 +9,21 @@
 html, body {
   width: 388px;
   height: 40px;
-  background-color: #000000;
+  background: transparent;
   overflow: hidden;
+}
+
+/* 实际可见背景容器 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 10px;
+  z-index: -1;
 }
 
 /* 左侧拖动区域（真实元素，使 :hover 判定范围限定在该区域内） */
@@ -31,7 +44,7 @@ html, body {
 .drag-handle {
   width: 2px;
   height: 15px;
-  background-color: #999999;
+  background-color: #000000;
   border-radius: 1px;
   -webkit-app-region: drag;
   pointer-events: auto;

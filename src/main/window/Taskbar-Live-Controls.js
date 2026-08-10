@@ -27,10 +27,6 @@ let lastHoverState = false;
 const DRAG_REGION_WIDTH = 25;
 const HOVER_POLL_INTERVAL = 80;
 
-// 透明度配置（窗口与竖条统一使用）
-const WINDOW_OPACITY = 0.7;
-const HANDLE_HOVER_OPACITY = 1.0;
-
 
 // 外部依赖（通过 init 注入）
 let deps = {
@@ -75,12 +71,10 @@ function createMiniWindow() {
     height: windowHeight,
     resizable: false,
     frame: false,
-    transparent: false,
+    transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     show: false,
-    backgroundColor: '#000000',
-    opacity: WINDOW_OPACITY,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -117,15 +111,12 @@ function createMiniWindow() {
  * @param {boolean} isHover - 是否悬停
  */
 function setHandleOpacity(isHover) {
-  const opacity = isHover ? HANDLE_HOVER_OPACITY : WINDOW_OPACITY;
   miniWindow.webContents
     .executeJavaScript(
       `(() => {
         const region = document.querySelector('.drag-region');
         if (region) {
           region.classList.toggle('is-hover', ${isHover});
-          const handle = region.querySelector('.drag-handle');
-          if (handle) handle.style.opacity = '${opacity}';
         }
       })()`
     )
