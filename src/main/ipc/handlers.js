@@ -68,7 +68,7 @@ function registerHandlers(deps) {
           try {
             mainWindow.webContents.send('native-theme-updated', {
               isDark,
-              source: nativeTheme.themeSource
+              source: theme
             });
           } catch (e) {}
         }
@@ -79,11 +79,12 @@ function registerHandlers(deps) {
           try {
             fw.webContents.send('native-theme-updated', {
               isDark,
-              source: nativeTheme.themeSource
+              source: theme
             });
           } catch (e) {}
         }
 
+        // 确保配置文件写入正确的主题值
         updateConfigNoRead('theme', theme);
       }
       return { success: true, theme: nativeTheme ? nativeTheme.themeSource : theme };
