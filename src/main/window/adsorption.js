@@ -28,6 +28,10 @@ let lastHoverState = false;
 const DRAG_REGION_WIDTH = 25;
 const HOVER_POLL_INTERVAL = 80;
 
+// 吸附窗口尺寸，需与 adsorption.css 中 html/body 尺寸保持一致
+const ADSORPTION_WIDTH = 388;
+const ADSORPTION_HEIGHT = 40;
+
 
 // 外部依赖（通过 init 注入）
 let deps = {
@@ -51,19 +55,18 @@ function createAdsorptionWindow() {
     adsorptionWindow.show();
     startHoverWatcher();
     adsorptionWindow.focus();
+    refreshAdsorptionPosition();
     return;
   }
 
   // 使用任务栏位置计算器获取窗口位置
-  const windowWidth = 388;
-  const windowHeight = 40;
-  const { x, y } = taskbarCalculator.calculateAdsorptionPositionFromCursor(windowWidth, windowHeight);
+  const { x, y } = taskbarCalculator.calculateAdsorptionPositionFromCursor(ADSORPTION_WIDTH, ADSORPTION_HEIGHT);
 
   adsorptionWindow = new BrowserWindow({
     x,
     y,
-    width: windowWidth,
-    height: windowHeight,
+    width: ADSORPTION_WIDTH,
+    height: ADSORPTION_HEIGHT,
     resizable: false,
     frame: false,
     transparent: true,
@@ -99,6 +102,25 @@ function createAdsorptionWindow() {
     stopHoverWatcher();
     adsorptionWindow = null;
   });
+}
+
+/**
+ * 异步重新校准吸附窗口位置
+ * 任务栏布局会动态变化（小组件按钮宽度随天气文案伸缩），
+ * 每次显示后基于最新布局校正一次，避免沿用创建时的旧位置
+ */
+function refreshAdsorptionPosition() {
+  const win = adsorptionWindow;
+  if (!win || win.isDestroyed()) return;
+
+  taskbarCalculator
+    .calculateAdsorptionPositionFromCursorAsync(ADSORPTION_WIDTH, ADSORPTION_HEIGHT)
+    .then(({ x, y }) => {
+      if (!win.isDestroyed() && win.isVisible()) {
+        win.setPosition(x, y);
+      }
+    })
+    .catch(() => {});
 }
 
 /**
@@ -168,6 +190,7 @@ function toggleAdsorptionWindow() {
     adsorptionWindow.show();
     adsorptionWindow.focus();
     startHoverWatcher();
+    refreshAdsorptionPosition();
   }
 }
 
