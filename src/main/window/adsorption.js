@@ -15,6 +15,7 @@
 const { BrowserWindow, screen } = require('electron');
 const path = require('path');
 const constants = require('../../common/constants');
+const taskbarCalculator = require('../system/taskbar-position-calculator');
 
 // 模块内部状态
 let adsorptionWindow = null;
@@ -53,16 +54,10 @@ function createAdsorptionWindow() {
     return;
   }
 
-  // 获取鼠标所在屏幕信息
-  const cursorPoint = screen.getCursorScreenPoint();
-  const mouseDisplay = screen.getDisplayNearestPoint(cursorPoint);
-  const mouseScreen = mouseDisplay.workArea;
-
-  // 在屏幕中心创建窗口
+  // 使用任务栏位置计算器获取窗口位置
   const windowWidth = 388;
   const windowHeight = 40;
-  const x = Math.round(mouseScreen.x + (mouseScreen.width - windowWidth) / 2);
-  const y = Math.round(mouseScreen.y + (mouseScreen.height - windowHeight) / 2);
+  const { x, y } = taskbarCalculator.calculateAdsorptionPositionFromCursor(windowWidth, windowHeight);
 
   adsorptionWindow = new BrowserWindow({
     x,
