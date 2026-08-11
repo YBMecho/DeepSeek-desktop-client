@@ -25,8 +25,11 @@
 
   const render = (text) => {
     element.textContent = text;
-    // 单行容器内保持视口贴住最新字符，模拟打字机跟随
-    element.scrollLeft = element.scrollWidth;
+    // 自动滚动到底部，显示最新内容
+    const container = element.parentElement;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   };
 
   ipcRenderer.on('deepseek-content-update', (event, data) => {

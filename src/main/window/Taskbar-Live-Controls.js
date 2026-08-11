@@ -103,7 +103,7 @@ function createMiniWindow(options = {}) {
 
   // 窗口尺寸
   const windowWidth = 388;
-  const windowHeight = 40;
+  const windowHeight = 160; // 增加高度以支持多行显示
 
   // 如果提供了坐标，使用提供的坐标；否则使用屏幕中心
   let x, y;
