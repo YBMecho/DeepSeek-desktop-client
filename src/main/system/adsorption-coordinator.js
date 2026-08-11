@@ -36,7 +36,7 @@ let moveTick = 0;  // 拖拽中 handleMove 调用计数，用于 z-order 守卫
 const PROXIMITY_THRESHOLD = 20;  // 吸附距离阈值（像素）
 const HOVER_POLL_INTERVAL = 80;   // 悬停检测轮询间隔（毫秒）
 const TOP_GUARD_TICKS = 12;       // 每隔多少次轮询执行一次 z-order 守卫（≈1s）
-const DRAG_TOP_GUARD_TICKS = 5;   // 拖拽中 move 事件频率更高，更短的间隔（约 100ms）
+const DRAG_TOP_GUARD_TICKS = 20;  // 拖拽中 z-order 守卫间隔延长，避免频繁调用导致闪烁
 
 
 /**
@@ -109,8 +109,8 @@ function resetAdsorptionDefault(text) {
 /**
  * 显示吸附窗口
  * 吸附窗口是拖拽时的落点提示，属于被动背景层：
- * 用 showInactive 避免抢占焦点，并在显示后把小组件重新提到最上层，
- * 否则新显示的窗口会插到小组件之上，拖拽中看起来像被吸附窗口压住
+ * 用 showInactive 避免抢占焦点，显示后延迟提升小组件层级，
+ * 避免立即调用 raise 导致的窗口闪烁
  */
 function showAdsorptionWindow() {
   const adsorptionWin = deps.getAdsorptionWindow();
@@ -120,7 +120,10 @@ function showAdsorptionWindow() {
   if (!adsorptionWin.isVisible()) {
     adsorptionWin.showInactive();
     resetAdsorptionDefault('将控制组件移动到此处');
-    deps.raiseMiniWindow();
+    
+    // 延迟提升小组件层级，让 showInactive 先完成，避免层级切换导致闪烁
+    // raiseToTop 自带防抖，这里只需确保在吸附窗口显示后调用
+    setTimeout(() => deps.raiseMiniWindow(), 50);
   }
 }
 

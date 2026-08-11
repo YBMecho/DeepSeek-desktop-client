@@ -33,6 +33,10 @@ const TOP_LEVEL = 'screen-saver';
 // 每隔多少次悬停轮询执行一次 z-order 守卫（80ms * 12 ≈ 1s）
 const TOP_GUARD_TICKS = 12;
 
+// raiseToTop 防抖：避免短时间内重复调用导致窗口闪烁
+const RAISE_DEBOUNCE_MS = 300;
+let lastRaiseTime = 0;
+
 
 // 外部依赖（通过 init 注入）
 let deps = {
@@ -55,9 +59,19 @@ function init(injectedDeps) {
  * alwaysOnTop 标记仍是 true，单独调用 setAlwaysOnTop(true) 会被判定为无变化而跳过。
  * 先清除再重设，强制系统重新应用 z-order，否则窗口会停在任务栏下方，
  * 光标命中测试失效，悬停和拖拽都收不到鼠标。
+ * 
+ * 添加防抖机制：避免短时间内重复调用导致窗口闪烁/弹跳
+ * @param {boolean} force - 强制执行，忽略防抖（仅在窗口首次显示时使用）
  */
-function raiseToTop() {
+function raiseToTop(force = false) {
   if (!miniWindow || miniWindow.isDestroyed()) return;
+
+  const now = Date.now();
+  if (!force && now - lastRaiseTime < RAISE_DEBOUNCE_MS) {
+    return;
+  }
+
+  lastRaiseTime = now;
 
   try {
     miniWindow.setAlwaysOnTop(false);
@@ -110,7 +124,7 @@ function createMiniWindow() {
   });
 
   // 设置窗口层级高于吸附窗口和系统任务栏，确保始终在最上层
-  raiseToTop();
+  raiseToTop(true);
 
   // 加载本地 HTML 文件
   const htmlPath = path.join(constants.ROOT_DIR, 'resources', 'html', 'taskbar-live-controls.html');

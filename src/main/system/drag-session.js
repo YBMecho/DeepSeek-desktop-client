@@ -14,7 +14,8 @@
 const noop = () => {};
 
 // 松手后 moved 丢失时的兜底判定时长：拖拽中 move 会不断续期该定时器
-const IDLE_END_TIMEOUT = 700;
+// 延长至 2000ms，避免鼠标静止但仍按住时误判为拖拽结束
+const IDLE_END_TIMEOUT = 2000;
 
 // setPosition 引发的 move/moved 由系统异步派发，需延迟解除屏蔽
 const SUPPRESS_RELEASE_DELAY = 60;
