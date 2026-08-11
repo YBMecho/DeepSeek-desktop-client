@@ -150,6 +150,9 @@ function applyAdsorbedStyle() {
     (() => {
       document.body.classList.add('adsorbed');
       document.body.classList.remove('hover');
+      // 清除拖拽区域的悬停状态
+      const region = document.querySelector('.drag-region');
+      if (region) region.classList.remove('is-hover');
     })();
   `).catch(() => {});
 }
