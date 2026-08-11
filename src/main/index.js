@@ -43,6 +43,7 @@ const adsorptionMgr = require('./window/adsorption');
 const adsorptionCoordinator = require('./system/adsorption-coordinator');
 const trayManager = require('./system/tray-manager');
 const notifyManager = require('./system/notification-manager');
+const deepseekContentListener = require('./system/deepseek-content-listener');
 const autoLaunchMgr = require('./system/auto-launch-manager');
 const { registerHotkey, unregisterAll } = require('./system/hotkey');
 const { toggleWindow } = require('./window/window-toggle');
@@ -137,6 +138,12 @@ app.whenReady().then(() => {
     getMainWindow: state.getMainWindow,
     setIsWindowHidden: state.setIsWindowHidden,
     destroyTray: trayManager.destroyTray
+  });
+
+  // 注册 DeepSeek 实时内容监听
+  deepseekContentListener.registerDeepSeekContentListener({
+    getMiniWindow: taskbarMgr.getMiniWindow,
+    logDebug
   });
 
   // 配置右键菜单
