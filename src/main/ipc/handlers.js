@@ -376,9 +376,17 @@ function registerHandlers(deps) {
   // DeepSeek 内容更新：从主窗口/悬浮窗转发到任务栏小组件
   ipcMain.on('deepseek-content-update', (event, data) => {
     try {
+      console.log('[IPC] 收到 DeepSeek 内容更新:', data.content?.substring(0, 50) + (data.content?.length > 50 ? '...' : ''));
       const miniWindow = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
       if (miniWindow && !miniWindow.isDestroyed() && miniWindow.isVisible()) {
         miniWindow.webContents.send('deepseek-content-update', data);
+        console.log('[IPC] 已转发到小组件窗口');
+      } else {
+        console.log('[IPC] 小组件窗口不可用:', {
+          exists: !!miniWindow,
+          destroyed: miniWindow?.isDestroyed(),
+          visible: miniWindow?.isVisible()
+        });
       }
     } catch (error) {
       console.error('[IPC] 转发 DeepSeek 内容失败:', error);

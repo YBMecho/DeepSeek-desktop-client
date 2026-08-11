@@ -42,7 +42,7 @@
    */
   function extractContent(data) {
     // 处理完整对象格式: {"v": {...}}
-    if (data.v) {
+    if (data.v && typeof data.v === 'object' && data.v.response) {
       const response = data.v.response;
       if (!response || !response.fragments) return null;
       
@@ -56,12 +56,18 @@
       };
     }
     
-    // 处理增量格式: {"p":"...","o":"APPEND","v":"..."}
-    if (data.o === 'APPEND' && data.v) {
-      // 根据路径判断类型
+    // 处理增量格式（有多种变体）
+    // 1. {"p":"...","o":"APPEND","v":"..."}
+    // 2. {"p":"...","v":"..."}  (没有 o 字段)
+    // 3. {"v":"..."}  (只有 v 字段)
+    
+    if (data.v && typeof data.v === 'string') {
+      // 判断路径以确定内容类型
       const path = data.p || '';
+      
+      // fragments/0 是 THINK，fragments/-1 是 RESPONSE
       const isThink = path.includes('fragments/0');
-      const isResponse = path.includes('fragments/-1') || path.includes('content');
+      const isResponse = path.includes('fragments/-1') || path.includes('content') || !path;
       
       if (isResponse) {
         return {
@@ -123,16 +129,23 @@
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
     let fullContent = ''; // 累积完整内容
+    let chunkCount = 0;
+    
+    console.log('[DeepSeek API Monitor] 开始处理 SSE 流');
     
     try {
       while (true) {
         const { done, value } = await reader.read();
         
         if (done) {
-          console.log('[DeepSeek API Monitor] 流结束');
+          console.log('[DeepSeek API Monitor] 流结束，总共处理', chunkCount, '个片段');
+          console.log('[DeepSeek API Monitor] 最终内容:', fullContent);
           // 发送完成信号
           if (window.electronAPI && window.electronAPI.sendDeepSeekContent) {
             window.electronAPI.sendDeepSeekContent(fullContent, true);
+            console.log('[DeepSeek API Monitor] 已发送完成信号');
+          } else {
+            console.error('[DeepSeek API Monitor] electronAPI 不可用！');
           }
           break;
         }
@@ -158,6 +171,8 @@
           
           // 只处理 RESPONSE 类型（可选：也可以展示 THINK）
           if (extracted.type === 'RESPONSE') {
+            chunkCount++;
+            
             if (extracted.isIncremental) {
               // 增量追加
               fullContent += extracted.content;
@@ -166,9 +181,12 @@
               fullContent = extracted.content;
             }
             
-            // 发送到主进程
-            if (window.electronAPI && window.electronAPI.sendDeepSeekContent) {
-              window.electronAPI.sendDeepSeekContent(fullContent, extracted.isComplete || false);
+            // 每收到一些内容就发送一次（实时更新）
+            if (chunkCount % 5 === 0 || extracted.content.length > 10) {
+              if (window.electronAPI && window.electronAPI.sendDeepSeekContent) {
+                window.electronAPI.sendDeepSeekContent(fullContent, extracted.isComplete || false);
+                console.log('[DeepSeek API Monitor] 已发送更新，当前长度:', fullContent.length);
+              }
             }
           }
         }
