@@ -23,6 +23,10 @@ const TASKBAR_HEIGHT = 48;  // Windows 11 默认任务栏高度
 const LEFT_WIDGETS_WIDTH = 180;  // 左侧组件群估算宽度（天气、新闻等）- 仅用于回退方案
 const START_BUTTON_WIDTH = 48;  // 开始按钮宽度 - 仅用于回退方案
 
+// 水平定位约束（DIP）
+const GAP_EDGE_MARGIN = 8;  // 与左侧组件右边缘的呼吸间距
+const START_BUTTON_SAFE_GAP = 12;  // 与开始按钮左边缘必须保留的安全距离
+
 // PowerShell脚本：使用UIAutomation获取任务栏元素位置
 const PS_SCRIPT = `
 $ProgressPreference = 'SilentlyContinue'
@@ -250,6 +254,34 @@ function resolveGapEdges(display, taskbar, elements) {
 }
 
 /**
+ * 求解窗口在间隙内的水平位置（DIP坐标）
+ *
+ * 不使用「间隙中点对齐 + 固定补偿」：小组件按钮宽度会随天气文案伸缩，
+ * 中点会随之右移并压到开始按钮上，而任何固定补偿值只对某一次文案宽度成立。
+ * 改为以左边缘为基准贴放，并把右边缘作为硬约束收敛，让开始按钮侧的安全距离恒定。
+ *
+ * @param {number} leftEdge - 间隙左边缘（左侧组件右边缘）
+ * @param {number} rightEdge - 间隙右边缘（开始按钮左边缘）
+ * @param {number} windowWidth - 窗口宽度
+ * @param {Object} taskbar - 任务栏信息
+ * @returns {number} 窗口左上角 x 坐标
+ */
+function solveHorizontalPlacement(leftEdge, rightEdge, windowWidth, taskbar) {
+  // 贴着左侧组件右边缘放置，保留呼吸间距
+  const preferredX = leftEdge + GAP_EDGE_MARGIN;
+
+  // 硬约束：窗口右边缘不得越过开始按钮左边缘的安全线
+  const maxX = rightEdge - START_BUTTON_SAFE_GAP - windowWidth;
+
+  // 间隙不足以容纳窗口时（超宽天气文案），maxX 会小于 preferredX，
+  // 此时优先保证不碰撞开始按钮，宁可与左侧组件重叠
+  const constrainedX = Math.min(preferredX, maxX);
+
+  // 兜底：不越出任务栏左边界
+  return Math.round(Math.max(constrainedX, taskbar.x));
+}
+
+/**
  * 基于探测结果计算吸附窗口位置
  * 窗口放置在任务栏内部：水平居中于间隙中点，垂直居中于任务栏
  *
@@ -274,9 +306,7 @@ function computeAdsorptionPosition(display, windowWidth, windowHeight, elements)
 
   const { leftEdge, rightEdge } = resolveGapEdges(display, taskbar, elements);
 
-  // 计算两者之间的中点，窗口水平居中对齐到中点
-  const centerX = Math.round((leftEdge + rightEdge) / 2);
-  const x = centerX - Math.round(windowWidth / 2) - 42;  // 向左偏移42px
+  const x = solveHorizontalPlacement(leftEdge, rightEdge, windowWidth, taskbar);
 
   // 窗口垂直位置：置于任务栏内部，垂直居中
   const y = Math.round(taskbar.y + (taskbar.height - windowHeight) / 2);

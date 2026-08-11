@@ -21,6 +21,10 @@ let adsorptionWindow = null;
 const ADSORPTION_WIDTH = 388;
 const ADSORPTION_HEIGHT = 40;
 
+// 必须高于系统任务栏，否则 Win+D 切换桌面后窗口会被任务栏盖住；
+// 同时低于小组件窗口的 'screen-saver'，保持「落点提示在小组件之下」的层级关系
+const TOP_LEVEL = 'pop-up-menu';
+
 
 // 外部依赖（通过 init 注入）
 let deps = {
@@ -34,6 +38,23 @@ let deps = {
  */
 function init(injectedDeps) {
   deps = { ...deps, ...injectedDeps };
+}
+
+/**
+ * 强制重新应用置顶层级
+ *
+ * Win+D 显示桌面会让系统把本窗口踢出 topmost 序列，但 Electron 侧的
+ * alwaysOnTop 标记仍为 true，直接调 setAlwaysOnTop(true) 会被判定为无变化而跳过。
+ * 先清除再重设，强制系统重新排定 z-order。
+ */
+function raiseToTop() {
+  if (!adsorptionWindow || adsorptionWindow.isDestroyed()) return;
+  try {
+    adsorptionWindow.setAlwaysOnTop(false);
+    adsorptionWindow.setAlwaysOnTop(true, TOP_LEVEL);
+  } catch (e) {
+    console.warn('[Adsorption] 重设窗口层级失败:', e);
+  }
 }
 
 /**
@@ -70,12 +91,7 @@ function createAdsorptionWindow() {
     }
   });
 
-  // 设置窗口层级低于 taskbar-live-controls（确保被覆盖）
-  try {
-    adsorptionWindow.setAlwaysOnTop(true, 'normal');
-  } catch (e) {
-    console.warn('[Adsorption] 设置窗口层级失败:', e);
-  }
+  raiseToTop();
 
   // 加载本地 HTML 文件
   const htmlPath = path.join(constants.ROOT_DIR, 'resources', 'html', 'adsorption.html');
@@ -147,6 +163,7 @@ function toggleAdsorptionWindow() {
   } else {
     adsorptionWindow.show();
     adsorptionWindow.focus();
+    raiseToTop();
     refreshAdsorptionPosition();
   }
 }
@@ -196,5 +213,6 @@ module.exports = {
   toggleAdsorptionWindow,
   getAdsorptionWindow,
   setHighlight,
-  resetDefault
+  resetDefault,
+  raiseToTop
 };
