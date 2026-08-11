@@ -93,22 +93,29 @@ body.adsorbed.hover .drag-handle {
   right: 0;
   bottom: 0;
   padding: 8px 12px;
-  overflow: hidden;
+  overflow-y: auto;  /* 允许垂直滚动 */
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;  /* 内容贴底部对齐，显示最新内容 */
+  scroll-behavior: smooth;  /* 平滑滚动 */
+}
+
+/* 隐藏滚动条但保持滚动功能 */
+.content-container::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .content-text {
   color: #ffffff;
   font-size: 13px;
   line-height: 1.4;
-  white-space: normal;
+  white-space: pre-wrap;  /* 保留换行和空格 */
   word-break: break-word;
-  overflow: hidden;
-  max-height: 100%;  /* 限制最大高度不超过容器 */
   opacity: 0.9;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  min-height: fit-content;  /* 自适应内容高度 */
 }
 
 /* 内容为空时隐藏 */

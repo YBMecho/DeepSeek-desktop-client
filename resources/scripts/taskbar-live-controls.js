@@ -1,7 +1,7 @@
 /**
  * 任务栏小组件 - 对话流内容显示
  *
- * 功能：接收主进程转发的对话增量，渲染到 388x40 的单行区域
+ * 功能：接收主进程转发的对话增量，以 0.5x 速度流式渲染到 388x40 的多行区域
  * 层级：渲染进程 - 小组件 UI
  */
 (function () {
@@ -10,10 +10,16 @@
   const { ipcRenderer } = require('electron');
 
   const element = document.getElementById('liveContent');
-  if (!element) return;
+  const container = element?.parentElement;
+  if (!element || !container) return;
 
   const COMPLETE_HOLD_MS = 5000;
+  const TYPING_SPEED_MS = 30; // 每个字符延迟 30ms（正常约 15ms，这是 0.5x 速度）
+  
   let completeTimer = null;
+  let typingTimer = null;
+  let targetText = '';
+  let currentIndex = 0;
 
   const clearCompleteState = () => {
     if (completeTimer) {
@@ -23,36 +29,84 @@
     element.classList.remove('complete');
   };
 
-  const render = (text) => {
-    // 清理末尾的换行符和空白字符，防止内容被隐藏
-    const cleanText = typeof text === 'string' ? text.trim() : '';
-    element.textContent = cleanText;
+  const scrollToBottom = () => {
+    // 自动滚动到底部，显示最新内容
+    container.scrollTop = container.scrollHeight;
+  };
+
+  const stopTyping = () => {
+    if (typingTimer) {
+      clearTimeout(typingTimer);
+      typingTimer = null;
+    }
+  };
+
+  const typeNextChar = () => {
+    if (currentIndex >= targetText.length) {
+      stopTyping();
+      return;
+    }
+
+    // 逐字符追加
+    element.textContent = targetText.substring(0, currentIndex + 1);
+    currentIndex++;
+    
+    // 每次更新后自动滚动到底部
+    scrollToBottom();
+
+    // 继续下一个字符
+    typingTimer = setTimeout(typeNextChar, TYPING_SPEED_MS);
+  };
+
+  const startTyping = (text) => {
+    stopTyping();
+    targetText = typeof text === 'string' ? text.trim() : '';
+    currentIndex = 0;
+    element.textContent = '';
+    
+    if (targetText) {
+      typeNextChar();
+    }
   };
 
   ipcRenderer.on('deepseek-content-update', (event, data) => {
     if (!data) return;
 
-    // 清理内容：去除首尾空白和换行符
     const cleanContent = typeof data.content === 'string' ? data.content.trim() : '';
     
-    // 只有非空内容才更新显示
     if (cleanContent) {
       clearCompleteState();
-      render(cleanContent);
+      
+      // 如果内容变化，重新开始流式输出
+      if (cleanContent !== targetText) {
+        startTyping(cleanContent);
+      }
     }
 
-    // 完成状态：保持当前内容，不清空
+    // 完成状态：让流式输出完成，然后标记完成
     if (data.isComplete) {
-      element.classList.add('complete');
-      completeTimer = setTimeout(() => {
-        completeTimer = null;
-        element.classList.remove('complete');
-      }, COMPLETE_HOLD_MS);
+      // 等待流式输出完成后再标记
+      const waitForTyping = () => {
+        if (currentIndex >= targetText.length) {
+          element.classList.add('complete');
+          scrollToBottom();
+          completeTimer = setTimeout(() => {
+            completeTimer = null;
+            element.classList.remove('complete');
+          }, COMPLETE_HOLD_MS);
+        } else {
+          setTimeout(waitForTyping, 100);
+        }
+      };
+      waitForTyping();
     }
   });
 
   ipcRenderer.on('deepseek-content-clear', () => {
+    stopTyping();
     clearCompleteState();
-    render('');
+    targetText = '';
+    currentIndex = 0;
+    element.textContent = '';
   });
 })();
