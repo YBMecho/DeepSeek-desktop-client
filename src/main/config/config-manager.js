@@ -26,7 +26,8 @@ const defaultConfig = {
   isFloatingWindowPinned: false, // 悬浮窗置顶状态，默认关闭
   autoLaunch: true, // 开机自启动，默认开启
   floatingResetOption: '60min', // 悬浮窗重置选项，默认关闭后60分钟
-  taskbarControlsEnabled: false // 任务栏控制组件开关，默认关闭
+  taskbarControlsEnabled: false, // 任务栏控制组件开关，默认关闭
+  taskbarControlsPosition: null // 任务栏控制组件位置 {x, y}
 };
 
 /**
@@ -91,6 +92,14 @@ function loadConfig() {
       // 验证任务栏控制组件开关
       if (typeof config.taskbarControlsEnabled === 'boolean') {
         validatedConfig.taskbarControlsEnabled = config.taskbarControlsEnabled;
+      }
+
+      // 验证任务栏控制组件位置
+      if (config.taskbarControlsPosition && 
+          typeof config.taskbarControlsPosition === 'object' &&
+          typeof config.taskbarControlsPosition.x === 'number' &&
+          typeof config.taskbarControlsPosition.y === 'number') {
+        validatedConfig.taskbarControlsPosition = config.taskbarControlsPosition;
       }
       
       return validatedConfig;

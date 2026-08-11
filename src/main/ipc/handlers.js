@@ -271,27 +271,56 @@ function registerHandlers(deps) {
 
       // 根据状态显示或隐藏窗口
       if (newState) {
-        // 开启：显示任务栏小组件和吸附窗口
-        if (deps.taskbarMgr && deps.taskbarMgr.createMiniWindow) {
-          deps.taskbarMgr.createMiniWindow();
-        }
+        // 开启：获取保存的位置或吸附窗口位置
+        const savedPosition = config.taskbarControlsPosition;
+        
+        // 确保吸附窗口已创建（但不显示）
         if (deps.adsorptionMgr && deps.adsorptionMgr.createAdsorptionWindow) {
-          deps.adsorptionMgr.createAdsorptionWindow();
+          deps.adsorptionMgr.createAdsorptionWindow(false); // 传入 false 表示不显示
         }
-        // 启动吸附协调器
+        
+        const adsorptionWindow = deps.adsorptionMgr ? deps.adsorptionMgr.getAdsorptionWindow() : null;
+        
+        // 确保吸附窗口隐藏
+        if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
+          adsorptionWindow.hide();
+        }
+        
+        let miniWindowOptions = {};
+        
+        // 优先使用保存的位置
+        if (savedPosition && savedPosition.x !== undefined && savedPosition.y !== undefined) {
+          miniWindowOptions = { x: savedPosition.x, y: savedPosition.y };
+        } 
+        // 如果吸附窗口已存在，使用吸附窗口位置
+        else if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
+          const bounds = adsorptionWindow.getBounds();
+          miniWindowOptions = { x: bounds.x, y: bounds.y };
+        }
+        
+        // 创建任务栏小组件（传入位置参数）
+        if (deps.taskbarMgr && deps.taskbarMgr.createMiniWindow) {
+          deps.taskbarMgr.createMiniWindow(miniWindowOptions);
+        }
+        
+        // 启动吸附协调器（吸附窗口只在拖拽时显示）
         if (deps.adsorptionCoordinator && deps.adsorptionCoordinator.startMonitoring) {
           deps.adsorptionCoordinator.startMonitoring();
         }
       } else {
-        // 关闭：隐藏窗口
+        // 关闭：保存当前位置并隐藏窗口
         const miniWindow = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
         if (miniWindow && !miniWindow.isDestroyed()) {
+          const bounds = miniWindow.getBounds();
+          configManager.updateConfig('taskbarControlsPosition', { x: bounds.x, y: bounds.y });
           miniWindow.hide();
         }
+        
         const adsorptionWindow = deps.adsorptionMgr ? deps.adsorptionMgr.getAdsorptionWindow() : null;
         if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
           adsorptionWindow.hide();
         }
+        
         // 停止吸附协调器
         if (deps.adsorptionCoordinator && deps.adsorptionCoordinator.stopMonitoring) {
           deps.adsorptionCoordinator.stopMonitoring();

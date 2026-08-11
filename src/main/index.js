@@ -259,11 +259,32 @@ app.whenReady().then(() => {
   const taskbarControlsEnabled = config.taskbarControlsEnabled || false;
 
   if (taskbarControlsEnabled) {
-    // 创建 Taskbar Live Controls 窗口
-    taskbarMgr.createMiniWindow();
-
-    // 创建吸附窗口
+    // 获取保存的位置或吸附窗口位置
+    const savedPosition = config.taskbarControlsPosition;
+    
+    // 先创建吸附窗口（不显示）
     adsorptionMgr.createAdsorptionWindow();
+    const adsorptionWindow = adsorptionMgr.getAdsorptionWindow();
+    
+    // 确保吸附窗口立即隐藏
+    if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
+      adsorptionWindow.hide();
+    }
+    
+    let miniWindowOptions = {};
+    
+    // 优先使用保存的位置
+    if (savedPosition && savedPosition.x !== undefined && savedPosition.y !== undefined) {
+      miniWindowOptions = { x: savedPosition.x, y: savedPosition.y };
+    } 
+    // 如果吸附窗口已存在，使用吸附窗口位置
+    else if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
+      const bounds = adsorptionWindow.getBounds();
+      miniWindowOptions = { x: bounds.x, y: bounds.y };
+    }
+    
+    // 创建任务栏小组件窗口（传入位置参数）
+    taskbarMgr.createMiniWindow(miniWindowOptions);
 
     // 初始化吸附协调器
     adsorptionCoordinator.init({

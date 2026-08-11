@@ -84,8 +84,11 @@ function raiseToTop(force = false) {
 
 /**
  * 创建迷你窗口
+ * @param {Object} options - 创建选项
+ * @param {number} options.x - 窗口 x 坐标（可选，默认屏幕中心）
+ * @param {number} options.y - 窗口 y 坐标（可选，默认屏幕中心）
  */
-function createMiniWindow() {
+function createMiniWindow(options = {}) {
   if (miniWindow && !miniWindow.isDestroyed()) {
     miniWindow.show();
     startHoverWatcher();
@@ -98,11 +101,19 @@ function createMiniWindow() {
   const mouseDisplay = screen.getDisplayNearestPoint(cursorPoint);
   const mouseScreen = mouseDisplay.workArea;
 
-  // 在屏幕中心创建窗口
+  // 窗口尺寸
   const windowWidth = 388;
   const windowHeight = 40;
-  const x = Math.round(mouseScreen.x + (mouseScreen.width - windowWidth) / 2);
-  const y = Math.round(mouseScreen.y + (mouseScreen.height - windowHeight) / 2);
+
+  // 如果提供了坐标，使用提供的坐标；否则使用屏幕中心
+  let x, y;
+  if (options.x !== undefined && options.y !== undefined) {
+    x = options.x;
+    y = options.y;
+  } else {
+    x = Math.round(mouseScreen.x + (mouseScreen.width - windowWidth) / 2);
+    y = Math.round(mouseScreen.y + (mouseScreen.height - windowHeight) / 2);
+  }
 
   miniWindow = new BrowserWindow({
     x,

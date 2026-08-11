@@ -59,13 +59,16 @@ function raiseToTop() {
 
 /**
  * 创建吸附窗口
+ * @param {boolean} show - 是否立即显示，默认 false
  */
-function createAdsorptionWindow() {
+function createAdsorptionWindow(show = false) {
   if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
-    // 吸附窗口是被动落点提示，不参与焦点竞争：
-    // 抢焦点会把自己插到任务栏小组件之上，拖拽时看起来像压住了小组件
-    adsorptionWindow.showInactive();
-    refreshAdsorptionPosition();
+    if (show) {
+      // 吸附窗口是被动落点提示，不参与焦点竞争：
+      // 抢焦点会把自己插到任务栏小组件之上，拖拽时看起来像压住了小组件
+      adsorptionWindow.showInactive();
+      refreshAdsorptionPosition();
+    }
     return;
   }
 
@@ -98,7 +101,10 @@ function createAdsorptionWindow() {
   adsorptionWindow.loadFile(htmlPath);
 
   adsorptionWindow.once('ready-to-show', () => {
-    adsorptionWindow.show();
+    // 只有传入 show=true 时才显示
+    if (show) {
+      adsorptionWindow.show();
+    }
   });
 
   adsorptionWindow.on('close', (event) => {
