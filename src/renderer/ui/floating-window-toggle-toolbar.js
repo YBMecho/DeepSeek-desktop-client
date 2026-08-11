@@ -9,9 +9,10 @@
 
   let toggleButtonElement = null;
   let currentTooltip = null;
+  let isEnabled = false;
 
-  // 悬浮窗 SVG 图标
-  const FLOATING_WINDOW_SVG = `<svg t="1785783042990" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M921.6 12.8h-307.2A89.6 89.6 0 0 0 524.8 102.4v307.2c0 49.4592 40.1408 89.6 89.6 89.6h307.2A89.6 89.6 0 0 0 1011.2 409.6V102.4A89.6 89.6 0 0 0 921.6 12.8zM204.8 140.8h204.8a38.4 38.4 0 0 0 0-76.8H204.8A140.8 140.8 0 0 0 64 204.8v614.4A140.8 140.8 0 0 0 204.8 960h614.4A140.8 140.8 0 0 0 960 819.2v-204.8a38.4 38.4 0 0 0-76.8 0v204.8c0 35.328-28.672 64-64 64H204.8c-35.328 0-64-28.672-64-64V204.8c0-35.328 28.672-64 64-64zM601.6 102.4a12.8 12.8 0 0 1 12.8-12.8h307.2a12.8 12.8 0 0 1 12.8 12.8v307.2a12.8 12.8 0 0 1-12.8 12.8h-307.2a12.8 12.8 0 0 1-12.8-12.8V102.4z" fill="currentColor"></path></svg>`;
+  // 任务栏控制组件 SVG 图标
+  const TASKBAR_CONTROLS_SVG = `<svg t="1785783042990" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M921.6 12.8h-307.2A89.6 89.6 0 0 0 524.8 102.4v307.2c0 49.4592 40.1408 89.6 89.6 89.6h307.2A89.6 89.6 0 0 0 1011.2 409.6V102.4A89.6 89.6 0 0 0 921.6 12.8zM204.8 140.8h204.8a38.4 38.4 0 0 0 0-76.8H204.8A140.8 140.8 0 0 0 64 204.8v614.4A140.8 140.8 0 0 0 204.8 960h614.4A140.8 140.8 0 0 0 960 819.2v-204.8a38.4 38.4 0 0 0-76.8 0v204.8c0 35.328-28.672 64-64 64H204.8c-35.328 0-64-28.672-64-64V204.8c0-35.328 28.672-64 64-64zM601.6 102.4a12.8 12.8 0 0 1 12.8-12.8h307.2a12.8 12.8 0 0 1 12.8 12.8v307.2a12.8 12.8 0 0 1-12.8 12.8h-307.2a12.8 12.8 0 0 1-12.8-12.8V102.4z" fill="currentColor"></path></svg>`;
 
   /**
    * 创建工具提示
@@ -33,9 +34,10 @@
   /**
    * 显示工具提示
    */
-  function showTooltip(buttonElement, text) {
+  function showTooltip(buttonElement) {
     hideTooltip();
     const rect = buttonElement.getBoundingClientRect();
+    const text = isEnabled ? '关闭任务栏控制组件' : '开启任务栏控制组件';
     currentTooltip = createTooltip(text);
     
     const left = rect.left + rect.width / 2;
@@ -59,7 +61,35 @@
   }
 
   /**
-   * 创建悬浮窗切换按钮
+   * 更新按钮激活状态
+   */
+  function updateButtonState() {
+    if (!toggleButtonElement) return;
+    
+    // 切换激活样式
+    if (isEnabled) {
+      toggleButtonElement.classList.add('ds-button--active');
+    } else {
+      toggleButtonElement.classList.remove('ds-button--active');
+    }
+  }
+
+  /**
+   * 初始化：加载任务栏控制组件状态
+   */
+  async function initTaskbarControlsState() {
+    try {
+      if (window.electronAPI && window.electronAPI.getTaskbarControlsState) {
+        isEnabled = await window.electronAPI.getTaskbarControlsState();
+        updateButtonState();
+      }
+    } catch (error) {
+      console.error('[工具栏-任务栏控制] 加载状态失败:', error);
+    }
+  }
+
+  /**
+   * 创建任务栏控制组件切换按钮
    */
   function createToggleButton() {
     const button = document.createElement('div');
@@ -77,7 +107,7 @@
     const iconContainer = document.createElement('div');
     iconContainer.className = 'ds-icon';
     iconContainer.style.cssText = 'font-size: inherit;';
-    iconContainer.innerHTML = FLOATING_WINDOW_SVG;
+    iconContainer.innerHTML = TASKBAR_CONTROLS_SVG;
 
     iconWrapper.appendChild(iconContainer);
     button.appendChild(background);
@@ -85,14 +115,14 @@
 
     // 鼠标悬停显示提示
     button.addEventListener('mouseenter', () => {
-      showTooltip(button, '使用悬浮窗打开');
+      showTooltip(button);
     });
 
     button.addEventListener('mouseleave', () => {
       hideTooltip();
     });
 
-    // 点击切换悬浮窗
+    // 点击切换任务栏控制组件
     button.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -104,16 +134,19 @@
   }
 
   /**
-   * 处理切换悬浮窗
+   * 处理切换任务栏控制组件
    */
   async function handleToggle() {
     try {
-      const currentUrl = window.location.href;
-      if (window.electronAPI && window.electronAPI.toggleFloatingWindow) {
-        await window.electronAPI.toggleFloatingWindow(currentUrl);
+      if (window.electronAPI && window.electronAPI.toggleTaskbarControls) {
+        const result = await window.electronAPI.toggleTaskbarControls();
+        if (result.success) {
+          isEnabled = result.enabled;
+          updateButtonState();
+        }
       }
     } catch (error) {
-      console.error('[工具栏-悬浮窗按钮] 切换时出错:', error);
+      console.error('[工具栏-任务栏控制] 切换时出错:', error);
     }
   }
 
@@ -170,10 +203,22 @@
     }, 5000);
   }
 
+  // 监听任务栏控制组件状态变化（从主进程广播）
+  if (window.electronAPI && window.electronAPI.onTaskbarControlsStateChanged) {
+    window.electronAPI.onTaskbarControlsStateChanged((enabled) => {
+      isEnabled = enabled;
+      updateButtonState();
+    });
+  }
+
   // 页面加载完成后初始化
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startButtonInjection);
+    document.addEventListener('DOMContentLoaded', () => {
+      initTaskbarControlsState();
+      startButtonInjection();
+    });
   } else {
+    initTaskbarControlsState();
     startButtonInjection();
   }
 })();

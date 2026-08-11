@@ -243,6 +243,9 @@ app.whenReady().then(() => {
     floatingMgr,
     assetInjector,
     autoLaunchMgr,
+    taskbarMgr,
+    adsorptionMgr,
+    adsorptionCoordinator,
     registerHotkey,
     toggleWindow: toggleWindowWrapper,
     updateConfigNoRead
@@ -251,24 +254,40 @@ app.whenReady().then(() => {
   // 应用自启动设置
   autoLaunchMgr.applyAutoLaunchSetting(state.getAutoLaunch());
 
-  // 创建 Taskbar Live Controls 窗口
-  taskbarMgr.createMiniWindow();
+  // 读取配置，根据任务栏控制组件开关决定是否创建窗口
+  const config = configManager.loadConfig();
+  const taskbarControlsEnabled = config.taskbarControlsEnabled || false;
 
-  // 创建吸附窗口
-  adsorptionMgr.createAdsorptionWindow();
+  if (taskbarControlsEnabled) {
+    // 创建 Taskbar Live Controls 窗口
+    taskbarMgr.createMiniWindow();
 
-  // 初始化吸附协调器
-  adsorptionCoordinator.init({
-    getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
-    getMiniWindow: taskbarMgr.getMiniWindow,
-    startDragRegionHoverWatcher: taskbarMgr.startHoverWatcher,
-    stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher,
-    raiseMiniWindow: taskbarMgr.raiseToTop,
-    raiseAdsorptionWindow: adsorptionMgr.raiseToTop
-  });
+    // 创建吸附窗口
+    adsorptionMgr.createAdsorptionWindow();
 
-  // 启动吸附协调器监听
-  adsorptionCoordinator.startMonitoring();
+    // 初始化吸附协调器
+    adsorptionCoordinator.init({
+      getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
+      getMiniWindow: taskbarMgr.getMiniWindow,
+      startDragRegionHoverWatcher: taskbarMgr.startHoverWatcher,
+      stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher,
+      raiseMiniWindow: taskbarMgr.raiseToTop,
+      raiseAdsorptionWindow: adsorptionMgr.raiseToTop
+    });
+
+    // 启动吸附协调器监听
+    adsorptionCoordinator.startMonitoring();
+  } else {
+    // 即使不创建窗口，也需要初始化吸附协调器以备后续使用
+    adsorptionCoordinator.init({
+      getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
+      getMiniWindow: taskbarMgr.getMiniWindow,
+      startDragRegionHoverWatcher: taskbarMgr.startHoverWatcher,
+      stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher,
+      raiseMiniWindow: taskbarMgr.raiseToTop,
+      raiseAdsorptionWindow: adsorptionMgr.raiseToTop
+    });
+  }
 
   // 启动配置文件监听
   themeManager.watchConfigFile(

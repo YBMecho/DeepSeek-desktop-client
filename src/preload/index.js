@@ -69,5 +69,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setFloatingResetOption: (option) => ipcRenderer.invoke('set-floating-reset-option', option),
 
   // 切换悬浮窗
-  toggleFloatingWindow: (currentUrl) => ipcRenderer.invoke('toggle-floating-window', currentUrl)
+  toggleFloatingWindow: (currentUrl) => ipcRenderer.invoke('toggle-floating-window', currentUrl),
+
+  // 获取任务栏控制组件状态
+  getTaskbarControlsState: () => ipcRenderer.invoke('get-taskbar-controls-state'),
+
+  // 切换任务栏控制组件
+  toggleTaskbarControls: () => ipcRenderer.invoke('toggle-taskbar-controls'),
+
+  // 监听任务栏控制组件状态变化
+  onTaskbarControlsStateChanged: (callback) => {
+    const listener = (_event, enabled) => {
+      try { callback(enabled); } catch (e) {}
+    };
+    ipcRenderer.on('taskbar-controls-state-changed', listener);
+    return () => ipcRenderer.removeListener('taskbar-controls-state-changed', listener);
+  }
 });

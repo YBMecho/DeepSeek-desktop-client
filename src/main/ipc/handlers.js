@@ -20,6 +20,9 @@ const { ipcMain, BrowserWindow, nativeTheme } = require('electron');
  * @param {Object} deps.floatingMgr - 悬浮窗管理器
  * @param {Object} deps.assetInjector - 资源注入器
  * @param {Object} deps.autoLaunchMgr - 自启动管理器
+ * @param {Object} deps.taskbarMgr - 任务栏小组件管理器
+ * @param {Object} deps.adsorptionMgr - 吸附窗口管理器
+ * @param {Object} deps.adsorptionCoordinator - 吸附协调器
  * @param {Function} deps.registerHotkey - 快捷键注册函数
  * @param {Function} deps.updateConfigNoRead - 配置无读更新函数
  */
@@ -230,6 +233,72 @@ function registerHandlers(deps) {
       }
 
       return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取任务栏控制组件状态
+  ipcMain.handle('get-taskbar-controls-state', () => {
+    try {
+      const config = configManager.loadConfig();
+      return config.taskbarControlsEnabled || false;
+    } catch (error) {
+      return false;
+    }
+  });
+
+  // 切换任务栏控制组件
+  ipcMain.handle('toggle-taskbar-controls', () => {
+    try {
+      const config = configManager.loadConfig();
+      const currentState = config.taskbarControlsEnabled || false;
+      const newState = !currentState;
+
+      // 保存配置
+      configManager.updateConfig('taskbarControlsEnabled', newState);
+
+      // 广播状态变化到所有窗口
+      const mainWindow = state.getMainWindow();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('taskbar-controls-state-changed', newState);
+      }
+
+      const fw = floatingMgr.getFloatingWindow();
+      if (fw && !fw.isDestroyed()) {
+        fw.webContents.send('taskbar-controls-state-changed', newState);
+      }
+
+      // 根据状态显示或隐藏窗口
+      if (newState) {
+        // 开启：显示任务栏小组件和吸附窗口
+        if (deps.taskbarMgr && deps.taskbarMgr.createMiniWindow) {
+          deps.taskbarMgr.createMiniWindow();
+        }
+        if (deps.adsorptionMgr && deps.adsorptionMgr.createAdsorptionWindow) {
+          deps.adsorptionMgr.createAdsorptionWindow();
+        }
+        // 启动吸附协调器
+        if (deps.adsorptionCoordinator && deps.adsorptionCoordinator.startMonitoring) {
+          deps.adsorptionCoordinator.startMonitoring();
+        }
+      } else {
+        // 关闭：隐藏窗口
+        const miniWindow = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
+        if (miniWindow && !miniWindow.isDestroyed()) {
+          miniWindow.hide();
+        }
+        const adsorptionWindow = deps.adsorptionMgr ? deps.adsorptionMgr.getAdsorptionWindow() : null;
+        if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
+          adsorptionWindow.hide();
+        }
+        // 停止吸附协调器
+        if (deps.adsorptionCoordinator && deps.adsorptionCoordinator.stopMonitoring) {
+          deps.adsorptionCoordinator.stopMonitoring();
+        }
+      }
+
+      return { success: true, enabled: newState };
     } catch (error) {
       return { success: false, error: error.message };
     }

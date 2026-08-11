@@ -25,7 +25,8 @@ const defaultConfig = {
   replyNotifyEnabled: true, // 回复完成后系统通知开关，默认开启
   isFloatingWindowPinned: false, // 悬浮窗置顶状态，默认关闭
   autoLaunch: true, // 开机自启动，默认开启
-  floatingResetOption: '60min' // 悬浮窗重置选项，默认关闭后60分钟
+  floatingResetOption: '60min', // 悬浮窗重置选项，默认关闭后60分钟
+  taskbarControlsEnabled: false // 任务栏控制组件开关，默认关闭
 };
 
 /**
@@ -85,6 +86,11 @@ function loadConfig() {
       // 验证悬浮窗重置选项
       if (config.floatingResetOption && typeof config.floatingResetOption === 'string') {
         validatedConfig.floatingResetOption = config.floatingResetOption;
+      }
+
+      // 验证任务栏控制组件开关
+      if (typeof config.taskbarControlsEnabled === 'boolean') {
+        validatedConfig.taskbarControlsEnabled = config.taskbarControlsEnabled;
       }
       
       return validatedConfig;
