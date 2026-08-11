@@ -68,18 +68,27 @@
   };
 
   /**
-   * 把 SSE 事件折叠为当前片段列表
-   * 关键点：裸 {"v":"..."} 事件必须沿用上一次出现过的 content 路径
+   * 把 SSE 事件折叠为当前 RESPONSE 片段
+   * 核心逻辑：
+   *   1. 只跟踪 RESPONSE 片段内容，THINK 被 IPC 转发层过滤
+   *   2. fragments 数组维护所有片段，但只向外推送最后一个 RESPONSE
+   *   3. 裸 {"v":"..."} 必须有明确的 contentPath 可追加
    */
   function createReducer() {
     let fragments = [];
     let contentPath = '';
 
-    const last = () => fragments[fragments.length - 1];
+    const lastResponse = () => {
+      for (let i = fragments.length - 1; i >= 0; i--) {
+        if (fragments[i].type === 'RESPONSE') return fragments[i];
+      }
+      return null;
+    };
+
     const normalize = (f) => ({ type: f.type || 'RESPONSE', content: f.content || '' });
 
     const appendText = (text) => {
-      const target = last();
+      const target = lastResponse();
       if (!target) return null;
       target.content += text;
       return target;
@@ -88,31 +97,41 @@
     return function reduce(data) {
       if (!data || typeof data !== 'object') return null;
 
+      // 初始快照：覆盖片段列表
       if (data.v && typeof data.v === 'object' && !Array.isArray(data.v) && data.v.response) {
         const response = data.v.response;
         fragments = (response.fragments || []).map(normalize);
+        // 即使当前没有 RESPONSE，也要设 contentPath，APPEND 事件会补上
         contentPath = 'response/fragments/-1/content';
-        return { fragment: last(), isComplete: response.status === 'FINISHED' };
+        const target = lastResponse();
+        if (!target) return null; // 初始只有 THINK，等后续 APPEND
+        return { fragment: target, isComplete: response.status === 'FINISHED' };
       }
 
+      // 新增片段：追加到列表末尾，更新 contentPath 指向新片段
       if (data.p === 'response/fragments' && Array.isArray(data.v)) {
         data.v.forEach((f) => fragments.push(normalize(f)));
-        contentPath = 'response/fragments/-1/content';
-        return { fragment: last(), isComplete: false };
+        contentPath = 'response/fragments/-1/content'; // 新片段成为 -1
+        const target = lastResponse();
+        return target ? { fragment: target, isComplete: false } : null;
       }
 
+      // 完成信号
       if (data.p === 'response/status' && data.v === 'FINISHED') {
-        return { fragment: last(), isComplete: true };
+        const target = lastResponse();
+        return target ? { fragment: target, isComplete: true } : null;
       }
 
       if (typeof data.v !== 'string') return null;
 
+      // 带路径的增量：更新 contentPath 并追加
       if (typeof data.p === 'string' && data.p.slice(-8) === '/content') {
         contentPath = data.p;
         const fragment = appendText(data.v);
         return fragment ? { fragment, isComplete: false } : null;
       }
 
+      // 裸增量：沿用上一次 contentPath
       if (!data.p && contentPath.slice(-8) === '/content') {
         const fragment = appendText(data.v);
         return fragment ? { fragment, isComplete: false } : null;
