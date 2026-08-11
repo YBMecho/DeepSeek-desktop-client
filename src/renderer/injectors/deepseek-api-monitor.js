@@ -162,7 +162,13 @@
       }
 
       const result = reduce(data);
-      if (!result || !result.fragment) return;
+      if (!result || !result.fragment) {
+        // 调试：记录被跳过的事件
+        if (data.p || data.v) {
+          log('事件被跳过', JSON.stringify(data).slice(0, 100));
+        }
+        return;
+      }
 
       latest = result.fragment;
       if (result.isComplete) emitToMain(latest.content, latest.type, true);
