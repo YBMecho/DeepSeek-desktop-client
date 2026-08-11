@@ -22,18 +22,21 @@ let deps = {
   getMiniWindow: () => null,
   startDragRegionHoverWatcher: () => {},
   stopDragRegionHoverWatcher: () => {},
-  raiseMiniWindow: () => {}
+  raiseMiniWindow: () => {},
+  raiseAdsorptionWindow: () => {}
 };
 
 // 模块内部状态
 let isInProximity = false;
 let hoverWatcherTimer = null;
 let dragSession = null;
+let moveTick = 0;  // 拖拽中 handleMove 调用计数，用于 z-order 守卫
 
 // 常量
 const PROXIMITY_THRESHOLD = 20;  // 吸附距离阈值（像素）
 const HOVER_POLL_INTERVAL = 80;   // 悬停检测轮询间隔（毫秒）
 const TOP_GUARD_TICKS = 12;       // 每隔多少次轮询执行一次 z-order 守卫（≈1s）
+const DRAG_TOP_GUARD_TICKS = 5;   // 拖拽中 move 事件频率更高，更短的间隔（约 100ms）
 
 
 /**
@@ -238,6 +241,15 @@ function handleMove() {
     return;
   }
 
+  // 拖拽中的 z-order 守卫：Win+D 切换桌面再恢复时，系统会把 topmost 窗口降级，
+  // 但窗口仍处于 visible 状态，show() 路径不会被触发，只能在 move 事件里低频重设。
+  // 对小组件和吸附窗口都需要守卫，否则任何一个被压到任务栏下都会破坏拖拽体验。
+  moveTick += 1;
+  if (moveTick % DRAG_TOP_GUARD_TICKS === 0) {
+    deps.raiseMiniWindow();
+    deps.raiseAdsorptionWindow();
+  }
+
   const miniBounds = miniWin.getBounds();
   const adsorptionBounds = adsorptionWin.getBounds();
   const distance = calculateDistance(miniBounds, adsorptionBounds);
@@ -316,6 +328,7 @@ function handleDragEnd() {
 function handleDragStart() {
   releaseAdsorbedState();
   isInProximity = false;
+  moveTick = 0;  // 重置拖拽中的 z-order 守卫计数
   showAdsorptionWindow();
 }
 
