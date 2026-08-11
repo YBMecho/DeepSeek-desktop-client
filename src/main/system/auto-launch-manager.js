@@ -15,11 +15,21 @@ const { app } = require('electron');
 function applyAutoLaunchSetting(autoLaunch) {
   try {
     app.setLoginItemSettings({
-      openAtLogin: autoLaunch
+      openAtLogin: autoLaunch,
+      args: autoLaunch ? ['--silent-start'] : []
     });
   } catch (error) {}
 }
 
+/**
+ * 检测是否通过开机自启动参数启动
+ * @returns {boolean}
+ */
+function wasLaunchedByAutoStart() {
+  return process.argv.includes('--silent-start');
+}
+
 module.exports = {
-  applyAutoLaunchSetting
+  applyAutoLaunchSetting,
+  wasLaunchedByAutoStart
 };

@@ -14,7 +14,20 @@
     "start:trace": "set NODE_OPTIONS=--trace-deprecation && electron-forge start",
     "test": "npm start",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "build": "node build.js",
+    "build:all": "node build.js all",
+    "build:squirrel": "node build.js squirrel",
+    "build:inno": "node build.js inno",
+    "build:package": "node build.js package",
+    "build:inno:proxy": "node build.js inno 127.0.0.1:10808",
+    "build:squirrel:proxy": "node build.js squirrel 127.0.0.1:10808",
+    "build:all:proxy": "node build.js all 127.0.0.1:10808",
+    "iss:show": "node build.js iss:show",
+    "iss:set": "node build.js iss:set",
+    "config:show": "node build.js config:show",
+    "config:clear": "node build.js config:clear",
+    "build:help": "node build.js --help"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.8.3",

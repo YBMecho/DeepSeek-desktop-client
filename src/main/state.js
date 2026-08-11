@@ -16,6 +16,7 @@ let hotkeyRegistered = false;
 let closeBehavior = constants.DEFAULT_CONFIG.closeBehavior;
 let replyNotifyEnabled = constants.DEFAULT_CONFIG.replyNotifyEnabled;
 let autoLaunch = constants.DEFAULT_CONFIG.autoLaunch;
+let silentAutoLaunch = constants.DEFAULT_CONFIG.silentAutoLaunch;
 let isQuitting = false;
 let areAllWindowsHidden = false;
 const previouslyVisibleWindowIds = new Set();
@@ -41,6 +42,9 @@ module.exports = {
 
   getAutoLaunch: () => autoLaunch,
   setAutoLaunch: (v) => { autoLaunch = v; },
+
+  getSilentAutoLaunch: () => silentAutoLaunch,
+  setSilentAutoLaunch: (v) => { silentAutoLaunch = v; },
 
   getIsQuitting: () => isQuitting,
   setIsQuitting: (v) => { isQuitting = v; },

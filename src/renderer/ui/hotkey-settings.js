@@ -37,6 +37,10 @@
   let autoLaunchToggleContainer = null;
   let autoLaunchToggleInput = null;
 
+  let currentSilentAutoLaunch = true;
+  let silentAutoLaunchToggleContainer = null;
+  let silentAutoLaunchToggleInput = null;
+
   // ponytail: 包裹"快捷键 + 关闭行为"两行的容器节点，用于跟随 tab 显隐。
   // 原网页切 tab 时整体面板不会被销毁，只会切 hidden/visible，所以我们注入
   // 的两行如果不显隐控制，就会跟着别的 tab 一起显示。
@@ -210,6 +214,12 @@
       existingAutoLaunch.remove();
     }
 
+    // 移除开机静默启动开关设置
+    const existingSilentAutoLaunch = document.querySelector('.silent-auto-launch-setting-flex');
+    if (existingSilentAutoLaunch) {
+      existingSilentAutoLaunch.remove();
+    }
+
     // 移除悬浮窗重置设置
     const existingFloatingReset = document.querySelector('.floating-reset-setting-flex');
     if (existingFloatingReset) {
@@ -238,6 +248,8 @@
     replyNotifyToggleInput = null;
     autoLaunchToggleContainer = null;
     autoLaunchToggleInput = null;
+    silentAutoLaunchToggleContainer = null;
+    silentAutoLaunchToggleInput = null;
     // ponytail: 解绑主进程推送的事件订阅，避免设置面板反复打开/销毁/重建时累积监听器。
     if (unsubscribeNativeTheme) {
       try { unsubscribeNativeTheme(); } catch (e) {}
@@ -401,6 +413,9 @@
     // 创建开机自启动开关（紧跟回复通知开关那一行）
     const replyNotifyContainer = hotkeyContainer.parentNode.querySelector('.reply-notify-setting-flex');
     createAutoLaunchToggle(replyNotifyContainer || floatingResetContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
+
+    const autoLaunchContainer = hotkeyContainer.parentNode.querySelector('.auto-launch-setting-flex');
+    createSilentAutoLaunchToggle(autoLaunchContainer || replyNotifyContainer || floatingResetContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
 
     // 所有设置行创建完毕后，才根据当前 tab 状态同步显隐（含行级分流与遮蔽解除）
     syncHotkeySectionVisibility();
@@ -1333,6 +1348,92 @@
     }
   }
 
+  function createSilentAutoLaunchToggle(referenceContainer) {
+    const container = document.createElement('div');
+    container.className = 'ds-flex _50b3d9e silent-auto-launch-setting-flex general-tab-row';
+    container.style.cssText = `
+      padding: 12px 0px;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      display: flex;
+    `;
+
+    const label = document.createElement('span');
+    label.textContent = '开机静默启动';
+
+    const wrapper = document.createElement('label');
+    wrapper.className = 'reply-notify-toggle';
+    wrapper.setAttribute('role', 'switch');
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = !!currentSilentAutoLaunch;
+    input.addEventListener('change', handleSilentAutoLaunchToggleChange);
+
+    const slider = document.createElement('span');
+    slider.className = 'reply-notify-toggle__slider';
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(slider);
+
+    silentAutoLaunchToggleContainer = wrapper;
+    silentAutoLaunchToggleInput = input;
+    wrapper.setAttribute('aria-checked', String(input.checked));
+
+    container.appendChild(label);
+    container.appendChild(wrapper);
+
+    const parent = referenceContainer.parentNode;
+    const ref = referenceContainer.nextSibling;
+    if (ref) {
+      parent.insertBefore(container, ref);
+    } else {
+      parent.appendChild(container);
+    }
+  }
+
+  // 处理开机静默启动开关切换
+  async function handleSilentAutoLaunchToggleChange(event) {
+    const enabled = !!event.target.checked;
+    try {
+      if (window.electronAPI && window.electronAPI.setSilentAutoLaunch) {
+        const result = await window.electronAPI.setSilentAutoLaunch(enabled);
+        if (result && result.success) {
+          currentSilentAutoLaunch = !!result.silentAutoLaunch;
+          if (silentAutoLaunchToggleContainer) {
+            silentAutoLaunchToggleContainer.setAttribute('aria-checked', String(currentSilentAutoLaunch));
+          }
+        } else {
+          console.error('开机静默启动开关更新失败:', result && result.error);
+          event.target.checked = currentSilentAutoLaunch;
+        }
+      } else {
+        event.target.checked = currentSilentAutoLaunch;
+      }
+    } catch (error) {
+      console.error('保存开机静默启动开关时出错:', error);
+      event.target.checked = currentSilentAutoLaunch;
+    }
+  }
+
+  // 加载当前开机静默启动开关
+  async function loadCurrentSilentAutoLaunch() {
+    try {
+      if (window.electronAPI && window.electronAPI.getSilentAutoLaunch) {
+        currentSilentAutoLaunch = !!(await window.electronAPI.getSilentAutoLaunch());
+        if (silentAutoLaunchToggleInput) {
+          silentAutoLaunchToggleInput.checked = currentSilentAutoLaunch;
+        }
+        if (silentAutoLaunchToggleContainer) {
+          silentAutoLaunchToggleContainer.setAttribute('aria-checked', String(currentSilentAutoLaunch));
+        }
+      }
+    } catch (error) {
+      console.error('加载开机静默启动开关时出错:', error);
+    }
+  }
+
   // 处理开机自启动开关切换
   async function handleAutoLaunchToggleChange(event) {
     const enabled = !!event.target.checked;
@@ -1675,6 +1776,42 @@
   }
   
   // 监听页面变化和标签页切换
+  let settingsModalOpen = false;
+
+  function showSaveSuccessToast() {
+    const existing = document.querySelector('.ds-toast-save-success');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'ds-toast-save-success';
+    toast.textContent = '设置已保存';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 99999;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+      });
+    });
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
+  }
+
   function observeSettingsModal() {
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -1684,6 +1821,7 @@
             if (node.querySelector && node.querySelector('.ds-modal-content__title')) {
               const title = node.querySelector('.ds-modal-content__title');
               if (title && title.textContent.includes('系统设置')) {
+                settingsModalOpen = true;
                 // 立即创建，避免设置面板先只显示语言一行再闪出快捷键
                 createHotkeySettings();
                 addTabClickListeners();
@@ -1692,17 +1830,32 @@
             // 检查子节点中是否包含设置弹窗
             const settingsModal = node.querySelector('.ds-modal-content__title');
             if (settingsModal && settingsModal.textContent.includes('系统设置')) {
+              settingsModalOpen = true;
               createHotkeySettings();
               addTabClickListeners();
             }
-            
+
             // 监听标签页选中状态变化
             if (node.classList && node.classList.contains('ds-segmented-button--selected')) {
               handleTabSwitch();
             }
           }
         });
-        
+
+        // 检测弹窗关闭（节点被移除）
+        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+          mutation.removedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const hadModal = node.querySelector && node.querySelector('.ds-modal-content__title');
+              const isModal = node.classList && node.classList.contains('ds-modal');
+              if ((hadModal || isModal) && settingsModalOpen) {
+                settingsModalOpen = false;
+                showSaveSuccessToast();
+              }
+            }
+          });
+        }
+
         // 监听属性变化（标签页选中状态）
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
           const target = mutation.target;
@@ -1712,7 +1865,7 @@
         }
       });
     });
-    
+
     observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -1723,6 +1876,7 @@
     // 页面加载后立即检查是否存在设置弹窗（不延迟：弹窗存在就立刻创建）
     const existingModal = document.querySelector('.ds-modal-content__title');
     if (existingModal && existingModal.textContent.includes('系统设置')) {
+      settingsModalOpen = true;
       createHotkeySettings();
       addTabClickListeners();
     }
@@ -1824,6 +1978,9 @@
 
     // 加载当前开机自启动开关
     loadCurrentAutoLaunch();
+
+    // 加载当前开机静默启动开关
+    loadCurrentSilentAutoLaunch();
 
     // 加载悬浮窗重置设置
     if (window.__floatingResetModule && window.__floatingResetModule.loadCurrentFloatingResetOption) {
