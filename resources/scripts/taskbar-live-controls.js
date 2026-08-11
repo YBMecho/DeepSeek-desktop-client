@@ -31,8 +31,10 @@
   };
 
   const scrollToBottom = () => {
-    // 自动滚动到底部，显示最新内容
-    container.scrollTop = container.scrollHeight;
+    // 只有内容真正溢出容器时才滚动，未溢出时让 CSS 的 justify-content: center 居中生效
+    if (container.scrollHeight > container.clientHeight) {
+      container.scrollTop = container.scrollHeight;
+    }
   };
 
   const stopTyping = () => {

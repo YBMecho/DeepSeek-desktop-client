@@ -92,13 +92,13 @@ body.adsorbed.hover .drag-handle {
   top: 0;
   right: 0;
   bottom: 0;
-  padding: 8px 12px;
-  overflow-y: auto;  /* 允许垂直滚动 */
+  padding: 0 12px;
+  overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;  /* 内容贴底部对齐，显示最新内容 */
-  scroll-behavior: smooth;  /* 平滑滚动 */
+  justify-content: center;
+  scroll-behavior: smooth;
 }
 
 /* 隐藏滚动条但保持滚动功能 */
