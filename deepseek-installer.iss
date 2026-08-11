@@ -43,5 +43,15 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
+[Registry]
+Root: HKCR; Subkey: "*\shell\SendToDeepSeek"; ValueType: string; ValueName: ""; ValueData: "发送到 DeepSeek"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "*\shell\SendToDeepSeek"; ValueType: string; ValueName: "SubCommands"; ValueData: "dsquick;dsExpert;dsImage"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "*\shell\SendToDeepSeek\shell\dsquick"; ValueType: string; ValueName: ""; ValueData: "快速模式"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "*\shell\SendToDeepSeek\shell\dsquick\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"" ""--mode=quick"""; Flags: uninsdeletekey
+Root: HKCR; Subkey: "*\shell\SendToDeepSeek\shell\dsExpert"; ValueType: string; ValueName: ""; ValueData: "专家模式"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "*\shell\SendToDeepSeek\shell\dsExpert\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"" ""--mode=expert"""; Flags: uninsdeletekey
+Root: HKCR; Subkey: "*\shell\SendToDeepSeek\shell\dsImage"; ValueType: string; ValueName: ""; ValueData: "识图模式"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "*\shell\SendToDeepSeek\shell\dsImage\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"" ""--mode=image"""; Flags: uninsdeletekey
+
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"

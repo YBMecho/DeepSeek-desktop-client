@@ -73,5 +73,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setFloatingResetOption: (option) => ipcRenderer.invoke('set-floating-reset-option', option),
 
   // 切换悬浮窗
-  toggleFloatingWindow: (currentUrl) => ipcRenderer.invoke('toggle-floating-window', currentUrl)
+  toggleFloatingWindow: (currentUrl) => ipcRenderer.invoke('toggle-floating-window', currentUrl),
+
+  // 获取默认对话模式
+  getDefaultMode: () => ipcRenderer.invoke('get-default-mode'),
+
+  // 设置默认对话模式
+  setDefaultMode: (mode) => ipcRenderer.invoke('set-default-mode', mode),
+
+  // 获取右键菜单开关状态
+  getContextMenuEnabled: () => ipcRenderer.invoke('get-context-menu-enabled'),
+
+  // 设置右键菜单开关
+  setContextMenuEnabled: (enabled) => ipcRenderer.invoke('set-context-menu-enabled', enabled),
+
+  // 读取文件并转为 base64
+  readFileAsBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
+
+  // 监听主进程发送的文件路径（右键菜单触发）
+  onFileReceived: (callback) => {
+    const listener = (_event, payload) => {
+      try { callback(payload); } catch (e) {}
+    };
+    ipcRenderer.on('file-received', listener);
+    return () => ipcRenderer.removeListener('file-received', listener);
+  }
 });

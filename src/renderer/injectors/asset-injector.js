@@ -68,6 +68,36 @@ function injectCustomAssets(targetWindow, floatingWindow) {
     targetWindow.webContents.executeJavaScript(settingsMenuHotkeyJs).catch(() => {});
   } catch (e) {}
 
+  // 注入默认模式设置JavaScript
+  const defaultModeJsPath = path.join(constants.RENDERER_UI_DIR, 'default-mode-settings.js');
+  try {
+    const defaultModeJs = fs.readFileSync(defaultModeJsPath, 'utf8');
+    targetWindow.webContents.executeJavaScript(defaultModeJs).catch(() => {});
+  } catch (e) {}
+
+  // 注入文件接收功能JavaScript
+  const fileReceiverJsPath = path.join(constants.RENDERER_UI_DIR, 'file-receiver.js');
+  try {
+    const fileReceiverJs = fs.readFileSync(fileReceiverJsPath, 'utf8');
+    targetWindow.webContents.executeJavaScript(fileReceiverJs).catch(() => {});
+  } catch (e) {}
+
+  // 注入新对话按钮tooltip JavaScript
+  const newChatTooltipJsPath = path.join(constants.RENDERER_UI_DIR, 'new-chat-tooltip.js');
+  try {
+    const newChatTooltipJs = fs.readFileSync(newChatTooltipJsPath, 'utf8');
+    const wrapped = `(() => {
+  try {
+    if (window.__DS_NEW_CHAT_TOOLTIP_LOADED__) {
+      return;
+    }
+    window.__DS_NEW_CHAT_TOOLTIP_LOADED__ = true;
+  } catch (e) {}
+})();
+` + newChatTooltipJs;
+    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+  } catch (e) {}
+
   // 注入悬浮窗切换按钮JavaScript
   if (targetWindow === floatingWindow) {
     // 悬浮窗：注入悬浮窗专用按钮（侧边栏）+ 置顶按钮

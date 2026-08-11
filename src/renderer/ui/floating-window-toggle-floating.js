@@ -129,7 +129,6 @@
         
         const toggleButton = createToggleButton(true);
         targetPosition.parentNode.insertBefore(toggleButton, targetPosition);
-        console.log('[悬浮窗-悬浮窗按钮] 侧边栏注入成功');
         return true;
       }
     }
@@ -150,7 +149,6 @@
     if (pinButton) {
       const toggleButton = createToggleButton(false);
       pinButton.parentNode.insertBefore(toggleButton, pinButton.nextSibling);
-      console.log('[悬浮窗-悬浮窗按钮] 工具栏注入成功（置顶按钮右侧）');
       return true;
     }
     return false;
@@ -164,7 +162,6 @@
   }
 
   function startButtonInjection() {
-    console.log('[悬浮窗-悬浮窗按钮] 启动注入服务');
     injectToggleButtons();
 
     let injectionTimer = null;
@@ -190,11 +187,9 @@
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('[悬浮窗-悬浮窗按钮] DOMContentLoaded');
       startButtonInjection();
     });
   } else {
-    console.log('[悬浮窗-悬浮窗按钮] DOM已就绪');
     startButtonInjection();
   }
 })();

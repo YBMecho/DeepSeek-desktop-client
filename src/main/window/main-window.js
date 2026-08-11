@@ -8,7 +8,7 @@
  *   - 应用加载的配置到窗口（主题、快捷键、自启动等）
  */
 
-const { BrowserWindow, Menu, shell, nativeTheme } = require('electron');
+const { BrowserWindow, Menu, shell, nativeTheme, globalShortcut } = require('electron');
 const constants = require('../../common/constants');
 const { setupSplashScreen } = require('./splash-screen');
 
@@ -230,6 +230,18 @@ function createWindow(deps) {
 
   // 注册认证页跳转重注入监听
   deps.assetInjector.setupReinjectOnAuthNavigation(mainWindow, deps.floatingMgr.getFloatingWindow());
+
+  // 注册 F12 打开开发者工具
+  const f12Ret = globalShortcut.register('F12', () => {
+    const win = state.getMainWindow();
+    if (win && !win.isDestroyed()) {
+      if (win.webContents.isDevToolsOpened()) {
+        win.webContents.closeDevTools();
+      } else {
+        win.webContents.openDevTools({ mode: 'detach' });
+      }
+    }
+  });
 
   state.setMainWindow(mainWindow);
   return mainWindow;

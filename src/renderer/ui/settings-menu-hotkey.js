@@ -291,15 +291,11 @@
         return /通用设置|账号管理|数据管理|服务协议/.test(text);
       });
 
-    console.log('[快捷键设置] 找到的菜单按钮数量:', buttons.length);
-
     if (buttons.length === 0) return null;
 
     // 找到这些按钮的共同父容器
     const parent = buttons[0].parentElement;
-    console.log('[快捷键设置] 父容器:', parent, '类名:', parent?.className);
-    
-    // 不限制特定的class，只要是这些按钮的父容器就行
+
     return parent;
   }
 
@@ -310,7 +306,7 @@
     // 查找设置菜单容器
     const menuContainer = findSettingsMenuContainer();
     if (!menuContainer) {
-      console.log('[快捷键设置] 未找到设置菜单容器');
+  
       return false;
     }
 
@@ -321,14 +317,14 @@
     if (existingButton) {
       // 设置弹窗重建后 DOM 是全新的，旧 tab 状态（高亮/隐藏）不应残留
       if (existingButton !== hotkeyMenuButton) resetTabState();
-      console.log('[快捷键设置] 菜单中已存在快捷键设置按钮，跳过注入');
+
       hotkeyMenuButton = existingButton; // 保存引用
       return true;
     }
 
     // 检查是否已经注入
     if (hotkeyMenuButton && hotkeyMenuButton.parentElement) {
-      console.log('[快捷键设置] 菜单按钮已存在（通过变量引用）');
+
       return true;
     }
 
@@ -347,7 +343,7 @@
       menuContainer.insertBefore(hotkeyMenuButton, menuContainer.firstChild);
     }
 
-    console.log('[快捷键设置] 菜单按钮注入成功');
+
     return true;
   }
 
