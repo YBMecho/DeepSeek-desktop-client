@@ -83,8 +83,17 @@
           targetText = cleanContent;
           if (!typingTimer) typeNextChar();
         } else {
-          // 内容类型切换（如 THINK → RESPONSE）：目标文本非追加关系，重新开始
-          startTyping(cleanContent);
+          // 内容类型切换（如 THINK → RESPONSE）：等待当前打字完成后再切换
+          const switchWhenReady = () => {
+            if (currentIndex >= targetText.length || !typingTimer) {
+              // 当前内容已打完或没有打字动画在运行，可以切换
+              startTyping(cleanContent);
+            } else {
+              // 还在打字，100ms 后再检查
+              setTimeout(switchWhenReady, 100);
+            }
+          };
+          switchWhenReady();
         }
       }
     }
