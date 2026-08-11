@@ -234,6 +234,13 @@ function stopAdsorbedHoverWatcher() {
 }
 
 /**
+ * 启动固定状态悬停检测（供外部调用）
+ */
+function startAdsorbedHoverWatcherExternal() {
+  startAdsorbedHoverWatcher();
+}
+
+/**
  * 处理拖拽移动事件
  */
 function handleMove() {
@@ -378,5 +385,6 @@ function stopMonitoring() {
 module.exports = {
   init,
   startMonitoring,
-  stopMonitoring
+  stopMonitoring,
+  startAdsorbedHoverWatcher: startAdsorbedHoverWatcherExternal
 };

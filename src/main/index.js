@@ -272,15 +272,25 @@ app.whenReady().then(() => {
     }
     
     let miniWindowOptions = {};
+    let shouldApplyAdsorbedStyle = false;
     
     // 优先使用保存的位置
     if (savedPosition && savedPosition.x !== undefined && savedPosition.y !== undefined) {
       miniWindowOptions = { x: savedPosition.x, y: savedPosition.y };
+      
+      // 检查保存的位置是否与吸附窗口位置一致
+      if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
+        const adsorbBounds = adsorptionWindow.getBounds();
+        if (savedPosition.x === adsorbBounds.x && savedPosition.y === adsorbBounds.y) {
+          shouldApplyAdsorbedStyle = true;
+        }
+      }
     } 
     // 如果吸附窗口已存在，使用吸附窗口位置
     else if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
       const bounds = adsorptionWindow.getBounds();
       miniWindowOptions = { x: bounds.x, y: bounds.y };
+      shouldApplyAdsorbedStyle = true; // 使用吸附窗口位置时应用固定样式
     }
     
     // 创建任务栏小组件窗口（传入位置参数）
@@ -295,6 +305,26 @@ app.whenReady().then(() => {
       raiseMiniWindow: taskbarMgr.raiseToTop,
       raiseAdsorptionWindow: adsorptionMgr.raiseToTop
     });
+
+    // 如果窗口应该在吸附位置，应用固定样式
+    if (shouldApplyAdsorbedStyle) {
+      // 延迟应用样式，等待窗口完全加载
+      setTimeout(() => {
+        const miniWin = taskbarMgr.getMiniWindow();
+        if (miniWin && !miniWin.isDestroyed()) {
+          miniWin.webContents.executeJavaScript(`
+            (() => {
+              document.body.classList.add('adsorbed');
+              document.body.classList.remove('hover');
+            })();
+          `).catch(() => {});
+        }
+        // 设置全局状态
+        state.setIsTaskbarControlsAdsorbed(true);
+        // 启动固定状态悬停检测
+        adsorptionCoordinator.startAdsorbedHoverWatcher();
+      }, 500); // 等待窗口加载完成
+    }
 
     // 启动吸附协调器监听
     adsorptionCoordinator.startMonitoring();
