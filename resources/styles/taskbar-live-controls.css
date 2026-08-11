@@ -123,9 +123,7 @@ body.adsorbed.hover .drag-handle {
   display: none;
 }
 
-/* 完成状态：稍微增加亮度 */
+/* 完成状态：保持原有白色，不做变色 */
 .content-text.complete {
   opacity: 1;
-  color: #4ade80;
-  transition: color 0.3s ease;
 }
