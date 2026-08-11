@@ -92,23 +92,21 @@ body.adsorbed.hover .drag-handle {
   top: 0;
   right: 0;
   bottom: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
+  padding: 8px 12px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;  /* 内容贴底部对齐，显示最新内容 */
 }
 
 .content-text {
-  flex: 1;
   color: #ffffff;
   font-size: 13px;
   line-height: 1.4;
-  white-space: normal;  /* 允许换行 */
-  word-break: break-word;  /* 长单词自动换行 */
+  white-space: normal;
+  word-break: break-word;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;  /* 最多显示 2 行 */
+  max-height: 100%;  /* 限制最大高度不超过容器 */
   opacity: 0.9;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }

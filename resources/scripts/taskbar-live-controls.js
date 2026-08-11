@@ -27,8 +27,6 @@
     // 清理末尾的换行符和空白字符，防止内容被隐藏
     const cleanText = typeof text === 'string' ? text.trim() : '';
     element.textContent = cleanText;
-    // 单行容器内保持视口贴住最新字符，模拟打字机跟随
-    element.scrollLeft = element.scrollWidth;
   };
 
   ipcRenderer.on('deepseek-content-update', (event, data) => {
