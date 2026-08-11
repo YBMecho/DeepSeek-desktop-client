@@ -45,6 +45,7 @@ const { registerHotkey, unregisterAll } = require('./system/hotkey');
 const { toggleWindow } = require('./window/window-toggle');
 const { createWindow, createNewWindow } = require('./window/main-window');
 const { registerHandlers } = require('./ipc/handlers');
+const contextMenuMgr = require('./system/context-menu-manager');
 
 // ---- 配置内存快照（供 updateConfigNoRead 使用）----
 function getCurrentConfigState() {
@@ -95,22 +96,67 @@ function toggleWindowWrapper() {
   });
 }
 
-// ---- 单例锁 ----
-const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
-  app.quit();
-} else {
-  app.on('second-instance', () => {
-    const mainWindow = state.getMainWindow();
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-      state.setIsWindowHidden(false);
-      trayManager.destroyTray();
+// ---- 解析命令行参数（右键菜单传入的文件路径和模式）----
+function parseFileArgs(argv) {
+  let filePath = null;
+  let mode = null;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--mode' && argv[i + 1]) {
+      mode = argv[i + 1];
+    } else if (arg.startsWith('--mode=')) {
+      mode = arg.substring('--mode='.length);
+    } else if (!arg.startsWith('--') && !arg.includes('electron') && !arg.includes('node')) {
+      if (filePath === null && arg.length > 2 && (arg[1] === ':' || arg.startsWith('\\\\'))) {
+        filePath = arg;
+      }
     }
-  });
+  }
+  if (filePath) {
+    return { filePath, mode: mode || 'quick' };
+  }
+  return null;
 }
+
+// ---- 转发文件到渲染进程 ----
+function sendFileToRenderer(fileInfo) {
+  const mainWindow = state.getMainWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.webContents.isLoading()) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        mainWindow.webContents.send('file-received', fileInfo);
+      });
+    } else {
+      mainWindow.webContents.send('file-received', fileInfo);
+    }
+  }
+}
+
+    // ---- 单例锁 ----
+    const gotTheLock = app.requestSingleInstanceLock();
+    if (!gotTheLock) {
+      const fileInfo = parseFileArgs(process.argv);
+      if (fileInfo) {
+        // 尝试通过命令行传给已运行的实例（简化处理）
+      }
+      app.quit();
+    } else {
+      app.on('second-instance', (event, argv) => {
+        const fileInfo = parseFileArgs(argv);
+        if (fileInfo) {
+          sendFileToRenderer(fileInfo);
+        }
+
+        const mainWindow = state.getMainWindow();
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+          state.setIsWindowHidden(false);
+          trayManager.destroyTray();
+        }
+      });
+    }
 
 // ---- 应用就绪 ----
 app.whenReady().then(() => {
@@ -149,7 +195,7 @@ app.whenReady().then(() => {
         showSaveImageAs: true,
         showCopyLink: true,
         showSaveLinkAs: false,
-        showInspectElement: false,
+        showInspectElement: true,
         prepend: (defaultActions, parameters, browserWindow) => {
           const isBlankArea = !parameters.hasImageContents &&
                               !parameters.linkURL &&
@@ -266,8 +312,28 @@ app.whenReady().then(() => {
     autoLaunchMgr,
     registerHotkey,
     toggleWindow: toggleWindowWrapper,
-    updateConfigNoRead
+    updateConfigNoRead,
+    contextMenuMgr
   });
+
+  // 处理首次启动时右键菜单传入的文件
+  const initialFileInfo = parseFileArgs(process.argv);
+  if (initialFileInfo) {
+    const mainWindow = state.getMainWindow();
+    if (mainWindow) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        mainWindow.webContents.send('file-received', initialFileInfo);
+      });
+    }
+  }
+
+  // 根据配置同步右键菜单注册状态
+  const config = configManager.loadConfig();
+  if (config.contextMenuEnabled !== false) {
+    if (!contextMenuMgr.isContextMenuRegistered()) {
+      contextMenuMgr.registerContextMenu();
+    }
+  }
 });
 
 // ---- 生命周期事件 ----

@@ -13,11 +13,55 @@
   ];
 
   // 当前重置设置
-  let currentResetOption = '60min';
-  let resetSelectContainer = null;
-  let resetDisplay = null;
-  let resetMenuWrapper = null;
-  let isResetMenuOpen = false;
+   let currentResetOption = '60min';
+   let resetSelectContainer = null;
+   let resetDisplay = null;
+   let resetMenuWrapper = null;
+   let isResetMenuOpen = false;
+   let currentTooltip = null;
+
+  function createTooltip(text) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ds-floating-position-wrapper ds-theme';
+    wrapper.setAttribute('data-transform-origin', 'top');
+    wrapper.style.cssText = 'z-index: 1024; position: fixed;';
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'ds-tooltip ds-tooltip--s ds-tooltip--tooltip ds-elevated ds-theme';
+    tooltip.textContent = text;
+
+    wrapper.appendChild(tooltip);
+    return wrapper;
+  }
+
+  function isElementVisible(el) {
+    const rect = el.getBoundingClientRect();
+    return rect.right > 0 && rect.left < window.innerWidth && rect.bottom > 0 && rect.top < window.innerHeight;
+  }
+
+  function showTooltip(buttonElement, text) {
+    hideTooltip();
+    if (!isElementVisible(buttonElement)) return;
+    const rect = buttonElement.getBoundingClientRect();
+    currentTooltip = createTooltip(text);
+    document.body.appendChild(currentTooltip);
+
+    const tooltipWidth = currentTooltip.offsetWidth;
+    const viewportWidth = window.innerWidth;
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+    left = Math.max(8, Math.min(left, viewportWidth - tooltipWidth - 8));
+
+    currentTooltip.style.left = `${left}px`;
+    currentTooltip.style.top = `${rect.bottom + 8}px`;
+    currentTooltip.style.transform = '';
+  }
+
+  function hideTooltip() {
+    if (currentTooltip && currentTooltip.parentNode) {
+      currentTooltip.remove();
+      currentTooltip = null;
+    }
+  }
 
   // 创建重置设置区域
   function createFloatingResetSettings(referenceContainer) {
@@ -40,6 +84,14 @@
     selectContainer.className = 'e311289c ds-select ds-select--filled ds-select--none ds-select--m floating-reset-select';
     selectContainer.setAttribute('tabindex', '0');
     resetSelectContainer = selectContainer;
+
+    selectContainer.addEventListener('mouseenter', () => {
+      showTooltip(selectContainer, '选择重置为新对话的时机');
+    });
+
+    selectContainer.addEventListener('mouseleave', () => {
+      hideTooltip();
+    });
 
     // 当前值显示
     resetDisplay = document.createElement('div');

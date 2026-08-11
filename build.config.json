@@ -5,5 +5,5 @@
   "noDesktopIcon": false,
   "noAutoLaunch": false,
   "lang": "english",
-  "lastCommand": "inno"
+  "lastCommand": "config:show"
 }

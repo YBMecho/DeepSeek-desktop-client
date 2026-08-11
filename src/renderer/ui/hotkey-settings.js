@@ -275,7 +275,7 @@
         // ponytail: 传递 source 参数，让 forceApplyTheme 知道是否应该点击"跟随系统"
         forceApplyTheme(payload.isDark, payload.source);
       });
-      console.log('已订阅主进程主题更新');
+
       
       // ponytail: 订阅后立即主动获取当前主题并应用，避免初始状态不一致
       // 但只在缓存未初始化时应用，避免覆盖用户的快速点击
@@ -289,9 +289,8 @@
                 isCacheInitialized = true; // 标记缓存已初始化
               }
               forceApplyTheme(theme.isDark, theme.source);
-              console.log('初始主题已应用:', theme);
             } else {
-              console.log('缓存已初始化，跳过初始主题应用（用户已操作）');
+
             }
           }
         }).catch((e) => {
@@ -406,9 +405,18 @@
       window.__floatingResetModule.createFloatingResetSettings(floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
     }
 
-    // 创建回复通知开关（紧跟悬浮窗重置设置那一行）
+    // 创建默认对话模式设置（紧跟悬浮窗重置设置那一行）
     const floatingResetContainer = hotkeyContainer.parentNode.querySelector('.floating-reset-setting-flex');
-    createReplyNotifyToggle(floatingResetContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
+    if (window.__defaultModeModule && window.__defaultModeModule.createDefaultModeSettings) {
+      window.__defaultModeModule.createDefaultModeSettings(floatingResetContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
+    }
+    if (window.__defaultModeModule && window.__defaultModeModule.loadCurrentDefaultMode) {
+      window.__defaultModeModule.loadCurrentDefaultMode();
+    }
+
+    // 创建回复通知开关（紧跟默认对话模式设置那一行）
+    const defaultModeContainer = hotkeyContainer.parentNode.querySelector('.default-mode-setting-flex');
+    createReplyNotifyToggle(defaultModeContainer || floatingResetContainer || floatingHotkeyContainer || closeBehaviorContainer || hotkeyContainer);
     
     // 创建开机自启动开关（紧跟回复通知开关那一行）
     const replyNotifyContainer = hotkeyContainer.parentNode.querySelector('.reply-notify-setting-flex');
@@ -875,7 +883,7 @@
       body.style.setProperty('--ds-rgb-hover', targetLight ? hoverLight : hoverDark);
     }
 
-    console.log('强制应用主题 DOM:', targetLight ? 'light' : 'dark');
+
   }
 
   // 监听系统主题变化，仅当选择“跟随系统”时启用

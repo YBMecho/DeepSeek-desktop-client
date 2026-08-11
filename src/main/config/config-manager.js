@@ -26,7 +26,9 @@ const defaultConfig = {
   isFloatingWindowPinned: false, // 悬浮窗置顶状态，默认关闭
   autoLaunch: true, // 开机自启动，默认开启
   silentAutoLaunch: true, // 开机静默启动，默认开启
-  floatingResetOption: '60min' // 悬浮窗重置选项，默认关闭后60分钟
+  floatingResetOption: '60min', // 悬浮窗重置选项，默认关闭后60分钟
+  defaultMode: 'quick', // 默认对话模式: 'quick' | 'expert' | 'image'
+  contextMenuEnabled: true // 右键菜单发送文件，默认开启
 };
 
 /**
@@ -91,7 +93,17 @@ function loadConfig() {
       if (config.floatingResetOption && typeof config.floatingResetOption === 'string') {
         validatedConfig.floatingResetOption = config.floatingResetOption;
       }
-      
+
+      // 验证默认对话模式
+      if (config.defaultMode && ['quick', 'expert', 'image'].includes(config.defaultMode)) {
+        validatedConfig.defaultMode = config.defaultMode;
+      }
+
+      // 验证右键菜单开关
+      if (typeof config.contextMenuEnabled === 'boolean') {
+        validatedConfig.contextMenuEnabled = config.contextMenuEnabled;
+      }
+
       return validatedConfig;
     }
   } catch (error) {

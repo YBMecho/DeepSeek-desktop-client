@@ -24,7 +24,7 @@ const { ipcMain, BrowserWindow, nativeTheme } = require('electron');
  * @param {Function} deps.updateConfigNoRead - 配置无读更新函数
  */
 function registerHandlers(deps) {
-  const { state, configManager, themeManager, floatingMgr, assetInjector, autoLaunchMgr, registerHotkey, updateConfigNoRead } = deps;
+  const { state, configManager, themeManager, floatingMgr, assetInjector, autoLaunchMgr, registerHotkey, updateConfigNoRead, contextMenuMgr } = deps;
 
   // 获取当前快捷键
   ipcMain.handle('get-current-hotkey', () => state.getCurrentHotkey());
@@ -190,6 +190,76 @@ function registerHandlers(deps) {
       floatingMgr.setFloatingResetOption(option);
       configManager.updateConfig('floatingResetOption', option);
       return { success: true, floatingResetOption: option };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取默认对话模式
+  ipcMain.handle('get-default-mode', () => {
+    return configManager.loadConfig().defaultMode || 'quick';
+  });
+
+  // 设置默认对话模式
+  ipcMain.handle('set-default-mode', (event, mode) => {
+    try {
+      if (!['quick', 'expert', 'image'].includes(String(mode))) {
+        return { success: false, error: '无效的模式设置' };
+      }
+      configManager.updateConfig('defaultMode', mode);
+      return { success: true, defaultMode: mode };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取右键菜单开关状态
+  ipcMain.handle('get-context-menu-enabled', () => {
+    return configManager.loadConfig().contextMenuEnabled !== false;
+  });
+
+  // 设置右键菜单开关
+  ipcMain.handle('set-context-menu-enabled', (event, enabled) => {
+    try {
+      if (typeof enabled !== 'boolean') return { success: false, error: '参数必须是布尔值' };
+      configManager.updateConfig('contextMenuEnabled', enabled);
+      if (enabled) {
+        contextMenuMgr.registerContextMenu();
+      } else {
+        contextMenuMgr.unregisterContextMenu();
+      }
+      return { success: true, contextMenuEnabled: enabled };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 读取文件并转为 base64
+  ipcMain.handle('read-file-base64', (event, filePath) => {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      if (!fs.existsSync(filePath)) {
+        return { success: false, error: '文件不存在' };
+      }
+      const stats = fs.statSync(filePath);
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (stats.size > maxSize) {
+        return { success: false, error: '文件超过10MB限制' };
+      }
+      const data = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeMap = {
+        '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp',
+        '.svg': 'image/svg+xml', '.pdf': 'application/pdf',
+        '.txt': 'text/plain', '.md': 'text/markdown',
+        '.json': 'application/json', '.js': 'text/javascript',
+        '.py': 'text/x-python', '.html': 'text/html', '.css': 'text/css'
+      };
+      const mimeType = mimeMap[ext] || 'application/octet-stream';
+      const fileName = path.basename(filePath);
+      return { success: true, data: data.toString('base64'), mimeType, fileName };
     } catch (error) {
       return { success: false, error: error.message };
     }

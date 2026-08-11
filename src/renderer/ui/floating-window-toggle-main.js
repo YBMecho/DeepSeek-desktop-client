@@ -104,56 +104,41 @@
       return true;
     }
     
-    console.log('[主程序-悬浮窗按钮] 开始查找分享按钮');
-    
-    // 查找所有按钮
     const allButtons = document.querySelectorAll('div[role="button"]');
-    console.log('[主程序-悬浮窗按钮] 找到按钮总数:', allButtons.length);
     
-    // 如果按钮太少，说明页面还没加载完
     if (allButtons.length < 3) {
-      console.log('[主程序-悬浮窗按钮] 按钮数量太少，等待页面加载');
       return false;
     }
     
-    // 查找分享按钮（通过特定的类名组合）
     let shareButton = null;
     for (const btn of allButtons) {
       const classList = btn.className || '';
-// 分享按钮的特征：同时包含 _57370c5 和 _5dedc1e 类
       if (classList.includes('_57370c5') && classList.includes('_5dedc1e')) {
         shareButton = btn;
-        console.log('[主程序-悬浮窗按钮] 通过类名找到分享按钮');
         break;
       }
     }
     
-    // 备选：通过 SVG 路径查找
     if (!shareButton) {
       for (const btn of allButtons) {
         const svgPath = btn.querySelector('svg path[d*="M7.95889"]');
         if (svgPath) {
           shareButton = btn;
-          console.log('[主程序-悬浮窗按钮] 通过SVG找到分享按钮');
           break;
         }
       }
     }
     
-    // 如果找到分享按钮，在其左侧插入
     if (shareButton) {
       const parent = shareButton.parentNode;
       if (!parent.querySelector('.ds-floating-toggle-button-main')) {
         const toggleButton = createToggleButton();
         parent.insertBefore(toggleButton, shareButton);
-        console.log('[主程序-悬浮窗按钮] 分享按钮左侧注入成功');
         return true;
       }
-      console.log('[主程序-悬浮窗按钮] 按钮已存在');
       return true;
     }
     
-    console.log('[主程序-悬浮窗按钮] 未找到分享按钮');
     return false;
   }
 
@@ -162,9 +147,6 @@
   }
 
   function startButtonInjection() {
-    console.log('[主程序-悬浮窗按钮] 启动注入服务');
-    
-    // 立即尝试注入
     injectToggleButtons();
 
     // 使用 MutationObserver 实时监听
@@ -187,9 +169,8 @@
     const quickCheckInterval = setInterval(() => {
       injectToggleButtons();
       quickCheckCount++;
-      if (quickCheckCount >= 20) { // 10秒后停止快速检查
+      if (quickCheckCount >= 20) {
         clearInterval(quickCheckInterval);
-        console.log('[主程序-悬浮窗按钮] 快速检查阶段结束');
       }
     }, 500);
 
@@ -203,11 +184,9 @@
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('[主程序-悬浮窗按钮] DOMContentLoaded');
       startButtonInjection();
     });
   } else {
-    console.log('[主程序-悬浮窗按钮] DOM已就绪');
     startButtonInjection();
   }
 })();
