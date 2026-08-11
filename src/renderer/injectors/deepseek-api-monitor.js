@@ -18,7 +18,7 @@
   if (window.__DS_CHAT_STREAM_MONITOR__) return;
   window.__DS_CHAT_STREAM_MONITOR__ = true;
 
-  const API_PATH = '/api/v0/chat/completion';
+  const API_PATHS = ['/api/v0/chat/completion', '/api/v0/chat/regenerate'];
   const EMIT_INTERVAL_MS = 200;  // 调慢显示速度：从 60ms 改为 200ms
 
   const log = function () {
@@ -37,7 +37,10 @@
     return '';
   };
 
-  const isTarget = (url) => typeof url === 'string' && url.indexOf(API_PATH) !== -1;
+  const isTarget = (url) => {
+    if (typeof url !== 'string') return false;
+    return API_PATHS.some(path => url.indexOf(path) !== -1);
+  };
 
   const emitToMain = (content, type, isComplete) => {
     const api = window.electronAPI;

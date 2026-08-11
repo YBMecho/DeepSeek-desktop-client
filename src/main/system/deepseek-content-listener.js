@@ -15,7 +15,10 @@
 
 const { session } = require('electron');
 
-const API_URL_PATTERN = 'https://chat.deepseek.com/api/v0/chat/completion*';
+const API_URL_PATTERNS = [
+  'https://chat.deepseek.com/api/v0/chat/completion*',
+  'https://chat.deepseek.com/api/v0/chat/regenerate*'
+];
 
 /**
  * 向小组件窗口发送消息
@@ -53,20 +56,20 @@ function registerDeepSeekContentListener(deps) {
   const webRequest = session.defaultSession.webRequest;
   let isStreaming = false;
 
-  webRequest.onResponseStarted({ urls: [API_URL_PATTERN] }, (details) => {
+  webRequest.onResponseStarted({ urls: API_URL_PATTERNS }, (details) => {
     if (!isChatStream(details)) return;
     isStreaming = true;
     logDebug('[DS Stream] 对话流开始');
     sendToMini(deps.getMiniWindow, 'deepseek-content-clear');
   });
 
-  webRequest.onCompleted({ urls: [API_URL_PATTERN] }, (details) => {
+  webRequest.onCompleted({ urls: API_URL_PATTERNS }, (details) => {
     if (!isStreaming) return;
     isStreaming = false;
     logDebug('[DS Stream] 对话流结束', details.statusCode);
   });
 
-  webRequest.onErrorOccurred({ urls: [API_URL_PATTERN] }, () => {
+  webRequest.onErrorOccurred({ urls: API_URL_PATTERNS }, () => {
     if (!isStreaming) return;
     isStreaming = false;
     logDebug('[DS Stream] 对话流中断');
