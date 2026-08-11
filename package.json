@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "electron-context-menu": "^4.1.0",
-    "electron-squirrel-startup": "^1.0.1"
+    "electron-squirrel-startup": "^1.0.1",
+    "markdown-it": "^15.0.0"
   }
 }

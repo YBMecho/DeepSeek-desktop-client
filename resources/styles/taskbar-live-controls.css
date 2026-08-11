@@ -118,6 +118,12 @@ body.adsorbed.hover .drag-handle {
   min-height: fit-content;  /* 自适应内容高度 */
 }
 
+/* 思考内容（THINK 类型）：灰色显示 */
+.content-text.thinking {
+  color: #9ca3af;
+  opacity: 0.85;
+}
+
 /* 内容为空时隐藏 */
 .content-text:empty {
   display: none;
@@ -126,4 +132,82 @@ body.adsorbed.hover .drag-handle {
 /* 完成状态：保持原有白色，不做变色 */
 .content-text.complete {
   opacity: 1;
+}
+
+/* Markdown 渲染样式优化：适配 40px 窗口 */
+.content-text h1,
+.content-text h2,
+.content-text h3,
+.content-text h4,
+.content-text h5,
+.content-text h6 {
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.content-text p {
+  margin: 0;
+  padding: 0;
+  line-height: 1.4;
+}
+
+.content-text code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.content-text pre {
+  margin: 0;
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  overflow-x: auto;
+  font-size: 11px;
+}
+
+.content-text pre code {
+  background: none;
+  padding: 0;
+}
+
+.content-text ul,
+.content-text ol {
+  margin: 0;
+  padding-left: 16px;
+  line-height: 1.4;
+}
+
+.content-text li {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.content-text a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.content-text a:hover {
+  text-decoration: underline;
+}
+
+.content-text strong {
+  font-weight: 600;
+}
+
+.content-text em {
+  font-style: italic;
+}
+
+.content-text blockquote {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 2px solid rgba(255, 255, 255, 0.3);
+  opacity: 0.8;
 }
