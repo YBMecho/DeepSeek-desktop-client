@@ -102,10 +102,11 @@ function injectCustomAssets(targetWindow, floatingWindow) {
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
     } catch (e) {}
   } else {
-    // 主程序：只注入工具栏按钮
-    const floatingToggleJsPath = path.join(constants.RENDERER_UI_DIR, 'floating-window-toggle-main.js');
+    // 主程序：注入工具栏按钮（两个位置）
+    // 位置1：分享按钮左侧
+    const floatingToggleMainJsPath = path.join(constants.RENDERER_UI_DIR, 'floating-window-toggle-main.js');
     try {
-      const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
+      const floatingToggleMainJs = fs.readFileSync(floatingToggleMainJsPath, 'utf8');
       const wrapped = `(() => {
   try {
     if (window.__DS_FLOATING_TOGGLE_MAIN_LOADED__) {
@@ -114,7 +115,23 @@ function injectCustomAssets(targetWindow, floatingWindow) {
     window.__DS_FLOATING_TOGGLE_MAIN_LOADED__ = true;
   } catch (e) {}
 })();
-` + floatingToggleJs;
+` + floatingToggleMainJs;
+      targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+    } catch (e) {}
+
+    // 位置2：工具栏搜索按钮旁边
+    const floatingToggleToolbarJsPath = path.join(constants.RENDERER_UI_DIR, 'floating-window-toggle-toolbar.js');
+    try {
+      const floatingToggleToolbarJs = fs.readFileSync(floatingToggleToolbarJsPath, 'utf8');
+      const wrapped = `(() => {
+  try {
+    if (window.__DS_FLOATING_TOGGLE_TOOLBAR_LOADED__) {
+      return;
+    }
+    window.__DS_FLOATING_TOGGLE_TOOLBAR_LOADED__ = true;
+  } catch (e) {}
+})();
+` + floatingToggleToolbarJs;
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
     } catch (e) {}
   }
