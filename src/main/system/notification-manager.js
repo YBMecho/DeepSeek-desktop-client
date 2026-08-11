@@ -76,8 +76,8 @@ function registerReplyFinishedListener(deps) {
             deps.logDebug('回复通知开关已关闭，跳过通知');
             return;
           }
-          if (BrowserWindow.getAllWindows().some(w => w && !w.isDestroyed() && w.isFocused())) {
-            deps.logDebug('窗口已聚焦，跳过通知');
+          if (BrowserWindow.getAllWindows().some(w => w.isFocused())) {
+            deps.logDebug('应用窗口处于聚焦状态，跳过通知');
             return;
           }
           deps.logDebug('检测到回复流结束，触发通知');
