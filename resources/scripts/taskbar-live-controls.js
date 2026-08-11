@@ -14,7 +14,7 @@
   if (!element || !container) return;
 
   const COMPLETE_HOLD_MS = 5000;
-  const TYPING_SPEED_MS = 30; // 每个字符延迟 30ms（正常约 15ms，这是 0.5x 速度）
+  const TYPING_SPEED_MS = 75; // 每个字符延迟 75ms（正常约 15ms，这是 0.2x 速度）
   
   let completeTimer = null;
   let typingTimer = null;
