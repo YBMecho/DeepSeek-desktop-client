@@ -16,6 +16,7 @@
 const path = require('path');
 const { BrowserWindow, shell, nativeTheme, globalShortcut } = require('electron');
 const constants = require('../../common/constants');
+const { setupSplashScreen } = require('./splash-screen');
 
 // 模块内部状态（悬浮窗子系统专属，不与主窗口共享）
 let floatingWindow = null;
@@ -164,8 +165,8 @@ function createFloatingWindow() {
     backgroundColor: nativeTheme && nativeTheme.shouldUseDarkColors ? '#2b2b2b' : '#ffffff'
   });
   
-  floatingWindow.loadURL('https://chat.deepseek.com/');
-  
+  setupSplashScreen(floatingWindow, nativeTheme ? nativeTheme.shouldUseDarkColors : false, 'https://chat.deepseek.com/');
+
   floatingWindow.webContents.on('page-title-updated', (event) => {
     event.preventDefault();
     floatingWindow.setTitle('DeepSeek');
@@ -401,7 +402,7 @@ function resetFloatingWindowContent() {
     floatingWindow.loadURL('https://chat.deepseek.com/');
     floatingWindowCloseTime = null; // 清空关闭时间
   } catch (e) {
-    console.error('重置悬浮窗内容失败:', e);
+    console.error('重置悬浮窗内容失败:', error);
   }
 }
 
