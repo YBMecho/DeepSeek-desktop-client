@@ -24,7 +24,9 @@
   };
 
   const render = (text) => {
-    element.textContent = text;
+    // 清理末尾的换行符和空白字符，防止内容被隐藏
+    const cleanText = typeof text === 'string' ? text.trim() : '';
+    element.textContent = cleanText;
     // 单行容器内保持视口贴住最新字符，模拟打字机跟随
     element.scrollLeft = element.scrollWidth;
   };
@@ -32,12 +34,16 @@
   ipcRenderer.on('deepseek-content-update', (event, data) => {
     if (!data) return;
 
-    // 空内容的完成信号只用于收尾，不能覆盖已渲染的正文
-    if (typeof data.content === 'string' && data.content) {
+    // 清理内容：去除首尾空白和换行符
+    const cleanContent = typeof data.content === 'string' ? data.content.trim() : '';
+    
+    // 只有非空内容才更新显示
+    if (cleanContent) {
       clearCompleteState();
-      render(data.content);
+      render(cleanContent);
     }
 
+    // 完成状态：保持当前内容，不清空
     if (data.isComplete) {
       element.classList.add('complete');
       completeTimer = setTimeout(() => {

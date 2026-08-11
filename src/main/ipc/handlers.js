@@ -385,10 +385,12 @@ function registerHandlers(deps) {
   };
 
   ipcMain.on('deepseek-content-update', (event, data) => {
-    if (!data || data.type === 'THINK') return;
+    if (!data) return;
+    // 不再过滤 THINK 类型，让思考内容也能显示
     forwardToMini('deepseek-content-update', {
       content: data.content || '',
-      isComplete: !!data.isComplete
+      isComplete: !!data.isComplete,
+      type: data.type || 'RESPONSE'
     });
   });
 

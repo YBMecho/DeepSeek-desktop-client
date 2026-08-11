@@ -19,7 +19,7 @@
   window.__DS_CHAT_STREAM_MONITOR__ = true;
 
   const API_PATH = '/api/v0/chat/completion';
-  const EMIT_INTERVAL_MS = 60;
+  const EMIT_INTERVAL_MS = 200;  // 调慢显示速度：从 60ms 改为 200ms
 
   const log = function () {
     try {
@@ -68,27 +68,22 @@
   };
 
   /**
-   * 把 SSE 事件折叠为当前 RESPONSE 片段
+   * 把 SSE 事件折叠为当前活跃片段
    * 核心逻辑：
-   *   1. 只跟踪 RESPONSE 片段内容，THINK 被 IPC 转发层过滤
-   *   2. fragments 数组维护所有片段，但只向外推送最后一个 RESPONSE
+   *   1. 追踪 fragments 数组末尾的片段（不限类型），THINK 和 RESPONSE 都能显示
+   *   2. THINK 片段先出现并显示思考过程，RESPONSE 片段追加后自动切换为正文
    *   3. 裸 {"v":"..."} 必须有明确的 contentPath 可追加
    */
   function createReducer() {
     let fragments = [];
     let contentPath = '';
 
-    const lastResponse = () => {
-      for (let i = fragments.length - 1; i >= 0; i--) {
-        if (fragments[i].type === 'RESPONSE') return fragments[i];
-      }
-      return null;
-    };
+    const lastFragment = () => fragments.length ? fragments[fragments.length - 1] : null;
 
     const normalize = (f) => ({ type: f.type || 'RESPONSE', content: f.content || '' });
 
     const appendText = (text) => {
-      const target = lastResponse();
+      const target = lastFragment();
       if (!target) return null;
       target.content += text;
       return target;
@@ -101,10 +96,9 @@
       if (data.v && typeof data.v === 'object' && !Array.isArray(data.v) && data.v.response) {
         const response = data.v.response;
         fragments = (response.fragments || []).map(normalize);
-        // 即使当前没有 RESPONSE，也要设 contentPath，APPEND 事件会补上
         contentPath = 'response/fragments/-1/content';
-        const target = lastResponse();
-        if (!target) return null; // 初始只有 THINK，等后续 APPEND
+        const target = lastFragment();
+        if (!target) return null;
         return { fragment: target, isComplete: response.status === 'FINISHED' };
       }
 
@@ -112,13 +106,13 @@
       if (data.p === 'response/fragments' && Array.isArray(data.v)) {
         data.v.forEach((f) => fragments.push(normalize(f)));
         contentPath = 'response/fragments/-1/content'; // 新片段成为 -1
-        const target = lastResponse();
+        const target = lastFragment();
         return target ? { fragment: target, isComplete: false } : null;
       }
 
       // 完成信号
       if (data.p === 'response/status' && data.v === 'FINISHED') {
-        const target = lastResponse();
+        const target = lastFragment();
         return target ? { fragment: target, isComplete: true } : null;
       }
 
