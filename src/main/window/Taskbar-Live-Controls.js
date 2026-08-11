@@ -27,6 +27,12 @@ let lastHoverState = false;
 const DRAG_REGION_WIDTH = 25;
 const HOVER_POLL_INTERVAL = 80;
 
+// 置顶层级：需高于系统任务栏与全屏程序
+const TOP_LEVEL = 'screen-saver';
+
+// 每隔多少次悬停轮询执行一次 z-order 守卫（80ms * 12 ≈ 1s）
+const TOP_GUARD_TICKS = 12;
+
 
 // 外部依赖（通过 init 注入）
 let deps = {
@@ -40,6 +46,26 @@ let deps = {
  */
 function init(injectedDeps) {
   deps = { ...deps, ...injectedDeps };
+}
+
+/**
+ * 强制把窗口重新提升到 topmost 层级
+ *
+ * 切换全屏程序后 Windows 会把窗口从 topmost 队列降级，但 Electron 侧的
+ * alwaysOnTop 标记仍是 true，单独调用 setAlwaysOnTop(true) 会被判定为无变化而跳过。
+ * 先清除再重设，强制系统重新应用 z-order，否则窗口会停在任务栏下方，
+ * 光标命中测试失效，悬停和拖拽都收不到鼠标。
+ */
+function raiseToTop() {
+  if (!miniWindow || miniWindow.isDestroyed()) return;
+
+  try {
+    miniWindow.setAlwaysOnTop(false);
+    miniWindow.setAlwaysOnTop(true, TOP_LEVEL);
+    miniWindow.moveTop();
+  } catch (e) {
+    console.warn('[TaskbarLiveControls] 设置窗口层级失败:', e);
+  }
 }
 
 /**
@@ -84,11 +110,7 @@ function createMiniWindow() {
   });
 
   // 设置窗口层级高于吸附窗口和系统任务栏，确保始终在最上层
-  try {
-    miniWindow.setAlwaysOnTop(true, 'screen-saver');
-  } catch (e) {
-    console.warn('[TaskbarLiveControls] 设置窗口层级失败:', e);
-  }
+  raiseToTop();
 
   // 加载本地 HTML 文件
   const htmlPath = path.join(constants.ROOT_DIR, 'resources', 'html', 'taskbar-live-controls.html');
@@ -137,8 +159,14 @@ function setHandleOpacity(isHover) {
 function startHoverWatcher() {
   if (hoverTimer) return;
   lastHoverState = false;
+  let tick = 0;
   hoverTimer = setInterval(() => {
     if (!miniWindow || miniWindow.isDestroyed() || !miniWindow.isVisible()) return;
+
+    // 复用本轮询做 z-order 守卫：切换全屏程序会静默把窗口踢出 topmost，
+    // 没有可靠的事件能捕捉该时机，低频重设即可恢复命中测试
+    tick += 1;
+    if (tick % TOP_GUARD_TICKS === 0) raiseToTop();
 
     const cursor = screen.getCursorScreenPoint();
     const bounds = miniWindow.getBounds();
@@ -199,5 +227,7 @@ module.exports = {
   // 暴露给吸附协调器：固定状态由协调器统一接管悬停检测，
   // 需要停止本模块的拖拽区域轮询，避免两个定时器同时运行
   startHoverWatcher,
-  stopHoverWatcher
+  stopHoverWatcher,
+  // 暴露给吸附协调器：固定/拖拽结束后需要强制恢复 topmost 层级
+  raiseToTop
 };

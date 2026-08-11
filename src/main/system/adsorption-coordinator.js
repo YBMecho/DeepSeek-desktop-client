@@ -14,39 +14,27 @@
 
 const { screen } = require('electron');
 const state = require('../state');
+const { createDragSession } = require('./drag-session');
 
 // 外部依赖（通过 init 注入）
 let deps = {
   getAdsorptionWindow: () => null,
   getMiniWindow: () => null,
   startDragRegionHoverWatcher: () => {},
-  stopDragRegionHoverWatcher: () => {}
+  stopDragRegionHoverWatcher: () => {},
+  raiseMiniWindow: () => {}
 };
 
 // 模块内部状态
-let isDragging = false;
 let isInProximity = false;
 let hoverWatcherTimer = null;
+let dragSession = null;
 
 // 常量
 const PROXIMITY_THRESHOLD = 20;  // 吸附距离阈值（像素）
 const HOVER_POLL_INTERVAL = 80;   // 悬停检测轮询间隔（毫秒）
+const TOP_GUARD_TICKS = 12;       // 每隔多少次轮询执行一次 z-order 守卫（≈1s）
 
-/**
- * 将任务栏小组件窗口重新置顶，确保在系统任务栏之上
- * @param {BrowserWindow} win - 窗口实例
- */
-function keepMiniWindowOnTop(win) {
-  if (!win || win.isDestroyed()) return;
-  
-  try {
-    // 使用 moveTop 重新提升 z-order，避免破坏 alwaysOnTop 状态
-    // setAlwaysOnTop(false) 会导致窗口在全屏程序切换后掉到任务栏下方
-    win.moveTop();
-  } catch (e) {
-    console.warn('[AdsorptionCoordinator] 重新置顶失败:', e);
-  }
-}
 
 /**
  * 初始化模块依赖
@@ -129,7 +117,7 @@ function showAdsorptionWindow() {
   if (!adsorptionWin.isVisible()) {
     adsorptionWin.showInactive();
     resetAdsorptionDefault('将控制组件移动到此处');
-    keepMiniWindowOnTop(deps.getMiniWindow());
+    deps.raiseMiniWindow();
   }
 }
 
@@ -198,11 +186,17 @@ function startAdsorbedHoverWatcher() {
   if (hoverWatcherTimer) return;
   
   let lastHoverState = false;
+  let tick = 0;
   
   hoverWatcherTimer = setInterval(() => {
     const miniWin = deps.getMiniWindow();
     if (!miniWin || miniWin.isDestroyed() || !miniWin.isVisible()) return;
     if (!state.getIsTaskbarControlsAdsorbed()) return;
+
+    // 固定态下拖拽区域轮询已停止，z-order 守卫改由本轮询承担：
+    // 窗口贴在任务栏上时最容易被全屏程序切换踢出 topmost
+    tick += 1;
+    if (tick % TOP_GUARD_TICKS === 0) deps.raiseMiniWindow();
 
     const cursor = screen.getCursorScreenPoint();
     const bounds = miniWin.getBounds();
@@ -263,82 +257,65 @@ function handleMove() {
 }
 
 /**
+ * 解除固定状态，把悬停检测交还给拖拽区域轮询
+ * 无论拖拽如何结束都必须能走到这里，否则 adsorbed 样式残留会让窗口在桌面上保持全透明
+ */
+function releaseAdsorbedState() {
+  if (!state.getIsTaskbarControlsAdsorbed()) return;
+
+  state.setIsTaskbarControlsAdsorbed(false);
+  removeAdsorbedStyle();
+  stopAdsorbedHoverWatcher();
+  deps.startDragRegionHoverWatcher();
+  deps.raiseMiniWindow();
+}
+
+/**
  * 处理拖拽结束事件
  */
-function handleMoved() {
+function handleDragEnd() {
   const miniWin = deps.getMiniWindow();
   const adsorptionWin = deps.getAdsorptionWindow();
-  
+
+  // 窗口缺失时也要收尾：隐藏提示、复位近邻标记，
+  // 早退会让下一次拖拽沿用过期状态
   if (!miniWin || miniWin.isDestroyed() || !adsorptionWin || adsorptionWin.isDestroyed()) {
+    hideAdsorptionWindow();
+    isInProximity = false;
     return;
   }
-
-  isDragging = false;
 
   const miniBounds = miniWin.getBounds();
   const adsorptionBounds = adsorptionWin.getBounds();
   const distance = calculateDistance(miniBounds, adsorptionBounds);
+  const shouldAdsorb = distance < PROXIMITY_THRESHOLD;
 
-  if (distance < PROXIMITY_THRESHOLD) {
-    // 吸附固定：移动到吸附位置
-    miniWin.setPosition(adsorptionBounds.x, adsorptionBounds.y);
-    
-    // 移动到任务栏区域会让 Windows 重置窗口 z-order，
-    // 导致窗口落到系统任务栏下方，光标命中测试随之失效（悬停无响应），
-    // 因此必须在定位后重新置顶
-    keepMiniWindowOnTop(miniWin);
-    
-    // 隐藏吸附窗口
-    hideAdsorptionWindow();
-    
-    // 应用固定状态样式
+  hideAdsorptionWindow();
+
+  if (shouldAdsorb) {
+    // setPosition 会再次派发 move/moved，屏蔽以免结算逻辑自我重入
+    dragSession.suppress(() => {
+      miniWin.setPosition(adsorptionBounds.x, adsorptionBounds.y);
+    });
+
+    deps.raiseMiniWindow();
     applyAdsorbedStyle();
-    
-    // 设置固定状态
     state.setIsTaskbarControlsAdsorbed(true);
-    
+
     // 固定态悬停检测覆盖整个窗口，与拖拽区域轮询职责重叠，先交出控制权
     deps.stopDragRegionHoverWatcher();
     startAdsorbedHoverWatcher();
-  } else {
-    // 未吸附：隐藏吸附窗口
-    hideAdsorptionWindow();
   }
-  
-  // 记录当前实际距离状态，避免下次拖拽时状态不一致导致样式重复更新
-  isInProximity = (distance < PROXIMITY_THRESHOLD);
+
+  isInProximity = shouldAdsorb;
 }
 
 /**
- * 处理拖拽开始事件（通过 will-move 触发）
- * 
- * 自愈逻辑：
- * - 如果 isDragging 已经为 true，但吸附窗口不可见，说明上次拖拽的 moved 事件丢失导致状态卡死
- * - 直接重新显示吸附窗口，让流程继续运行（幂等操作，不会二次触发状态切换）
+ * 处理拖拽开始事件
  */
-function handleWillMove() {
-  // 自愈检查：如果已处于拖拽状态但吸附窗口不可见，重新显示（修复状态卡死）
-  if (isDragging) {
-    const adsorptionWin = deps.getAdsorptionWindow();
-    if (adsorptionWin && !adsorptionWin.isDestroyed() && !adsorptionWin.isVisible()) {
-      showAdsorptionWindow();
-    }
-    return;
-  }
-  
-  isDragging = true;
-  
-  // 如果之前处于固定状态，解除固定并把悬停检测交还给拖拽区域轮询
-  if (state.getIsTaskbarControlsAdsorbed()) {
-    state.setIsTaskbarControlsAdsorbed(false);
-    removeAdsorbedStyle();
-    stopAdsorbedHoverWatcher();
-    deps.startDragRegionHoverWatcher();
-    // 从任务栏区域拖回桌面时，窗口可能仍停留在被压低的 z-order 上
-    keepMiniWindowOnTop(deps.getMiniWindow());
-  }
-  
-  // 显示吸附窗口
+function handleDragStart() {
+  releaseAdsorbedState();
+  isInProximity = false;
   showAdsorptionWindow();
 }
 
@@ -346,28 +323,23 @@ function handleWillMove() {
  * 启动监听
  */
 function startMonitoring() {
-  const miniWin = deps.getMiniWindow();
-  if (!miniWin || miniWin.isDestroyed()) {
+  if (dragSession) {
+    dragSession.detach();
+    dragSession = null;
+  }
+
+  dragSession = createDragSession({
+    getWindow: deps.getMiniWindow,
+    onStart: handleDragStart,
+    onMove: handleMove,
+    onEnd: handleDragEnd
+  });
+
+  if (!dragSession.attach()) {
+    dragSession = null;
     console.warn('[AdsorptionCoordinator] 无法启动监听：任务栏小组件窗口不存在');
     return;
   }
-
-  // 监听 will-move 事件（拖拽开始 + 拖拽中）
-  miniWin.on('will-move', () => {
-    handleWillMove();
-  });
-
-  // 监听 move 事件（拖拽过程中）
-  miniWin.on('move', () => {
-    if (isDragging) {
-      handleMove();
-    }
-  });
-
-  // 监听 moved 事件（拖拽结束）
-  miniWin.on('moved', () => {
-    handleMoved();
-  });
 
   console.log('[AdsorptionCoordinator] 监听已启动');
 }
@@ -377,7 +349,12 @@ function startMonitoring() {
  */
 function stopMonitoring() {
   stopAdsorbedHoverWatcher();
-  isDragging = false;
+
+  if (dragSession) {
+    dragSession.detach();
+    dragSession = null;
+  }
+
   isInProximity = false;
   console.log('[AdsorptionCoordinator] 监听已停止');
 }

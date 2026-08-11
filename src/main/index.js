@@ -262,7 +262,8 @@ app.whenReady().then(() => {
     getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
     getMiniWindow: taskbarMgr.getMiniWindow,
     startDragRegionHoverWatcher: taskbarMgr.startHoverWatcher,
-    stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher
+    stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher,
+    raiseMiniWindow: taskbarMgr.raiseToTop
   });
 
   // 启动吸附协调器监听
