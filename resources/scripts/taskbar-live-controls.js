@@ -77,9 +77,15 @@
     if (cleanContent) {
       clearCompleteState();
       
-      // 如果内容变化，重新开始流式输出
       if (cleanContent !== targetText) {
-        startTyping(cleanContent);
+        if (cleanContent.startsWith(targetText)) {
+          // SSE 增量追加：只延长目标文本，让打字动画继续追赶，不重启
+          targetText = cleanContent;
+          if (!typingTimer) typeNextChar();
+        } else {
+          // 内容类型切换（如 THINK → RESPONSE）：目标文本非追加关系，重新开始
+          startTyping(cleanContent);
+        }
       }
     }
 
