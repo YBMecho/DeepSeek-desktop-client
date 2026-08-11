@@ -20,6 +20,7 @@
   let typingTimer = null;
   let targetText = '';
   let currentIndex = 0;
+  let pendingSwitch = null;  // 防止重复切换的标记
 
   const clearCompleteState = () => {
     if (completeTimer) {
@@ -84,10 +85,17 @@
           if (!typingTimer) typeNextChar();
         } else {
           // 内容类型切换（如 THINK → RESPONSE）：等待当前打字完成后再切换
+          // 防止重复：如果已经有待切换的内容且相同，直接返回
+          if (pendingSwitch === cleanContent) return;
+          
+          pendingSwitch = cleanContent;
           const switchWhenReady = () => {
             if (currentIndex >= targetText.length || !typingTimer) {
-              // 当前内容已打完或没有打字动画在运行，可以切换
-              startTyping(cleanContent);
+              // 当前内容已打完，可以切换
+              if (pendingSwitch === cleanContent) {
+                pendingSwitch = null;
+                startTyping(cleanContent);
+              }
             } else {
               // 还在打字，100ms 后再检查
               setTimeout(switchWhenReady, 100);
@@ -122,6 +130,7 @@
     clearCompleteState();
     targetText = '';
     currentIndex = 0;
+    pendingSwitch = null;
     element.textContent = '';
   });
 })();
