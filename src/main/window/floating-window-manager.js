@@ -165,7 +165,7 @@ function createFloatingWindow() {
     backgroundColor: nativeTheme && nativeTheme.shouldUseDarkColors ? '#2b2b2b' : '#ffffff'
   });
   
-  setupSplashScreen(floatingWindow, nativeTheme ? nativeTheme.shouldUseDarkColors : false, 'https://chat.deepseek.com/');
+  setupSplashScreen(floatingWindow, nativeTheme && nativeTheme.shouldUseDarkColors, 'https://chat.deepseek.com/');
 
   floatingWindow.webContents.on('page-title-updated', (event) => {
     event.preventDefault();
@@ -402,7 +402,7 @@ function resetFloatingWindowContent() {
     floatingWindow.loadURL('https://chat.deepseek.com/');
     floatingWindowCloseTime = null; // 清空关闭时间
   } catch (e) {
-    console.error('重置悬浮窗内容失败:', error);
+    console.error('重置悬浮窗内容失败:', e);
   }
 }
 
