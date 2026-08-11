@@ -127,10 +127,9 @@ function createMiniWindow(options = {}) {
     skipTaskbar: true,
     show: false,
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
+      nodeIntegration: true,  // 启用 nodeIntegration 以支持 IPC
+      contextIsolation: false, // 关闭隔离以简化通信
       webSecurity: true
-      // 不加载 preload，避免触发 IPC 调用
     }
   });
 

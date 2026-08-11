@@ -135,6 +135,24 @@ function injectCustomAssets(targetWindow, floatingWindow) {
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
     } catch (e) {}
   }
+
+  // 注入 DeepSeek API 监听器（仅主窗口和悬浮窗）
+  const deepseekMonitorJsPath = path.join(__dirname, 'deepseek-api-monitor.js');
+  try {
+    const deepseekMonitorJs = fs.readFileSync(deepseekMonitorJsPath, 'utf8');
+    const wrapped = `(() => {
+  try {
+    if (window.__DS_API_MONITOR_LOADED__) {
+      return;
+    }
+    window.__DS_API_MONITOR_LOADED__ = true;
+  } catch (e) {}
+})();
+` + deepseekMonitorJs;
+    targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
+  } catch (e) {
+    console.error('[Asset Injector] 注入 DeepSeek API 监听器失败:', e);
+  }
 }
 
 /**

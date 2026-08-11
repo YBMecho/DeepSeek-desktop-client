@@ -7,6 +7,7 @@
  *   - 主题切换
  *   - 关闭行为、通知开关、自启动、悬浮窗置顶等配置读写
  *   - 主窗口与悬浮窗互相切换
+ *   - DeepSeek 实时内容转发到任务栏小组件
  */
 
 const { ipcMain, BrowserWindow, nativeTheme } = require('electron');
@@ -369,6 +370,30 @@ function registerHandlers(deps) {
       return { success: true, enabled: newState };
     } catch (error) {
       return { success: false, error: error.message };
+    }
+  });
+
+  // DeepSeek 内容更新：从主窗口/悬浮窗转发到任务栏小组件
+  ipcMain.on('deepseek-content-update', (event, data) => {
+    try {
+      const miniWindow = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
+      if (miniWindow && !miniWindow.isDestroyed() && miniWindow.isVisible()) {
+        miniWindow.webContents.send('deepseek-content-update', data);
+      }
+    } catch (error) {
+      console.error('[IPC] 转发 DeepSeek 内容失败:', error);
+    }
+  });
+
+  // 清空 DeepSeek 内容
+  ipcMain.on('deepseek-content-clear', () => {
+    try {
+      const miniWindow = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
+      if (miniWindow && !miniWindow.isDestroyed() && miniWindow.isVisible()) {
+        miniWindow.webContents.send('deepseek-content-clear');
+      }
+    } catch (error) {
+      console.error('[IPC] 清空 DeepSeek 内容失败:', error);
     }
   });
 }

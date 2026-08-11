@@ -84,5 +84,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     };
     ipcRenderer.on('taskbar-controls-state-changed', listener);
     return () => ipcRenderer.removeListener('taskbar-controls-state-changed', listener);
-  }
+  },
+
+  // 发送 DeepSeek 内容到任务栏小组件
+  sendDeepSeekContent: (content, isComplete) => ipcRenderer.send('deepseek-content-update', { content, isComplete }),
+
+  // 清空任务栏小组件内容
+  clearDeepSeekContent: () => ipcRenderer.send('deepseek-content-clear')
 });
