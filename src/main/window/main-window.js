@@ -32,6 +32,9 @@ function createNewWindow(url, deps) {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
+      // preload 需要 fs 读取注入脚本并在 document-start 写入主世界，
+      // 沙箱环境下 require('fs') 不可用；上下文隔离仍保持开启
+      sandbox: false,
       preload: constants.PRELOAD_PATH
     },
     show: false,
@@ -114,6 +117,9 @@ function createWindow(deps) {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
+      // preload 需要 fs 读取注入脚本并在 document-start 写入主世界，
+      // 沙箱环境下 require('fs') 不可用；上下文隔离仍保持开启
+      sandbox: false,
       preload: constants.PRELOAD_PATH
     },
     show: false,

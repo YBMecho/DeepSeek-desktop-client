@@ -1,4 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const { installStreamMonitor } = require('./deepseek-stream-bridge');
 
 // 向渲染进程暴露快捷键相关的API
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -87,8 +88,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // 发送 DeepSeek 内容到任务栏小组件
-  sendDeepSeekContent: (content, isComplete) => ipcRenderer.send('deepseek-content-update', { content, isComplete }),
+  sendDeepSeekContent: (content, isComplete, type) =>
+    ipcRenderer.send('deepseek-content-update', { content, isComplete, type }),
 
   // 清空任务栏小组件内容
   clearDeepSeekContent: () => ipcRenderer.send('deepseek-content-clear')
 });
+
+// 在页面脚本执行前安装对话流拦截器（必须在 preload 顶层同步调用）
+installStreamMonitor();

@@ -150,6 +150,8 @@ function createFloatingWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
+      // 与主窗口一致：preload 需在非沙箱环境读取并注入对话流拦截器
+      sandbox: false,
       preload: constants.PRELOAD_PATH
     },
     frame: false,

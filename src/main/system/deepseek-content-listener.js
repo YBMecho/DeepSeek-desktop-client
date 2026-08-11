@@ -1,156 +1,80 @@
 /**
- * DeepSeek 实时内容监听器（主进程版）
- * 
- * 功能：在主进程网络层拦截 DeepSeek API 响应，解析 SSE 流
+ * DeepSeek 对话流生命周期监听器
+ *
+ * 功能：在主进程网络层感知对话 SSE 流的开始与结束
  * 职责：
- *   - 使用 webRequest.onBeforeRequest 拦截请求
- *   - 使用 webRequest.onResponseStarted 获取响应流
- *   - 解析 SSE 数据并提取内容
- *   - 将内容发送到任务栏小组件
- * 
+ *   - 流开始时通知小组件清空上一轮内容
+ *   - 流异常结束（非 200 / 中断）时通知小组件收尾
+ *
  * 层级：主进程 - 系统集成
- * 
- * 优势：比渲染进程 fetch 拦截更可靠，不受页面加载时机影响
+ *
+ * 边界说明：
+ *   webRequest 无法读取流式响应体，正文由渲染进程拦截器采集后经 IPC 上报，
+ *   本模块只负责生命周期信号，不参与内容解析。
  */
 
 const { session } = require('electron');
 
+const API_URL_PATTERN = 'https://chat.deepseek.com/api/v0/chat/completion*';
+
 /**
- * 解析 SSE 数据行
- * @param {string} line - SSE 数据行
- * @returns {object|null} 解析后的对象
+ * 向小组件窗口发送消息
+ * @param {Function} getMiniWindow
+ * @param {string} channel
+ * @param {*} payload
  */
-function parseSSELine(line) {
-  if (!line.startsWith('data: ')) return null;
-  
-  const jsonStr = line.substring(6).trim();
-  if (!jsonStr || jsonStr === '[DONE]') return null;
-  
+function sendToMini(getMiniWindow, channel, payload) {
+  const miniWindow = getMiniWindow();
+  if (!miniWindow || miniWindow.isDestroyed() || !miniWindow.isVisible()) return;
   try {
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    return null;
-  }
+    miniWindow.webContents.send(channel, payload);
+  } catch (e) {}
 }
 
 /**
- * 提取内容片段
- * @param {object} data - SSE 数据对象
- * @returns {object|null} { content: string, type: 'THINK'|'RESPONSE', isComplete: boolean }
+ * 判断是否为对话 SSE 响应
+ * @param {Object} details - webRequest 回调详情
  */
-function extractContent(data) {
-  // 处理完整对象格式: {"v": {...}}
-  if (data.v && typeof data.v === 'object' && data.v.response) {
-    const response = data.v.response;
-    if (!response || !response.fragments) return null;
-    
-    const lastFragment = response.fragments[response.fragments.length - 1];
-    if (!lastFragment || !lastFragment.content) return null;
-    
-    return {
-      content: lastFragment.content,
-      type: lastFragment.type || 'RESPONSE',
-      isComplete: data.v.status === 'FINISHED'
-    };
-  }
-  
-  // 处理增量格式（有多种变体）
-  // 1. {"p":"...","o":"APPEND","v":"..."}
-  // 2. {"p":"...","v":"..."}  (没有 o 字段)
-  // 3. {"v":"..."}  (只有 v 字段)
-  
-  if (data.v && typeof data.v === 'string') {
-    // 判断路径以确定内容类型
-    const path = data.p || '';
-    
-    // fragments/0 是 THINK，fragments/-1 是 RESPONSE
-    const isThink = path.includes('fragments/0');
-    const isResponse = path.includes('fragments/-1') || path.includes('content') || !path;
-    
-    if (isResponse) {
-      return {
-        content: data.v,
-        type: 'RESPONSE',
-        isIncremental: true,
-        isComplete: false
-      };
-    } else if (isThink) {
-      return {
-        content: data.v,
-        type: 'THINK',
-        isIncremental: true,
-        isComplete: false
-      };
-    }
-  }
-  
-  // 检查完成状态
-  if (data.p === 'response/status' && data.v === 'FINISHED') {
-    return {
-      content: '',
-      type: 'RESPONSE',
-      isComplete: true
-    };
-  }
-  
-  return null;
+function isChatStream(details) {
+  if (details.method !== 'POST' || details.statusCode !== 200) return false;
+  const headers = details.responseHeaders || {};
+  const contentType = headers['content-type'] || headers['Content-Type'] || [];
+  return contentType.some((value) => String(value).includes('text/event-stream'));
 }
 
 /**
- * 注册 DeepSeek 内容监听器
+ * 注册对话流生命周期监听
  * @param {Object} deps
  * @param {Function} deps.getMiniWindow - 获取小组件窗口实例
- * @param {Function} deps.logDebug - 调试日志函数
+ * @param {Function} [deps.logDebug] - 调试日志
  */
 function registerDeepSeekContentListener(deps) {
-  try {
-    let fullContent = '';
-    let isStreaming = false;
-    
-    // 监听响应开始（这里可以拿到响应头，确认是 SSE）
-    session.defaultSession.webRequest.onResponseStarted(
-      { urls: ['https://chat.deepseek.com/api/v0/chat/completion*'] },
-      (details) => {
-        if (details.method === 'POST' && details.statusCode === 200) {
-          const contentType = details.responseHeaders['content-type'] || 
-                              details.responseHeaders['Content-Type'];
-          
-          if (contentType && contentType[0].includes('text/event-stream')) {
-            console.log('[DeepSeek Content Listener] 检测到 SSE 流开始');
-            fullContent = '';
-            isStreaming = true;
-          }
-        }
-      }
-    );
-    
-    // 监听请求完成（流结束）
-    session.defaultSession.webRequest.onCompleted(
-      { urls: ['https://chat.deepseek.com/api/v0/chat/completion*'] },
-      (details) => {
-        if (details.method === 'POST' && details.statusCode === 200 && isStreaming) {
-          console.log('[DeepSeek Content Listener] SSE 流结束，最终内容长度:', fullContent.length);
-          isStreaming = false;
-          
-          // 发送完成信号
-          const miniWindow = deps.getMiniWindow();
-          if (miniWindow && !miniWindow.isDestroyed() && miniWindow.isVisible()) {
-            miniWindow.webContents.send('deepseek-content-update', {
-              content: fullContent,
-              isComplete: true
-            });
-            console.log('[DeepSeek Content Listener] 已发送完成信号到小组件');
-          }
-        }
-      }
-    );
-    
-    console.log('[DeepSeek Content Listener] 监听器注册完成');
-  } catch (error) {
-    console.error('[DeepSeek Content Listener] 注册监听器失败:', error);
-  }
+  const logDebug = deps.logDebug || (() => {});
+  const webRequest = session.defaultSession.webRequest;
+  let isStreaming = false;
+
+  webRequest.onResponseStarted({ urls: [API_URL_PATTERN] }, (details) => {
+    if (!isChatStream(details)) return;
+    isStreaming = true;
+    logDebug('[DS Stream] 对话流开始');
+    sendToMini(deps.getMiniWindow, 'deepseek-content-clear');
+  });
+
+  webRequest.onCompleted({ urls: [API_URL_PATTERN] }, (details) => {
+    if (!isStreaming) return;
+    isStreaming = false;
+    logDebug('[DS Stream] 对话流结束', details.statusCode);
+  });
+
+  webRequest.onErrorOccurred({ urls: [API_URL_PATTERN] }, () => {
+    if (!isStreaming) return;
+    isStreaming = false;
+    logDebug('[DS Stream] 对话流中断');
+    sendToMini(deps.getMiniWindow, 'deepseek-content-update', {
+      content: '',
+      isComplete: true
+    });
+  });
 }
 
-module.exports = {
-  registerDeepSeekContentListener
-};
+module.exports = { registerDeepSeekContentListener };

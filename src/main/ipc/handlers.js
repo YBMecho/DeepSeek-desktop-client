@@ -373,36 +373,27 @@ function registerHandlers(deps) {
     }
   });
 
-  // DeepSeek 内容更新：从主窗口/悬浮窗转发到任务栏小组件
-  ipcMain.on('deepseek-content-update', (event, data) => {
+  // DeepSeek 内容转发：从主窗口/悬浮窗推送到任务栏小组件
+  // 注意：不校验 isVisible()。小组件在吸附收起态下仍是有效接收端，
+  // 用可见性做门槛会把整轮流式内容全部丢弃。
+  const forwardToMini = (channel, payload) => {
+    const miniWindow = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
+    if (!miniWindow || miniWindow.isDestroyed()) return;
     try {
-      console.log('[IPC] 收到 DeepSeek 内容更新:', data.content?.substring(0, 50) + (data.content?.length > 50 ? '...' : ''));
-      const miniWindow = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
-      if (miniWindow && !miniWindow.isDestroyed() && miniWindow.isVisible()) {
-        miniWindow.webContents.send('deepseek-content-update', data);
-        console.log('[IPC] 已转发到小组件窗口');
-      } else {
-        console.log('[IPC] 小组件窗口不可用:', {
-          exists: !!miniWindow,
-          destroyed: miniWindow?.isDestroyed(),
-          visible: miniWindow?.isVisible()
-        });
-      }
-    } catch (error) {
-      console.error('[IPC] 转发 DeepSeek 内容失败:', error);
-    }
+      miniWindow.webContents.send(channel, payload);
+    } catch (e) {}
+  };
+
+  ipcMain.on('deepseek-content-update', (event, data) => {
+    if (!data || data.type === 'THINK') return;
+    forwardToMini('deepseek-content-update', {
+      content: data.content || '',
+      isComplete: !!data.isComplete
+    });
   });
 
-  // 清空 DeepSeek 内容
   ipcMain.on('deepseek-content-clear', () => {
-    try {
-      const miniWindow = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
-      if (miniWindow && !miniWindow.isDestroyed() && miniWindow.isVisible()) {
-        miniWindow.webContents.send('deepseek-content-clear');
-      }
-    } catch (error) {
-      console.error('[IPC] 清空 DeepSeek 内容失败:', error);
-    }
+    forwardToMini('deepseek-content-clear');
   });
 }
 

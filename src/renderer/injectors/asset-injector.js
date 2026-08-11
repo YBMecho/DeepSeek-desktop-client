@@ -136,29 +136,9 @@ function injectCustomAssets(targetWindow, floatingWindow) {
     } catch (e) {}
   }
 
-  // 注入 DeepSeek API 监听器（仅主窗口和悬浮窗）
-  const deepseekMonitorJsPath = path.join(__dirname, 'deepseek-api-monitor.js');
-  console.log('[Asset Injector] 尝试注入 DeepSeek API 监听器，路径:', deepseekMonitorJsPath);
-  try {
-    const deepseekMonitorJs = fs.readFileSync(deepseekMonitorJsPath, 'utf8');
-    console.log('[Asset Injector] 监听器文件读取成功，大小:', deepseekMonitorJs.length, '字节');
-    const wrapped = `(() => {
-  try {
-    if (window.__DS_API_MONITOR_LOADED__) {
-      console.log('[DeepSeek API Monitor] 已加载，跳过重复注入');
-      return;
-    }
-    window.__DS_API_MONITOR_LOADED__ = true;
-  } catch (e) {}
-})();
-` + deepseekMonitorJs;
-    targetWindow.webContents.executeJavaScript(wrapped).catch((err) => {
-      console.error('[Asset Injector] 执行监听器脚本失败:', err);
-    });
-    console.log('[Asset Injector] DeepSeek API 监听器注入完成');
-  } catch (e) {
-    console.error('[Asset Injector] 注入 DeepSeek API 监听器失败:', e);
-  }
+  // DeepSeek 对话流监听器不在此注入：
+  // 它必须先于页面 bundle 运行才能劫持到原始 fetch/XHR，
+  // 已由 src/preload/deepseek-stream-bridge.js 在 document-start 时机写入主世界。
 }
 
 /**

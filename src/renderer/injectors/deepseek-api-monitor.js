@@ -1,202 +1,249 @@
 /**
- * DeepSeek API 监听器
- * 
- * 功能：拦截主窗口的 DeepSeek API 响应，解析 SSE 流，提取实时内容
- * 层级：渲染进程 - 注入脚本
- * 
- * 工作原理：
- * 1. 拦截 fetch 请求，识别 /api/v0/chat/completion 接口
- * 2. 解析 SSE (Server-Sent Events) 流式响应
- * 3. 提取 RESPONSE 类型片段的内容
- * 4. 通过 IPC 发送到主进程，转发给任务栏小组件
+ * DeepSeek 对话流监听器
+ *
+ * 功能：在页面主世界劫持 fetch / XMLHttpRequest，实时解析
+ *       /api/v0/chat/completion 的 SSE 增量，并推送给任务栏小组件
+ * 层级：渲染进程 - 注入脚本（运行在页面主世界，document-start 时机安装）
+ *
+ * SSE 增量协议要点：
+ *   {"v":{"response":{"fragments":[...]}}}                初始快照
+ *   {"p":"response/fragments","o":"APPEND","v":[{...}]}    新增片段
+ *   {"p":"response/fragments/-1/content","v":"呀"}         指定片段追加（o 可缺省）
+ *   {"v":"！"}                                            沿用上一个 content 路径继续追加
+ *   {"p":"response/status","o":"SET","v":"FINISHED"}       生成结束
  */
-
-(function() {
+(function () {
   'use strict';
 
-  // 保存原始 fetch
-  const originalFetch = window.fetch;
+  if (window.__DS_CHAT_STREAM_MONITOR__) return;
+  window.__DS_CHAT_STREAM_MONITOR__ = true;
 
-  /**
-   * 解析 SSE 数据行
-   * @param {string} line - SSE 数据行
-   * @returns {object|null} 解析后的对象
-   */
-  function parseSSELine(line) {
-    if (!line.startsWith('data: ')) return null;
-    
-    const jsonStr = line.substring(6).trim();
-    if (!jsonStr || jsonStr === '[DONE]') return null;
-    
+  const API_PATH = '/api/v0/chat/completion';
+  const EMIT_INTERVAL_MS = 60;
+
+  const log = function () {
     try {
-      return JSON.parse(jsonStr);
-    } catch (e) {
-      return null;
-    }
-  }
+      const args = ['[DS Monitor]'].concat(Array.prototype.slice.call(arguments));
+      console.log.apply(console, args);
+    } catch (e) {}
+  };
 
-  /**
-   * 提取内容片段
-   * @param {object} data - SSE 数据对象
-   * @returns {object|null} { content: string, type: 'THINK'|'RESPONSE' }
-   */
-  function extractContent(data) {
-    // 处理完整对象格式: {"v": {...}}
-    if (data.v && typeof data.v === 'object' && data.v.response) {
-      const response = data.v.response;
-      if (!response || !response.fragments) return null;
-      
-      const lastFragment = response.fragments[response.fragments.length - 1];
-      if (!lastFragment || !lastFragment.content) return null;
-      
-      return {
-        content: lastFragment.content,
-        type: lastFragment.type || 'RESPONSE',
-        isComplete: data.v.status === 'FINISHED'
-      };
-    }
-    
-    // 处理增量格式（有多种变体）
-    // 1. {"p":"...","o":"APPEND","v":"..."}
-    // 2. {"p":"...","v":"..."}  (没有 o 字段)
-    // 3. {"v":"..."}  (只有 v 字段)
-    
-    if (data.v && typeof data.v === 'string') {
-      // 判断路径以确定内容类型
-      const path = data.p || '';
-      
-      // fragments/0 是 THINK，fragments/-1 是 RESPONSE
-      const isThink = path.includes('fragments/0');
-      const isResponse = path.includes('fragments/-1') || path.includes('content') || !path;
-      
-      if (isResponse) {
-        return {
-          content: data.v,
-          type: 'RESPONSE',
-          isIncremental: true
-        };
-      } else if (isThink) {
-        return {
-          content: data.v,
-          type: 'THINK',
-          isIncremental: true
-        };
-      }
-    }
-    
-    return null;
-  }
+  const toUrl = (input) => {
+    try {
+      if (typeof input === 'string') return input;
+      if (input instanceof URL) return input.href;
+      if (input && typeof input.url === 'string') return input.url;
+    } catch (e) {}
+    return '';
+  };
 
-  /**
-   * 拦截 fetch 请求
-   */
-  window.fetch = async function(...args) {
-    const [url, options] = args;
-    
-    // 只拦截 DeepSeek chat completion 接口
-    if (typeof url === 'string' && url.includes('/api/v0/chat/completion')) {
-      console.log('[DeepSeek API Monitor] 检测到对话请求');
-      
-      try {
-        const response = await originalFetch.apply(this, args);
-        
-        // 克隆响应以便读取流
-        const clonedResponse = response.clone();
-        
-        // 检查是否为 SSE 流
-        const contentType = clonedResponse.headers.get('content-type') || '';
-        if (contentType.includes('text/event-stream')) {
-          processSSEStream(clonedResponse.body);
-        }
-        
-        return response;
-      } catch (error) {
-        console.error('[DeepSeek API Monitor] 请求失败:', error);
-        throw error;
-      }
+  const isTarget = (url) => typeof url === 'string' && url.indexOf(API_PATH) !== -1;
+
+  const emitToMain = (content, type, isComplete) => {
+    const api = window.electronAPI;
+    if (!api || typeof api.sendDeepSeekContent !== 'function') {
+      log('electronAPI 不可用，内容无法推送');
+      return;
     }
-    
-    // 其他请求正常处理
-    return originalFetch.apply(this, args);
+    api.sendDeepSeekContent(content, isComplete, type);
+  };
+
+  const throttle = (fn, wait) => {
+    let last = 0;
+    let pending = null;
+    let timer = null;
+    const run = () => {
+      timer = null;
+      last = Date.now();
+      const args = pending;
+      pending = null;
+      if (args) fn.apply(null, args);
+    };
+    return function () {
+      pending = Array.prototype.slice.call(arguments);
+      const gap = Date.now() - last;
+      if (gap >= wait) run();
+      else if (!timer) timer = setTimeout(run, wait - gap);
+    };
   };
 
   /**
-   * 处理 SSE 流
-   * @param {ReadableStream} stream - 响应流
+   * 把 SSE 事件折叠为当前片段列表
+   * 关键点：裸 {"v":"..."} 事件必须沿用上一次出现过的 content 路径
    */
-  async function processSSEStream(stream) {
-    const reader = stream.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
-    let fullContent = ''; // 累积完整内容
-    let chunkCount = 0;
-    
-    console.log('[DeepSeek API Monitor] 开始处理 SSE 流');
-    
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (done) {
-          console.log('[DeepSeek API Monitor] 流结束，总共处理', chunkCount, '个片段');
-          console.log('[DeepSeek API Monitor] 最终内容:', fullContent);
-          // 发送完成信号
-          if (window.electronAPI && window.electronAPI.sendDeepSeekContent) {
-            window.electronAPI.sendDeepSeekContent(fullContent, true);
-            console.log('[DeepSeek API Monitor] 已发送完成信号');
-          } else {
-            console.error('[DeepSeek API Monitor] electronAPI 不可用！');
-          }
-          break;
-        }
-        
-        // 解码数据块
-        buffer += decoder.decode(value, { stream: true });
-        
-        // 按行处理
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // 保留不完整的行
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine) continue;
-          
-          // 解析 SSE 行
-          const data = parseSSELine(trimmedLine);
-          if (!data) continue;
-          
-          // 提取内容
-          const extracted = extractContent(data);
-          if (!extracted) continue;
-          
-          // 只处理 RESPONSE 类型（可选：也可以展示 THINK）
-          if (extracted.type === 'RESPONSE') {
-            chunkCount++;
-            
-            if (extracted.isIncremental) {
-              // 增量追加
-              fullContent += extracted.content;
-            } else {
-              // 完整内容
-              fullContent = extracted.content;
-            }
-            
-            // 每收到一些内容就发送一次（实时更新）
-            if (chunkCount % 5 === 0 || extracted.content.length > 10) {
-              if (window.electronAPI && window.electronAPI.sendDeepSeekContent) {
-                window.electronAPI.sendDeepSeekContent(fullContent, extracted.isComplete || false);
-                console.log('[DeepSeek API Monitor] 已发送更新，当前长度:', fullContent.length);
-              }
-            }
-          }
-        }
+  function createReducer() {
+    let fragments = [];
+    let contentPath = '';
+
+    const last = () => fragments[fragments.length - 1];
+    const normalize = (f) => ({ type: f.type || 'RESPONSE', content: f.content || '' });
+
+    const appendText = (text) => {
+      const target = last();
+      if (!target) return null;
+      target.content += text;
+      return target;
+    };
+
+    return function reduce(data) {
+      if (!data || typeof data !== 'object') return null;
+
+      if (data.v && typeof data.v === 'object' && !Array.isArray(data.v) && data.v.response) {
+        const response = data.v.response;
+        fragments = (response.fragments || []).map(normalize);
+        contentPath = 'response/fragments/-1/content';
+        return { fragment: last(), isComplete: response.status === 'FINISHED' };
       }
-    } catch (error) {
-      console.error('[DeepSeek API Monitor] 处理流时出错:', error);
-    } finally {
-      reader.releaseLock();
-    }
+
+      if (data.p === 'response/fragments' && Array.isArray(data.v)) {
+        data.v.forEach((f) => fragments.push(normalize(f)));
+        contentPath = 'response/fragments/-1/content';
+        return { fragment: last(), isComplete: false };
+      }
+
+      if (data.p === 'response/status' && data.v === 'FINISHED') {
+        return { fragment: last(), isComplete: true };
+      }
+
+      if (typeof data.v !== 'string') return null;
+
+      if (typeof data.p === 'string' && data.p.slice(-8) === '/content') {
+        contentPath = data.p;
+        const fragment = appendText(data.v);
+        return fragment ? { fragment, isComplete: false } : null;
+      }
+
+      if (!data.p && contentPath.slice(-8) === '/content') {
+        const fragment = appendText(data.v);
+        return fragment ? { fragment, isComplete: false } : null;
+      }
+
+      return null;
+    };
+  }
+  /**
+   * 按行消费 SSE 文本，节流推送增量
+   */
+  function createStreamHandler() {
+    const reduce = createReducer();
+    const emitThrottled = throttle((content, type) => emitToMain(content, type, false), EMIT_INTERVAL_MS);
+    let buffer = '';
+    let latest = { content: '', type: 'RESPONSE' };
+
+    const handleLine = (line) => {
+      if (line.indexOf('data:') !== 0) return;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') return;
+
+      let data;
+      try {
+        data = JSON.parse(payload);
+      } catch (e) {
+        return;
+      }
+
+      const result = reduce(data);
+      if (!result || !result.fragment) return;
+
+      latest = result.fragment;
+      if (result.isComplete) emitToMain(latest.content, latest.type, true);
+      else emitThrottled(latest.content, latest.type);
+    };
+
+    return {
+      push(text) {
+        buffer += text;
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        lines.forEach((line) => handleLine(line.trim()));
+      },
+      finish() {
+        const rest = buffer.trim();
+        buffer = '';
+        if (rest) handleLine(rest);
+        emitToMain(latest.content, latest.type, true);
+      }
+    };
   }
 
-  console.log('[DeepSeek API Monitor] 已加载');
+  /**
+   * 旁路读取 SSE 响应，不影响页面自身消费
+   */
+  function tapResponse(response) {
+    if (!response || !response.body) return;
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.indexOf('text/event-stream') === -1) return;
+
+    const handler = createStreamHandler();
+    const reader = response.clone().body.getReader();
+    const decoder = new TextDecoder('utf-8');
+
+    const pump = () => {
+      reader.read().then(({ done, value }) => {
+        if (done) {
+          handler.finish();
+          return;
+        }
+        handler.push(decoder.decode(value, { stream: true }));
+        pump();
+      }).catch((error) => log('读取流失败', error));
+    };
+
+    pump();
+  }
+
+  const nativeFetch = window.fetch;
+  if (typeof nativeFetch === 'function') {
+    window.fetch = function (input) {
+      const promise = nativeFetch.apply(this, arguments);
+      if (!isTarget(toUrl(input))) return promise;
+
+      log('捕获对话请求 (fetch)');
+      return promise.then((response) => {
+        try {
+          tapResponse(response);
+        } catch (error) {
+          log('旁路读取失败', error);
+        }
+        return response;
+      });
+    };
+  }
+
+  const NativeXHR = window.XMLHttpRequest;
+  if (NativeXHR && NativeXHR.prototype) {
+    const nativeOpen = NativeXHR.prototype.open;
+    const nativeSend = NativeXHR.prototype.send;
+
+    NativeXHR.prototype.open = function (method, url) {
+      this.__dsIsTarget = isTarget(toUrl(url));
+      return nativeOpen.apply(this, arguments);
+    };
+
+    NativeXHR.prototype.send = function () {
+      if (this.__dsIsTarget) {
+        log('捕获对话请求 (xhr)');
+        const handler = createStreamHandler();
+        let offset = 0;
+
+        this.addEventListener('progress', () => {
+          let text = '';
+          try {
+            text = this.responseText || '';
+          } catch (e) {
+            return;
+          }
+          if (text.length <= offset) return;
+          handler.push(text.slice(offset));
+          offset = text.length;
+        });
+
+        this.addEventListener('loadend', () => handler.finish());
+      }
+      return nativeSend.apply(this, arguments);
+    };
+  }
+
+  log('拦截器已安装');
 })();

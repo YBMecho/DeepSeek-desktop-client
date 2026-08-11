@@ -1,51 +1,54 @@
 /**
- * 任务栏小组件 - 实时内容显示脚本
- * 
- * 功能：接收并显示 DeepSeek 对话的实时输出
+ * 任务栏小组件 - 对话流内容显示
+ *
+ * 功能：接收主进程转发的对话增量，渲染到 388x40 的单行区域
  * 层级：渲染进程 - 小组件 UI
  */
-
-(function() {
+(function () {
   'use strict';
 
-  const contentElement = document.getElementById('liveContent');
-  
-  // Electron IPC 渲染进程通信（通过 webContents.send）
-  if (typeof require !== 'undefined') {
-    try {
-      const { ipcRenderer } = require('electron');
-      
-      // 监听来自主进程的内容更新
-      ipcRenderer.on('deepseek-content-update', (event, data) => {
-        const { content, isComplete } = data;
-        
-        if (content) {
-          contentElement.textContent = content;
-          console.log('[Taskbar Controls] 收到内容更新:', content.substring(0, 50) + '...');
-        }
-        
-        // 对话完成后，添加完成状态
-        if (isComplete) {
-          contentElement.classList.add('complete');
-          console.log('[Taskbar Controls] 对话完成');
-          // 5秒后移除完成状态
-          setTimeout(() => {
-            contentElement.classList.remove('complete');
-          }, 5000);
-        }
-      });
+  const { ipcRenderer } = require('electron');
 
-      // 监听清空命令
-      ipcRenderer.on('deepseek-content-clear', () => {
-        contentElement.textContent = '';
-        contentElement.classList.remove('complete');
-        console.log('[Taskbar Controls] 内容已清空');
-      });
-      
-      console.log('[Taskbar Controls] IPC 监听器已初始化');
-    } catch (e) {
-      console.error('[Taskbar Controls] 初始化 IPC 失败:', e);
+  const element = document.getElementById('liveContent');
+  if (!element) return;
+
+  const COMPLETE_HOLD_MS = 5000;
+  let completeTimer = null;
+
+  const clearCompleteState = () => {
+    if (completeTimer) {
+      clearTimeout(completeTimer);
+      completeTimer = null;
     }
-  }
+    element.classList.remove('complete');
+  };
 
+  const render = (text) => {
+    element.textContent = text;
+    // 单行容器内保持视口贴住最新字符，模拟打字机跟随
+    element.scrollLeft = element.scrollWidth;
+  };
+
+  ipcRenderer.on('deepseek-content-update', (event, data) => {
+    if (!data) return;
+
+    // 空内容的完成信号只用于收尾，不能覆盖已渲染的正文
+    if (typeof data.content === 'string' && data.content) {
+      clearCompleteState();
+      render(data.content);
+    }
+
+    if (data.isComplete) {
+      element.classList.add('complete');
+      completeTimer = setTimeout(() => {
+        completeTimer = null;
+        element.classList.remove('complete');
+      }, COMPLETE_HOLD_MS);
+    }
+  });
+
+  ipcRenderer.on('deepseek-content-clear', () => {
+    clearCompleteState();
+    render('');
+  });
 })();
