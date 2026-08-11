@@ -18,3 +18,8 @@ deepseek-installer.iss
 # 项目文档（根据需要调整）
 任务.md
 style-guide.md
+# 临时文件
+.scratch/
+.superpowers/
+text.bat
+context-menu-test.js
