@@ -1,15 +1,32 @@
-// 默认模式设置功能 (快/专/图)
-(function() {
+/**
+ * 默认模式设置功能 (快/专/图)
+ *
+ * 功能：在设置面板中添加默认对话模式选择器，并自动应用到新对话
+ * 职责：
+ *   - 创建默认模式下拉选择 UI
+ *   - 监听新对话创建并自动应用默认模式
+ *   - 与主进程配置同步（electronAPI）
+ *
+ * 层级：渲染进程 - UI 组件
+ */
+
+interface ModeOption {
+  value: 'quick' | 'expert' | 'image';
+  label: string;
+  dataType: string;
+}
+
+(function () {
   'use strict';
 
-  let currentDefaultMode = 'quick';
-  let defaultModeSelectContainer = null;
-  let defaultModeDisplay = null;
-  let defaultModeMenuWrapper = null;
+  let currentDefaultMode: 'quick' | 'expert' | 'image' = 'quick';
+  let defaultModeSelectContainer: HTMLDivElement | null = null;
+  let defaultModeDisplay: HTMLDivElement | null = null;
+  let defaultModeMenuWrapper: HTMLDivElement | null = null;
   let isModeMenuOpen = false;
   let cooldown = false;
 
-  const MODE_OPTIONS = [
+  const MODE_OPTIONS: ModeOption[] = [
     { value: 'quick', label: '快速', dataType: 'default' },
     { value: 'expert', label: '专业', dataType: 'expert' },
     { value: 'image', label: '识图', dataType: 'vision' }
@@ -18,19 +35,19 @@
   const MODE_SELECTOR_CONTAINER = 'e362e944';
   const NEW_CHAT_BTN = 'a084f19e';
 
-  function findLanguageContainer() {
+  function findLanguageContainer(): HTMLElement | null {
     const allContainers = document.querySelectorAll('.ds-flex._50b3d9e');
-    for (let container of allContainers) {
-      if (container.textContent.includes('语言')) return container;
+    for (const container of allContainers) {
+      if (container.textContent?.includes('语言')) return container as HTMLElement;
     }
     return null;
   }
 
-  function isGeneralSettingsTab() {
+  function isGeneralSettingsTab(): boolean {
     const activeTab = document.querySelector('.ds-segmented-button--selected');
-    if (activeTab && activeTab.textContent && activeTab.textContent.includes('通用设置')) return true;
+    if (activeTab && activeTab.textContent?.includes('通用设置')) return true;
     const buttons = document.querySelectorAll('button, [role="button"]');
-    for (let btn of buttons) {
+    for (const btn of buttons) {
       const text = (btn.textContent || '').trim();
       if (!text || !text.includes('通用设置')) continue;
       const cls = btn.className || '';
@@ -39,13 +56,13 @@
     return !!findLanguageContainer();
   }
 
-  function removeExistingDefaultModeSettings() {
+  function removeExistingDefaultModeSettings(): void {
     const existing = document.querySelector('.default-mode-setting-flex');
     if (existing) existing.remove();
     document.removeEventListener('mousedown', handleModeOutsideMouseDown, true);
   }
 
-  function createDefaultModeSettings(referenceContainer) {
+  function createDefaultModeSettings(referenceContainer: HTMLElement | null = null): void {
     if (!isGeneralSettingsTab()) return;
     removeExistingDefaultModeSettings();
     const languageContainer = findLanguageContainer();
@@ -53,7 +70,10 @@
       const waitObserver = new MutationObserver(() => {
         if (!isGeneralSettingsTab()) return;
         const lc = findLanguageContainer();
-        if (lc) { waitObserver.disconnect(); createDefaultModeSettings(referenceContainer); }
+        if (lc) {
+          waitObserver.disconnect();
+          createDefaultModeSettings(referenceContainer);
+        }
       });
       waitObserver.observe(document.body, { childList: true, subtree: true });
       setTimeout(() => waitObserver.disconnect(), 3000);
@@ -84,7 +104,7 @@
     arrow.setAttribute('aria-hidden', 'true');
     arrow.innerHTML = '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M256,294.1L383,167c9.4-9.4,24.6-9.4,33.9,0s9.3,24.6,0,34L273,345c-9.1,9.1-23.7,9.3-33.1,0.7L95,201.1c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fill="currentColor"></path></svg>';
 
-    defaultModeSelectContainer.addEventListener('click', (e) => {
+    defaultModeSelectContainer.addEventListener('click', (e: MouseEvent) => {
       e.stopPropagation();
       if (isModeMenuOpen) closeModeMenu();
       else { if (defaultModeMenuWrapper) return; openModeMenu(); }
@@ -97,13 +117,13 @@
 
     const parent = insertAfter.parentNode;
     const ref = insertAfter.nextSibling;
-    if (ref) parent.insertBefore(container, ref);
-    else parent.appendChild(container);
+    if (ref) parent?.insertBefore(container, ref);
+    else parent?.appendChild(container);
 
     syncModeSectionVisibility();
   }
 
-  function openModeMenu() {
+  function openModeMenu(): void {
     if (!defaultModeSelectContainer || isModeMenuOpen) return;
     isModeMenuOpen = true;
     defaultModeSelectContainer.classList.add('ds-select--open');
@@ -118,7 +138,7 @@
       const option = document.createElement('div');
       option.className = 'ds-select-option' + (currentDefaultMode === opt.value ? ' ds-select-option--selected' : '');
       option.innerHTML = '<span>' + opt.label + '</span>';
-      option.addEventListener('click', (e) => { e.stopPropagation(); selectDefaultMode(opt.value); });
+      option.addEventListener('click', (e: MouseEvent) => { e.stopPropagation(); selectDefaultMode(opt.value); });
       menu.appendChild(option);
     });
     defaultModeMenuWrapper.appendChild(menu);
@@ -128,14 +148,14 @@
     document.addEventListener('mousedown', handleModeOutsideMouseDown, true);
   }
 
-  function handleModeOutsideMouseDown(e) {
+  function handleModeOutsideMouseDown(e: MouseEvent): void {
     if (!isModeMenuOpen) return;
-    if (defaultModeMenuWrapper && defaultModeMenuWrapper.contains(e.target)) return;
-    if (defaultModeSelectContainer && defaultModeSelectContainer.contains(e.target)) return;
+    if (defaultModeMenuWrapper && defaultModeMenuWrapper.contains(e.target as Node)) return;
+    if (defaultModeSelectContainer && defaultModeSelectContainer.contains(e.target as Node)) return;
     closeModeMenu();
   }
 
-  function closeModeMenu() {
+  function closeModeMenu(): void {
     if (!isModeMenuOpen) return;
     isModeMenuOpen = false;
     if (defaultModeSelectContainer) defaultModeSelectContainer.classList.remove('ds-select--open');
@@ -146,38 +166,45 @@
     window.removeEventListener('scroll', closeModeMenu, true);
   }
 
-  function selectDefaultMode(value) {
+  function selectDefaultMode(value: 'quick' | 'expert' | 'image'): void {
     if (!MODE_OPTIONS.find(m => m.value === value)) return;
     currentDefaultMode = value;
-    if (defaultModeDisplay) defaultModeDisplay.textContent = MODE_OPTIONS.find(m => m.value === value).label;
+    if (defaultModeDisplay) defaultModeDisplay.textContent = MODE_OPTIONS.find(m => m.value === value)?.label || '快速';
     saveDefaultModeSetting(value);
     closeModeMenu();
   }
 
-  async function saveDefaultModeSetting(mode) {
-    try { if (window.electronAPI?.setDefaultMode) await window.electronAPI.setDefaultMode(mode); }
-    catch (e) { console.error('保存默认模式设置时出错:', e); }
+  async function saveDefaultModeSetting(mode: string): Promise<void> {
+    try {
+      if (window.electronAPI && 'setDefaultMode' in window.electronAPI) {
+        await (window.electronAPI as any).setDefaultMode(mode);
+      }
+    } catch (e) {
+      console.error('保存默认模式设置时出错:', e);
+    }
   }
 
-  async function loadCurrentDefaultMode() {
+  async function loadCurrentDefaultMode(): Promise<void> {
     try {
-      if (window.electronAPI?.getDefaultMode) {
-        currentDefaultMode = await window.electronAPI.getDefaultMode();
+      if (window.electronAPI && 'getDefaultMode' in window.electronAPI) {
+        currentDefaultMode = await (window.electronAPI as any).getDefaultMode() as 'quick' | 'expert' | 'image';
         if (defaultModeDisplay) defaultModeDisplay.textContent = MODE_OPTIONS.find(m => m.value === currentDefaultMode)?.label || '快速';
       }
-    } catch (e) { console.error('加载默认模式设置时出错:', e); }
+    } catch (e) {
+      console.error('加载默认模式设置时出错:', e);
+    }
   }
 
-  function syncModeSectionVisibility() {
-    const container = document.querySelector('.default-mode-setting-flex');
+  function syncModeSectionVisibility(): void {
+    const container = document.querySelector('.default-mode-setting-flex') as HTMLElement | null;
     if (!container) return;
     const lc = findLanguageContainer();
     container.style.display = (lc && isElementVisible(lc)) ? 'flex' : 'none';
   }
 
-  function isElementVisible(el) {
+  function isElementVisible(el: HTMLElement): boolean {
     if (!el || !el.isConnected) return false;
-    let cur = el;
+    let cur: HTMLElement | null = el;
     while (cur && cur !== document.body) {
       if (window.getComputedStyle(cur).display === 'none') return false;
       cur = cur.parentElement;
@@ -185,40 +212,38 @@
     return true;
   }
 
-  function getDataTypeValue(mode) {
+  function getDataTypeValue(mode: string): string {
     return { quick: 'default', expert: 'expert', image: 'vision' }[mode] || 'default';
   }
 
   // 核心：检测模式选择器容器是否存在（存在 = 新对话）
-  function isModeSelectorVisible() {
+  function isModeSelectorVisible(): boolean {
     return !!document.querySelector('.' + MODE_SELECTOR_CONTAINER);
   }
 
-
-
-  function applyDefaultModeToChat() {
+  function applyDefaultModeToChat(): void {
     if (!isModeSelectorVisible()) return;
     const targetMode = getDataTypeValue(currentDefaultMode);
     const btn = document.querySelector('[data-model-type="' + targetMode + '"]');
-    if (btn) btn.click();
+    if (btn) (btn as HTMLElement).click();
   }
 
-  function applyModeToChat(mode) {
+  function applyModeToChat(mode: string): boolean {
     if (!isModeSelectorVisible()) return false;
     const btn = document.querySelector('[data-model-type="' + getDataTypeValue(mode) + '"]');
     if (!btn) return false;
-    btn.click();
+    (btn as HTMLElement).click();
     return true;
   }
 
-  function createNewConversationWithMode(mode) {
+  function createNewConversationWithMode(mode: string): void {
     const newChatBtn = document.querySelector('._5a8ac7a');
     if (!newChatBtn) return;
-    newChatBtn.click();
+    (newChatBtn as HTMLElement).click();
     setTimeout(() => { applyModeToChat(mode); }, 500);
   }
 
-  function checkAndApply() {
+  function checkAndApply(): void {
     if (cooldown) return;
     if (!isModeSelectorVisible()) return;
     cooldown = true;
@@ -226,16 +251,19 @@
     setTimeout(() => { cooldown = false; }, 3000);
   }
 
-  function initDefaultModeListener() {
+  function initDefaultModeListener(): void {
     setTimeout(checkAndApply, 500);
     const observer = new MutationObserver(() => checkAndApply());
     observer.observe(document.body, { childList: true, subtree: true });
     setInterval(checkAndApply, 2000);
-    document.addEventListener('click', (e) => {
-      const btn = e.target?.closest('.' + NEW_CHAT_BTN);
-      if (btn || e.target?.closest('[tabindex]')?.textContent?.includes('新对话')) {
+    document.addEventListener('click', (e: MouseEvent) => {
+      const btn = (e.target as HTMLElement)?.closest('.' + NEW_CHAT_BTN);
+      if (btn || (e.target as HTMLElement)?.closest('[tabindex]')?.textContent?.includes('新对话')) {
         cooldown = true;
-        setTimeout(() => { applyDefaultModeToChat(); setTimeout(() => { cooldown = false; }, 3000); }, 800);
+        setTimeout(() => {
+          applyDefaultModeToChat();
+          setTimeout(() => { cooldown = false; }, 3000);
+        }, 800);
       }
     }, true);
   }

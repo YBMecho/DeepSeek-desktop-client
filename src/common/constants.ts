@@ -33,6 +33,7 @@ export interface DefaultConfig {
   replyNotifyEnabled: boolean;
   isFloatingWindowPinned: boolean;
   autoLaunch: boolean;
+  silentAutoLaunch?: boolean;
   floatingResetOption: string;
 }
 

@@ -72,21 +72,21 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
   } catch (e) {}
 
   // 注入默认模式设置JavaScript
-  const defaultModeJsPath = path.join(constants.RENDERER_UI_DIR, 'default-mode-settings.js');
+  const defaultModeJsPath = path.join(RENDERER_UI_DIR, 'default-mode-settings.js');
   try {
     const defaultModeJs = fs.readFileSync(defaultModeJsPath, 'utf8');
     targetWindow.webContents.executeJavaScript(defaultModeJs).catch(() => {});
   } catch (e) {}
 
   // 注入文件接收功能JavaScript
-  const fileReceiverJsPath = path.join(constants.RENDERER_UI_DIR, 'file-receiver.js');
+  const fileReceiverJsPath = path.join(RENDERER_UI_DIR, 'file-receiver.js');
   try {
     const fileReceiverJs = fs.readFileSync(fileReceiverJsPath, 'utf8');
     targetWindow.webContents.executeJavaScript(fileReceiverJs).catch(() => {});
   } catch (e) {}
 
   // 注入新对话按钮tooltip JavaScript
-  const newChatTooltipJsPath = path.join(constants.RENDERER_UI_DIR, 'new-chat-tooltip.js');
+  const newChatTooltipJsPath = path.join(RENDERER_UI_DIR, 'new-chat-tooltip.js');
   try {
     const newChatTooltipJs = fs.readFileSync(newChatTooltipJsPath, 'utf8');
     const wrapped = `(() => {

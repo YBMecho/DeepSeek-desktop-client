@@ -6,54 +6,55 @@
  *   - 注册右键菜单（发送到 DeepSeek → 快速/专家/识图）
  *   - 注销右键菜单
  *   - 检查注册状态
+ *
+ * 层级：主进程 - 系统集成
  */
 
-const { execSync } = require('child_process');
-const path = require('path');
-const { app } = require('electron');
+import { execSync } from 'child_process';
+import { app } from 'electron';
 
 const REG_BASE = 'HKEY_CLASSES_ROOT\\*\\shell\\SendToDeepSeek';
 const REG_SHELL = `${REG_BASE}\\shell`;
 
-function getAppPath() {
+function getAppPath(): string {
   try {
     return app.getPath('exe');
-  } catch (e) {
+  } catch {
     return process.execPath;
   }
 }
 
-function regAdd(key, valueName, type, value) {
+function regAdd(key: string, valueName: string, type: string, value: string): boolean {
   try {
     const cmd = `reg add "${key}" /v "${valueName}" /t ${type} /d "${value}" /f`;
     execSync(cmd, { stdio: 'ignore' });
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
-function regDelete(key) {
+function regDelete(key: string): boolean {
   try {
     const cmd = `reg delete "${key}" /f`;
     execSync(cmd, { stdio: 'ignore' });
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
-function regQuery(key, valueName) {
+function regQuery(key: string, valueName: string): string | null {
   try {
     const cmd = `reg query "${key}" /v "${valueName}"`;
     const result = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     return result.trim();
-  } catch (e) {
+  } catch {
     return null;
   }
 }
 
-function registerContextMenu() {
+export function registerContextMenu(): boolean {
   try {
     const appPath = getAppPath();
 
@@ -70,12 +71,12 @@ function registerContextMenu() {
     regAdd(`${REG_SHELL}\\dsImage\\command`, '', 'REG_SZ', `"${appPath}" "%1" "--mode=image"`);
 
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
-function unregisterContextMenu() {
+export function unregisterContextMenu(): boolean {
   try {
     regDelete(`${REG_SHELL}\\dsquick\\command`);
     regDelete(`${REG_SHELL}\\dsquick`);
@@ -85,18 +86,12 @@ function unregisterContextMenu() {
     regDelete(`${REG_SHELL}\\dsImage`);
     regDelete(REG_BASE);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
-function isContextMenuRegistered() {
+export function isContextMenuRegistered(): boolean {
   const result = regQuery(REG_BASE, '');
   return result !== null && result.includes('SendToDeepSeek');
 }
-
-module.exports = {
-  registerContextMenu,
-  unregisterContextMenu,
-  isContextMenuRegistered
-};

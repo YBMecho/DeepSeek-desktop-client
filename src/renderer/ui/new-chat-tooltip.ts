@@ -1,11 +1,23 @@
-(function() {
+/**
+ * 新对话按钮 Tooltip 提示组件
+ *
+ * 功能：为"新对话"按钮添加悬停提示
+ * 职责：
+ *   - 通过 SVG 路径识别新对话按钮
+ *   - 显示/隐藏 Tooltip
+ *   - 使用 MutationObserver 监听 DOM 变化动态注入
+ *
+ * 层级：渲染进程 - UI 组件
+ */
+
+(function () {
   'use strict';
 
-  let currentTooltip = null;
+  let currentTooltip: HTMLDivElement | null = null;
 
   const NEW_CHAT_SVG_PATH = 'M9.99994 1.22943C5.15598';
 
-  function createTooltip(text) {
+  function createTooltip(text: string): HTMLDivElement {
     const wrapper = document.createElement('div');
     wrapper.className = 'ds-floating-position-wrapper ds-theme';
     wrapper.setAttribute('data-transform-origin', 'top');
@@ -19,12 +31,12 @@
     return wrapper;
   }
 
-  function isElementVisible(el) {
+  function isElementVisible(el: HTMLElement): boolean {
     const rect = el.getBoundingClientRect();
     return rect.right > 0 && rect.left < window.innerWidth && rect.bottom > 0 && rect.top < window.innerHeight;
   }
 
-  function showTooltip(buttonElement, text) {
+  function showTooltip(buttonElement: HTMLElement, text: string): void {
     hideTooltip();
     if (!isElementVisible(buttonElement)) return;
     const rect = buttonElement.getBoundingClientRect();
@@ -41,28 +53,29 @@
     currentTooltip.style.transform = '';
   }
 
-  function hideTooltip() {
+  function hideTooltip(): void {
     if (currentTooltip && currentTooltip.parentNode) {
       currentTooltip.remove();
       currentTooltip = null;
     }
   }
 
-  function findNewChatButtons() {
-    const results = [];
+  function findNewChatButtons(): HTMLElement[] {
+    const results: HTMLElement[] = [];
     const allButtons = document.querySelectorAll('div[role="button"]');
     for (const btn of allButtons) {
       const svg = btn.querySelector(`svg path[d*="${NEW_CHAT_SVG_PATH}"]`);
       if (svg) {
-        results.push(btn);
+        results.push(btn as HTMLElement);
       }
     }
     return results;
   }
 
-  function attachTooltip(btn) {
-    if (btn.__hasTooltip) return;
-    btn.__hasTooltip = true;
+  function attachTooltip(btn: HTMLElement): void {
+    const btnWithTooltip = btn as HTMLElement & { __hasTooltip?: boolean };
+    if (btnWithTooltip.__hasTooltip) return;
+    btnWithTooltip.__hasTooltip = true;
     btn.addEventListener('mouseenter', () => {
       showTooltip(btn, '创建新的对话');
     });
@@ -71,15 +84,15 @@
     });
   }
 
-  function injectTooltips() {
+  function injectTooltips(): void {
     const buttons = findNewChatButtons();
     buttons.forEach(attachTooltip);
   }
 
-  function startInjection() {
+  function startInjection(): void {
     injectTooltips();
 
-    let timer = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const observer = new MutationObserver(() => {
       if (timer) return;
       timer = setTimeout(() => {

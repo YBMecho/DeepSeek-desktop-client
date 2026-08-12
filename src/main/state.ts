@@ -46,7 +46,7 @@ export const state = {
   setAutoLaunch: (v: boolean) => { autoLaunch = v; },
 
   getSilentAutoLaunch: () => silentAutoLaunch,
-  setSilentAutoLaunch: (v) => { silentAutoLaunch = v; },
+  setSilentAutoLaunch: (v: boolean) => { silentAutoLaunch = v; },
 
   getIsQuitting: () => isQuitting,
   setIsQuitting: (v: boolean) => { isQuitting = v; },
