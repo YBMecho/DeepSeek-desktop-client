@@ -44,11 +44,11 @@ export const DEFAULT_FLOATING_HOTKEY = 'Alt+Space';
 
 // ---- 资源路径 ----
 export const ROOT_DIR_PATH = ROOT_DIR;
-export const PRELOAD_PATH = path.join(ROOT_DIR, 'src', 'preload', 'index.js');
+export const PRELOAD_PATH = path.join(ROOT_DIR, 'dist', 'preload', 'index.js');
 export const APP_ICON_PATH = path.join(ROOT_DIR, 'resources', 'assets', 'images', 'deepseek-color.png');
 export const TRAY_ICON_PATH = path.join(ROOT_DIR, 'resources', 'assets', 'icons', 'icon.png');
 export const MAIN_CSS_PATH = path.join(ROOT_DIR, 'resources', 'styles', 'main.css');
-export const RENDERER_UI_DIR = path.join(ROOT_DIR, 'src', 'renderer', 'ui');
+export const RENDERER_UI_DIR = path.join(ROOT_DIR, 'dist', 'renderer', 'ui');
 
 // ---- 主窗口尺寸 ----
 export const MAIN_WINDOW_SIZE: WindowSize = { width: 1280, height: 730 };
