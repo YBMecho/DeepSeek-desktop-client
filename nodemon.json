@@ -1,0 +1,8 @@
+{
+  "watch": ["dist"],
+  "ext": "js",
+  "ignore": ["dist/**/*.spec.js"],
+  "delay": 500,
+  "exec": "electron .",
+  "verbose": true
+}
