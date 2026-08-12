@@ -130,21 +130,32 @@ if (!gotTheLock) {
 
 // ---- 应用就绪 ----
 app.whenReady().then(() => {
-  try { app.setAppUserModelId(constants.APP_ID); } catch (e) {}
+  // Windows 通知支持：开发环境使用 process.execPath，生产环境使用 APP_ID
+  try {
+    if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
+      app.setAppUserModelId(process.execPath);
+      logDebug('[主进程] 设置 AppUserModelId (开发):', process.execPath);
+    } else {
+      app.setAppUserModelId(constants.APP_ID);
+      logDebug('[主进程] 设置 AppUserModelId (生产):', constants.APP_ID);
+    }
+  } catch (e) {
+    logDebug('[主进程] 设置 AppUserModelId 失败:', e);
+  }
 
-  // 注册 SSE 回复完成监听
+  // 注册 DeepSeek 对话流监听（webRequest 事件源，须先于订阅者建立）
+  deepseekContentListener.registerDeepSeekContentListener({
+    getMiniWindow: taskbarMgr.getMiniWindow,
+    logDebug
+  });
+
+  // 订阅流结束信号，弹出回复完成通知
   notifyManager.registerReplyFinishedListener({
     getReplyNotifyEnabled: state.getReplyNotifyEnabled,
     logDebug,
     getMainWindow: state.getMainWindow,
     setIsWindowHidden: state.setIsWindowHidden,
     destroyTray: trayManager.destroyTray
-  });
-
-  // 注册 DeepSeek 实时内容监听
-  deepseekContentListener.registerDeepSeekContentListener({
-    getMiniWindow: taskbarMgr.getMiniWindow,
-    logDebug
   });
 
   // 配置右键菜单

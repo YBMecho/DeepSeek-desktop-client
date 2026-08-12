@@ -1,18 +1,25 @@
 /**
  * 通知模块
- * 
- * 功能：监听 AI 回复完成事件并弹出系统通知
+ *
+ * 功能：AI 回复完成后弹出系统通知
  * 职责：
- *   - 通过 webRequest 网络层拦截 SSE 请求完成事件（比渲染进程脚本注入更可靠）
- *   - 回复完成后弹出系统通知，点击通知唤起窗口
+ *   - 订阅对话流生命周期信号（事件源为 deepseek-content-listener）
+ *   - 流正常结束且开关开启时弹出系统通知，点击通知唤起窗口
+ *
+ * 层级：主进程 - 系统集成
+ *
+ * 边界说明：
+ *   Electron 的 webRequest 每个事件只保留最后注册的 listener，本模块曾直接注册
+ *   onResponseStarted / onCompleted，被后注册的流监听器覆盖导致回调永不触发。
+ *   因此本模块不再直接接触 webRequest，只作为订阅者消费流结束信号。
  */
 
-import path from 'path';
-import { BrowserWindow, Notification } from 'electron';
+import { Notification, BrowserWindow } from 'electron';
 import constants from '../../common/constants';
+import { subscribeChatStream } from './deepseek-content-listener';
 
 interface NotificationDeps {
-  getMainWindow: () => BrowserWindow | null;
+  getMainWindow: () => Electron.BrowserWindow | null;
   setIsWindowHidden: (v: boolean) => void;
   destroyTray: () => void;
   logDebug: (...args: unknown[]) => void;
@@ -24,15 +31,24 @@ interface NotificationDeps {
  */
 function showReplyFinishedNotification(deps: NotificationDeps) {
   try {
-    // Notification 动态 require，避免在不支持的环境（部分 Linux）启动时报错
-    const { Notification } = require('electron');
-    if (!Notification.isSupported()) return;
+    if (!Notification.isSupported()) {
+      deps.logDebug('[通知管理器] 系统不支持通知');
+      return;
+    }
 
     const notify = new Notification({
       title: 'DeepSeek',
       body: '回复已完成',
       icon: constants.TRAY_ICON_PATH,
       silent: false
+    });
+
+    notify.on('show', () => {
+      deps.logDebug('[通知管理器] 通知已显示');
+    });
+
+    notify.on('failed', (_event, error) => {
+      deps.logDebug('[通知管理器] 通知显示失败:', error);
     });
 
     notify.on('click', () => {
@@ -45,47 +61,36 @@ function showReplyFinishedNotification(deps: NotificationDeps) {
         // 恢复托盘隐藏状态
         deps.setIsWindowHidden(false);
         deps.destroyTray();
-      } catch (e) {}
+      } catch (e) {
+        deps.logDebug('[通知管理器] 处理点击事件失败:', e);
+      }
     });
 
     notify.show();
+    deps.logDebug('[通知管理器] 已调用 notify.show()');
   } catch (error) {
-    deps.logDebug('通知失败:', error);
+    deps.logDebug('[通知管理器] 通知创建失败:', error);
   }
 }
 
 /**
- * 注册 SSE 完成监听：completion 请求的流关闭时（onCompleted）触发通知。
- * 用 webRequest 网络层拦截，不依赖渲染进程脚本注入时机——
- * 此前用 executeJavaScript hook window.fetch 失败，因 executeJavaScript 会延迟到
- * 页面 did-stop-loading 才执行，此时网页已缓存原生 fetch 引用，hook 失效。
- * webRequest.onCompleted 对 text/event-stream 在连接真正关闭时触发，恰好对应回复结束。
+ * 注册回复完成通知：订阅对话流结束信号后弹通知
  * @param {Object} deps
  */
-function registerReplyFinishedListener(deps: {
+function registerReplyFinishedListener(deps: NotificationDeps & {
   getReplyNotifyEnabled: () => boolean;
-  logDebug: (...args: unknown[]) => void;
-  getMainWindow: () => BrowserWindow | null;
-  setIsWindowHidden: (v: boolean) => void;
-  destroyTray: () => void;
 }) {
-  try {
-    const { session } = require('electron');
-    session.defaultSession.webRequest.onCompleted(
-      { urls: ['https://chat.deepseek.com/api/v0/chat/completion*'] },
-      (details: Electron.OnCompletedListenerDetails) => {
-        // 只关心 POST（真正的对话请求），排除预检/OPTIONS
-        if (details.method === 'POST' && details.statusCode === 200) {
-          if (!deps.getReplyNotifyEnabled()) {
-            deps.logDebug('回复通知开关已关闭，跳过通知');
-            return;
-          }
-          deps.logDebug('检测到回复流结束，触发通知');
-          showReplyFinishedNotification(deps);
-        }
-      }
-    );
-  } catch (error) {}
+  subscribeChatStream((phase) => {
+    if (phase !== 'end') return;
+
+    const notifyEnabled = deps.getReplyNotifyEnabled();
+    deps.logDebug('[通知管理器] 收到流结束信号，通知开关:', notifyEnabled);
+    if (!notifyEnabled) return;
+
+    showReplyFinishedNotification(deps);
+  });
+
+  deps.logDebug('[通知管理器] 已订阅对话流生命周期信号');
 }
 
 const notificationManager = {
