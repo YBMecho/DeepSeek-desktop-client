@@ -303,13 +303,18 @@ declare global {
    */
   function findSettingsMenuContainer(): HTMLElement | null {
     // 查找包含"通用设置"、"账号管理"等按钮的容器
-    const buttons = Array.from(document.querySelectorAll<HTMLElement>('.ds-button'))
+    // 兼容多种选择器：.ds-button, button, [role="button"]
+    const buttons = Array.from(document.querySelectorAll<HTMLElement>('.ds-button, button, [role="button"]'))
       .filter(btn => {
         const text = btn.textContent || '';
         return /通用设置|账号管理|数据管理|服务协议/.test(text);
       });
 
     console.log('[快捷键设置] 找到的菜单按钮数量:', buttons.length);
+    if (buttons.length > 0) {
+      console.log('[快捷键设置] 第一个按钮文本:', buttons[0].textContent?.trim());
+      console.log('[快捷键设置] 第一个按钮类名:', buttons[0].className);
+    }
 
     if (buttons.length === 0) return null;
 
