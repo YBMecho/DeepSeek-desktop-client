@@ -8,26 +8,18 @@
   "license": "ISC",
   "author": "YBMecho",
   "type": "commonjs",
-  "main": "main.js",
+  "main": "dist/main/index.js",
   "scripts": {
-    "start": "electron-forge start",
-    "start:trace": "set NODE_OPTIONS=--trace-deprecation && electron-forge start",
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "start:trace": "set NODE_OPTIONS=--trace-deprecation && npm run build && electron .",
+    "dev": "tsc && electron .",
+    "dev:watch": "tsc --watch",
+    "dev:start": "nodemon --watch dist --exec \"electron .\"",
+    "dev:auto": "concurrently \"npm:dev:watch\" \"npm:dev:start\"",
     "test": "npm start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "build": "node build.js",
-    "build:all": "node build.js all",
-    "build:squirrel": "node build.js squirrel",
-    "build:inno": "node build.js inno",
-    "build:package": "node build.js package",
-    "build:inno:proxy": "node build.js inno 127.0.0.1:10808",
-    "build:squirrel:proxy": "node build.js squirrel 127.0.0.1:10808",
-    "build:all:proxy": "node build.js all 127.0.0.1:10808",
-    "iss:show": "node build.js iss:show",
-    "iss:set": "node build.js iss:set",
-    "config:show": "node build.js config:show",
-    "config:clear": "node build.js config:clear",
-    "build:help": "node build.js --help"
+    "package": "npm run build && electron-forge package",
+    "make": "npm run build && electron-forge make"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.8.3",
@@ -40,12 +32,16 @@
     "@electron-forge/plugin-webpack": "^7.11.2",
     "@electron/fuses": "^1.8.0",
     "@types/node": "^26.2.0",
+    "concurrently": "^10.0.4",
     "electron": "^37.2.6",
+    "nodemon": "^3.1.14",
     "ts-loader": "^9.6.2",
+    "ts-node": "^10.9.2",
     "typescript": "^7.0.2"
   },
   "dependencies": {
     "electron-context-menu": "^4.1.0",
-    "electron-squirrel-startup": "^1.0.1"
+    "electron-squirrel-startup": "^1.0.1",
+    "markdown-it": "^15.0.0"
   }
 }

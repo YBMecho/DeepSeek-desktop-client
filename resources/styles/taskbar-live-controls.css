@@ -1,0 +1,213 @@
+/* Taskbar Live Controls 样式文件 */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 388px;
+  height: 40px;
+  background: transparent;
+  overflow: hidden;
+}
+
+/* 实际可见背景容器 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.5);
+  z-index: -1;
+}
+
+/* 左侧拖动区域（真实元素，使 :hover 判定范围限定在该区域内） */
+.drag-region {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 25px;
+  height: 100%;
+  -webkit-app-region: drag;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 拖动区域中心的灰色竖线（真实 DOM 元素） */
+.drag-handle {
+  width: 2px;
+  height: 15px;
+  background-color: #afafaf;
+  border-radius: 1px;
+  -webkit-app-region: drag;
+  pointer-events: auto;
+  opacity: 0.19;
+  transition: opacity 0.2s ease;
+}
+
+/* 拖动区域悬停时竖线透明度变为 100%
+   说明：Windows 上 drag 区域收不到鼠标事件，:hover 仅在其他平台兜底，
+   实际由主进程轮询光标位置后切换 .is-hover 类触发 */
+.drag-region:hover .drag-handle,
+.drag-region.is-hover .drag-handle {
+  opacity: 1.0;
+}
+
+/* 确保拖动区域内的交互元素可点击 */
+body::before ~ *:not(.drag-handle) {
+  -webkit-app-region: no-drag;
+}
+
+/* 固定状态：完全透明 */
+body.adsorbed::before {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+body.adsorbed .drag-handle {
+  opacity: 0;
+}
+
+/* 固定状态悬停：显示描边和竖条 */
+body.adsorbed.hover::before {
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.5);
+}
+
+body.adsorbed.hover .drag-handle {
+  opacity: 0.19;
+}
+
+/* 内容显示区域 */
+.content-container {
+  position: fixed;
+  left: 25px;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  scroll-behavior: smooth;
+}
+
+/* 隐藏滚动条但保持滚动功能 */
+.content-container::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.content-text {
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;  /* 保留换行和空格 */
+  word-break: break-word;
+  opacity: 0.9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  min-height: fit-content;  /* 自适应内容高度 */
+}
+
+/* 思考内容（THINK 类型）：灰色显示 */
+.content-text.thinking {
+  color: #9ca3af;
+  opacity: 0.85;
+}
+
+/* 内容为空时隐藏 */
+.content-text:empty {
+  display: none;
+}
+
+/* 完成状态：保持原有白色，不做变色 */
+.content-text.complete {
+  opacity: 1;
+}
+
+/* Markdown 渲染样式优化：适配 40px 窗口 */
+.content-text h1,
+.content-text h2,
+.content-text h3,
+.content-text h4,
+.content-text h5,
+.content-text h6 {
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.content-text p {
+  margin: 0;
+  padding: 0;
+  line-height: 1.4;
+}
+
+.content-text code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.content-text pre {
+  margin: 0;
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  overflow-x: auto;
+  font-size: 11px;
+}
+
+.content-text pre code {
+  background: none;
+  padding: 0;
+}
+
+.content-text ul,
+.content-text ol {
+  margin: 0;
+  padding-left: 16px;
+  line-height: 1.4;
+}
+
+.content-text li {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.content-text a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.content-text a:hover {
+  text-decoration: underline;
+}
+
+.content-text strong {
+  font-weight: 600;
+}
+
+.content-text em {
+  font-style: italic;
+}
+
+.content-text blockquote {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 2px solid rgba(255, 255, 255, 0.3);
+  opacity: 0.8;
+}
