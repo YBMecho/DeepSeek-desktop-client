@@ -302,12 +302,18 @@
 
     if (buttons.length === 0) return null;
 
-    // 找到这些按钮的共同父容器
-    const parent = buttons[0].parentElement;
-    console.log('[快捷键设置] 父容器:', parent, '类名:', parent?.className);
+    // 收集所有候选父容器，优先返回可见的（offsetParent !== null）
+    const parents = buttons
+      .map(btn => btn.parentElement)
+      .filter((p): p is HTMLElement => p !== null);
+    const uniqueParents = [...new Set(parents)];
 
-    // 不限制特定的class，只要是这些按钮的父容器就行
-    return parent;
+    console.log('[快捷键设置] 候选父容器数量:', uniqueParents.length,
+      '可见:', uniqueParents.filter(p => p.offsetParent !== null).length);
+
+    // 优先返回可见容器，避免 React 保留的隐藏旧弹窗
+    const visibleParent = uniqueParents.find(p => p.offsetParent !== null);
+    return visibleParent || uniqueParents[0] || null;
   }
 
   /**
@@ -333,10 +339,17 @@
       return true;
     }
 
-    // 检查是否已经注入
-    if (hotkeyMenuButton && hotkeyMenuButton.parentElement) {
+    // 检查是否已经注入（stale reference 守卫：旧按钮可能还挂在 React 保留的隐藏容器中，
+    // 此时 parentElement 非 null 但并不是当前 menuContainer，必须清除旧引用重新创建）
+    if (hotkeyMenuButton && hotkeyMenuButton.parentElement === menuContainer) {
       console.log('[快捷键设置] 菜单按钮已存在（通过变量引用）');
       return true;
+    }
+
+    // 旧引用已失效（父容器不匹配或已脱离 DOM），清零后走新建逻辑
+    if (hotkeyMenuButton) {
+      console.log('[快捷键设置] 旧按钮引用已失效，重新创建');
+      hotkeyMenuButton = null;
     }
 
     // 创建并插入快捷键设置按钮（新按钮意味着弹窗是全新 DOM，重置旧 tab 状态）
