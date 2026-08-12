@@ -378,6 +378,7 @@ declare global {
    * 初始化
    */
   function init(): void {
+    console.log('[快捷键设置] init() 被调用');
     // 立即尝试注入一次
     injectHotkeyMenuButton();
 
@@ -439,16 +440,30 @@ declare global {
       });
     });
 
-    // 只在需要时启用 observer（延迟启动，避免初始化时频繁触发）
-    setTimeout(() => {
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true
-      });
+    // 立即启用 observer，不要延迟，因为设置面板可能已经打开
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    // 兜底：每 500ms 主动检查一次，防止 MutationObserver 漏掉设置面板打开
+    const fallbackTimer = setInterval(() => {
+      const menuContainer = findSettingsMenuContainer();
+      if (menuContainer) {
+        console.log('[快捷键设置] 定期检查发现菜单容器，尝试注入');
+        injectHotkeyMenuButton();
+      }
     }, 500);
+
+    // 页面卸载时清理
+    window.addEventListener('beforeunload', () => {
+      clearInterval(fallbackTimer);
+      observer.disconnect();
+    });
   }
 
   // 页面加载完成后初始化
+  console.log('[快捷键设置] 脚本已加载，readyState:', document.readyState);
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {

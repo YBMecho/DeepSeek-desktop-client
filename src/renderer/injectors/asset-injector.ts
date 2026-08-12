@@ -24,11 +24,16 @@ import {
 export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: BrowserWindow | null): void {
   if (!targetWindow || targetWindow.isDestroyed()) return;
 
+  console.log('[资源注入] 开始注入资源, RENDERER_UI_DIR:', RENDERER_UI_DIR);
+
   // 注入自定义CSS样式
   try {
     const css = fs.readFileSync(MAIN_CSS_PATH, 'utf8');
     targetWindow.webContents.insertCSS(css);
-  } catch (e) {}
+    console.log('[资源注入] CSS 注入成功');
+  } catch (e) {
+    console.error('[资源注入] CSS 注入失败:', e);
+  }
 
   // 注入快捷键设置JavaScript
   const jsPath = path.join(RENDERER_UI_DIR, 'hotkey-settings.js');
@@ -44,7 +49,10 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
 })();
 ` + js;
     targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
-  } catch (e) {}
+    console.log('[资源注入] hotkey-settings.js 注入成功');
+  } catch (e) {
+    console.error('[资源注入] hotkey-settings.js 注入失败:', e);
+  }
 
   // 注入悬浮窗重置功能JavaScript
   const floatingResetJsPath = path.join(RENDERER_UI_DIR, 'floating-reset.js');
@@ -60,7 +68,10 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
 })();
 ` + floatingResetJs;
     targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
-  } catch (e) {}
+    console.log('[资源注入] floating-reset.js 注入成功');
+  } catch (e) {
+    console.error('[资源注入] floating-reset.js 注入失败:', e);
+  }
 
   // 注入设置菜单快捷键入口JavaScript
   // 注意：不加前置去重包装。前置 IIFE 的 return 无法中断其后拼接的脚本主体，
@@ -69,21 +80,30 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
   try {
     const settingsMenuHotkeyJs = fs.readFileSync(settingsMenuHotkeyJsPath, 'utf8');
     targetWindow.webContents.executeJavaScript(settingsMenuHotkeyJs).catch(() => {});
-  } catch (e) {}
+    console.log('[资源注入] settings-menu-hotkey.js 注入成功');
+  } catch (e) {
+    console.error('[资源注入] settings-menu-hotkey.js 注入失败:', e);
+  }
 
   // 注入默认模式设置JavaScript
   const defaultModeJsPath = path.join(RENDERER_UI_DIR, 'default-mode-settings.js');
   try {
     const defaultModeJs = fs.readFileSync(defaultModeJsPath, 'utf8');
     targetWindow.webContents.executeJavaScript(defaultModeJs).catch(() => {});
-  } catch (e) {}
+    console.log('[资源注入] default-mode-settings.js 注入成功');
+  } catch (e) {
+    console.error('[资源注入] default-mode-settings.js 注入失败:', e);
+  }
 
   // 注入文件接收功能JavaScript
   const fileReceiverJsPath = path.join(RENDERER_UI_DIR, 'file-receiver.js');
   try {
     const fileReceiverJs = fs.readFileSync(fileReceiverJsPath, 'utf8');
     targetWindow.webContents.executeJavaScript(fileReceiverJs).catch(() => {});
-  } catch (e) {}
+    console.log('[资源注入] file-receiver.js 注入成功');
+  } catch (e) {
+    console.error('[资源注入] file-receiver.js 注入失败:', e);
+  }
 
   // 注入新对话按钮tooltip JavaScript
   const newChatTooltipJsPath = path.join(RENDERER_UI_DIR, 'new-chat-tooltip.js');
@@ -99,11 +119,15 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
 })();
 ` + newChatTooltipJs;
     targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
-  } catch (e) {}
+    console.log('[资源注入] new-chat-tooltip.js 注入成功');
+  } catch (e) {
+    console.error('[资源注入] new-chat-tooltip.js 注入失败:', e);
+  }
 
   // 注入悬浮窗切换按钮JavaScript
   if (targetWindow === floatingWindow) {
     // 悬浮窗：注入悬浮窗专用按钮（侧边栏）+ 置顶按钮
+    // 位置1：分享按钮左侧
     const floatingToggleJsPath = path.join(RENDERER_UI_DIR, 'floating-window-toggle-floating.js');
     try {
       const floatingToggleJs = fs.readFileSync(floatingToggleJsPath, 'utf8');
@@ -117,7 +141,10 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
 })();
 ` + floatingToggleJs;
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
-    } catch (e) {}
+      console.log('[资源注入] floating-window-toggle-floating.js 注入成功');
+    } catch (e) {
+      console.error('[资源注入] floating-window-toggle-floating.js 注入失败:', e);
+    }
 
     // 注入置顶按钮
     const pinButtonJsPath = path.join(RENDERER_UI_DIR, 'pin-button.js');
@@ -133,7 +160,10 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
 })();
 ` + pinButtonJs;
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
-    } catch (e) {}
+      console.log('[资源注入] pin-button.js 注入成功');
+    } catch (e) {
+      console.error('[资源注入] pin-button.js 注入失败:', e);
+    }
   } else {
     // 主程序：注入工具栏按钮（两个位置）
     // 位置1：分享按钮左侧
@@ -150,7 +180,10 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
 })();
 ` + floatingToggleMainJs;
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
-    } catch (e) {}
+      console.log('[资源注入] floating-window-toggle-main.js 注入成功');
+    } catch (e) {
+      console.error('[资源注入] floating-window-toggle-main.js 注入失败:', e);
+    }
 
     // 位置2：工具栏搜索按钮旁边
     const floatingToggleToolbarJsPath = path.join(RENDERER_UI_DIR, 'floating-window-toggle-toolbar.js');
@@ -161,12 +194,15 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
     if (window.__DS_FLOATING_TOGGLE_TOOLBAR_LOADED__) {
       return;
     }
-    window.__DS_FLOATING_TOGGLE_TOOLBAR_LOADED__ = true;
+    window.__DS_FLOATING_TOOLBAR_LOADED__ = true;
   } catch (e) {}
 })();
 ` + floatingToggleToolbarJs;
       targetWindow.webContents.executeJavaScript(wrapped).catch(() => {});
-    } catch (e) {}
+      console.log('[资源注入] floating-window-toggle-toolbar.js 注入成功');
+    } catch (e) {
+      console.error('[资源注入] floating-window-toggle-toolbar.js 注入失败:', e);
+    }
   }
 
   // DeepSeek 对话流监听器不在此注入：
