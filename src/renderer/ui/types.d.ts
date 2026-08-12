@@ -51,5 +51,13 @@ declare global {
     __DS_FLOATING_TOGGLE_MAIN_LOADED__?: boolean;
     __DS_FLOATING_TOGGLE_TOOLBAR_LOADED__?: boolean;
     __fileReceiverModule?: FileReceiverModule;
+    __SETTINGS_MENU_HOTKEY_INITIALIZED__?: boolean;
+    __hotkeyTabActive?: boolean;
+    __hotkeyMenuReveal?: () => void;
+    __hotkeySettingsSync?: () => void;
+  }
+
+  interface HTMLElement {
+    __hotkeyMenuListenerBound?: boolean;
   }
 }

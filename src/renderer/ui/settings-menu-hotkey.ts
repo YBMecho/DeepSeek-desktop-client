@@ -10,22 +10,6 @@
  *     只保留 hotkey-settings.js 注入的设置行，形成独立的快捷键设置界面
  */
 
-// 导出一个空对象，使此文件成为 ES 模块
-export {};
-
-declare global {
-  interface Window {
-    __SETTINGS_MENU_HOTKEY_INITIALIZED__?: boolean;
-    __hotkeyTabActive?: boolean;
-    __hotkeyMenuReveal?: () => void;
-    __hotkeySettingsSync?: () => void;
-  }
-
-  interface HTMLElement {
-    __hotkeyMenuListenerBound?: boolean;
-  }
-}
-
 (function() {
   'use strict';
 
