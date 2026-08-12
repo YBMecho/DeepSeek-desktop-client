@@ -24,6 +24,8 @@ interface NotificationDeps {
  */
 function showReplyFinishedNotification(deps: NotificationDeps) {
   try {
+    // Notification 动态 require，避免在不支持的环境（部分 Linux）启动时报错
+    const { Notification } = require('electron');
     if (!Notification.isSupported()) return;
 
     const notify = new Notification({
