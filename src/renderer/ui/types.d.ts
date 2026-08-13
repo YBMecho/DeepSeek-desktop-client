@@ -40,6 +40,7 @@ declare global {
     __DS_FLOATING_TOGGLE_TOOLBAR_LOADED__?: boolean;
     __fileReceiverModule?: FileReceiverModule;
     __SETTINGS_MENU_HOTKEY_INITIALIZED__?: boolean;
+    __ABOUT_BUTTON_INITIALIZED__?: boolean;
     __hotkeyTabActive?: boolean;
     __hotkeyMenuReveal?: () => void;
     __hotkeySettingsSync?: () => void;

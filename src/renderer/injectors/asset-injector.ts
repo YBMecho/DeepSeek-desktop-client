@@ -95,6 +95,16 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
     console.error('[资源注入] default-mode-settings.js 注入失败:', e);
   }
 
+  // 注入关于按钮JavaScript（参考 settings-menu-hotkey.js 的注入方式）
+  const aboutButtonJsPath = path.join(RENDERER_UI_DIR, 'about-button.js');
+  try {
+    const aboutButtonJs = fs.readFileSync(aboutButtonJsPath, 'utf8');
+    targetWindow.webContents.executeJavaScript(aboutButtonJs).catch(() => {});
+    console.log('[资源注入] about-button.js 注入成功');
+  } catch (e) {
+    console.error('[资源注入] about-button.js 注入失败:', e);
+  }
+
   // 注入文件接收功能JavaScript
   const fileReceiverJsPath = path.join(RENDERER_UI_DIR, 'file-receiver.js');
   try {

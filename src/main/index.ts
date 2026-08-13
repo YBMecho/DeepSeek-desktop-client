@@ -9,7 +9,7 @@
  *   - 配置右键菜单、系统主题跟随
  */
 
-import { app, BrowserWindow, nativeTheme, dialog } from 'electron';
+import { app, BrowserWindow, nativeTheme } from 'electron';
 
 // ---- 调试日志 ----
 const isDebugLog = process.env.DS_DEBUG === '1';
@@ -282,22 +282,7 @@ app.whenReady().then(() => {
 
           return menuItems;
         },
-        append: (defaultActions: Electron.MenuItemConstructorOptions[], parameters: Electron.ContextMenuParams, browserWindow: Electron.BrowserWindow) => [
-          { type: 'separator' },
-          {
-            label: '关于',
-            click: () => {
-              dialog.showMessageBox(browserWindow, {
-                type: 'info',
-                title: '关于 DeepSeek',
-                message: 'DeepSeek 桌面应用',
-                detail: '版本: 2.5.0\n\n一个简洁的DeepSeek聊天客户端\n\n作者: YBMecho\n\n辅助工具：\n\tDeepSeek、Claude、Claude code、Trea\n\nDeepSeek桌面应用官方网站：https://github.com/YBMecho/DeepSeek-desktop-client/\n国内使用Claude API网站：https://aimoniker.top/sign-up?aff=vJij&src=direct',
-                buttons: ['确定'],
-                defaultId: 0
-              });
-            }
-          }
-        ]
+        append: (defaultActions: Electron.MenuItemConstructorOptions[], parameters: Electron.ContextMenuParam, browserWindow: Electron.BrowserWindow) => []
       });
     }
   } catch (error) {}
