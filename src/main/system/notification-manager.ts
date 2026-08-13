@@ -5,6 +5,7 @@
  * 职责：
  *   - 订阅对话流生命周期信号（事件源为 deepseek-content-listener）
  *   - 流正常结束且开关开启时弹出系统通知，点击通知唤起窗口
+ *   - 应用窗口聚焦时抑制通知（用户正在使用应用时不再打扰）
  *
  * 层级：主进程 - 系统集成
  *
@@ -32,6 +33,15 @@ function showReplyFinishedNotification(deps: NotificationDeps) {
   try {
     if (!Notification.isSupported()) {
       deps.logDebug('[通知管理器] 系统不支持通知');
+      return;
+    }
+
+    // 应用窗口聚焦时抑制通知：用户正在使用应用，无需再打扰
+    const anyAppWindowFocused = BrowserWindow.getAllWindows().some(
+      (w) => !w.isDestroyed() && w.isFocused()
+    );
+    if (anyAppWindowFocused) {
+      deps.logDebug('[通知管理器] 应用窗口聚焦中，跳过通知');
       return;
     }
 
