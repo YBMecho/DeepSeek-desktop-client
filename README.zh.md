@@ -3,7 +3,7 @@
 <div align="center">
   <img src="pho/deepseek-color.png" alt="DeepSeek Logo" width="128" height="128">
   
-  <h3>方便快捷打开网页内容的桌面应用程序</h3>
+  <h3>把 DeepSeek 装进桌面，随叫随到</h3>
   <p align="center"><a href="README.md">English</a> | 中文
 
   ![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)
@@ -14,7 +14,7 @@
 
 ## 📖 项目介绍
 
-DeepSeek 是一个基于 Electron 开发的桌面应用程序，使用 **TypeScript** 编写。它以原生桌面体验包裹 DeepSeek 网页版，但并非简单的套壳网页软件——深度融合了悬浮对话窗、任务栏实时显示、全局快捷键、主题切换、右键发送文件、系统通知等丰富功能，并全部集成到应用内置的设置面板中。
+DeepSeek 是一个基于 Electron 开发、使用 **TypeScript** 编写的桌面客户端，把 DeepSeek 网页版装进一个原生感十足的窗口里。但它不是简单的套壳——它加上了你在桌面端真正想要的东西：悬浮对话窗、任务栏实时显示、全局快捷键、主题切换、右键发送文件，以及回复一完成就弹出的系统通知。这些大多都能在应用内置的设置面板里随手调整，改完立即生效。
 
 ## 界面展示
 

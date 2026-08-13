@@ -3,7 +3,7 @@
 <div align="center">
   <img src="pho/deepseek-color.png" alt="DeepSeek Logo" width="128" height="128">
   
-  <h3>Convenient and quick desktop application to open web content</h3>
+  <h3>Put DeepSeek on your desktop — always a hotkey away</h3>
   <p align="center">English | <a href="README.zh.md">中文</a>
 
   ![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)
@@ -14,7 +14,7 @@
 
 ## 📖 Project Introduction
 
-DeepSeek is a desktop application developed based on Electron and written in **TypeScript**. It wraps the DeepSeek web client with a native desktop experience, but it's not just a plain web shell — it deeply integrates features such as a floating conversation window, taskbar live controls, global hotkeys, theme switching, right-click file sending, and system notifications, all managed through an in-app settings panel.
+DeepSeek is an Electron desktop client, written in **TypeScript**, that wraps the DeepSeek web app in a native-feeling window. It's not a bare web wrapper, though — it layers on the things you'd actually want from a desktop app: a floating chat window, live replies in the taskbar, global hotkeys, theme switching, right-click file sending, and a notification the moment a reply lands. Most of it you can tweak right in the in-app settings panel, and changes take effect immediately.
 
 ## Screenshots
 
@@ -32,21 +32,21 @@ DeepSeek is a desktop application developed based on Electron and written in **T
 
 ## ✨ Features
 
-- 🚀 **Fast & Lightweight** - Based on Electron and a modular TypeScript architecture
-- ⌨️ **Global Hotkeys** - Quick show/hide of the main window (default `Alt + ``) and the floating window (default `Alt + Space`)
-- 🪟 **Multi-Window Management** - Open new windows, copy the current window, smart window switching
-- 🌊 **Floating Conversation Window** - An independent always-on-top conversation panel, supports pin, drag, resize, and auto reset to a new chat
-- 📺 **Taskbar Live Controls** - Taskbar mini window showing live replies, with an adsorption window and one-click access from the taskbar
-- 🖱️ **Enhanced Right-Click Menu** - Send files to DeepSeek, copy/paste, open new window, and more
-- 🎨 **Theme Support** - Light, dark, and follow-system themes, switched in real time
-- 🔔 **Reply Notifications** - System notification when a reply finishes (with a deep-chat-stream listener)
-- ⚙️ **Close Behavior** - Choose to exit directly or minimize to the system tray
-- 🔄 **System Tray** - Always visible tray icon with quick menu (show window / open floating window / exit)
-- 🚀 **Auto Launch** - Start with Windows, with an optional silent (hidden-to-tray) startup
-- 📌 **Default Conversation Mode** - Choose between quick / expert / image as the default mode for new chats
-- 🎛️ **Embedded Settings Panel** - Hotkey settings, floating-window options, and an About page embedded right inside the settings panel
-- 🌐 **External Link Handling** - Opens external links in the system default browser
-- 🔒 **Configuration Persistence** - All settings are saved to `config.json` and restored automatically
+- 🚀 **Fast to Start** - Built on a modular TypeScript codebase; launches quickly and stays light on resources
+- ⌨️ **Global Hotkeys** - Hit `` Alt + ` `` to summon the main window, `Alt + Space` to toggle the floating chat
+- 🪟 **Multi-Window** - Open a new window, duplicate the current one, or hop between them without losing your place
+- 🌊 **Floating Chat Window** - A compact window that floats above everything else. Pin it, drag it, resize it, or let it start a fresh chat after a quiet spell
+- 📺 **Taskbar Live Controls** - Watch replies stream in from a taskbar mini-window, with an edge dock for one-click access
+- 🖱️ **Right-Click Send File** - Send a file straight into the current chat from the right-click menu
+- 🎨 **Themes** - Light, dark, or follow your system — switch on the fly, no restart needed
+- 🔔 **Reply Notifications** - A system notification pops the moment a reply finishes; click it to bring the window back
+- ⚙️ **Close Behavior** - Close to exit, or tuck it into the system tray and keep it running — your call
+- 🔄 **System Tray** - A tray icon that always stays put, with a right-click menu for the essentials
+- 🚀 **Auto Launch** - Start with Windows, silently tucked into the tray if you prefer
+- 📌 **Default Conversation Mode** - Set new chats to start in quick, expert, or image mode
+- 🎛️ **In-App Settings** - Hotkeys, floating-window options, and an About page all live inside the settings panel
+- 🌐 **External Links** - Outside links open in your default browser rather than inside the app
+- 🔒 **Settings Persistence** - Everything is saved to `config.json` and picked right back up next launch
 
 ## 📦 Download and Installation
 
