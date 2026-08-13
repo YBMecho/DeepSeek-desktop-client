@@ -24,10 +24,12 @@ export interface Config {
   replyNotifyEnabled: boolean;
   isFloatingWindowPinned: boolean;
   autoLaunch: boolean;
+  silentAutoLaunch: boolean;
   floatingResetOption: string;
+  defaultMode: ModeValue;
+  contextMenuEnabled: boolean;
   taskbarControlsEnabled: boolean;
   taskbarControlsPosition: { x: number; y: number } | null;
-  [key: string]: unknown;
 }
 
 const defaultConfig: Config = {
@@ -38,7 +40,10 @@ const defaultConfig: Config = {
   replyNotifyEnabled: true, // 回复完成后系统通知开关，默认开启
   isFloatingWindowPinned: false, // 悬浮窗置顶状态，默认关闭
   autoLaunch: true, // 开机自启动，默认开启
+  silentAutoLaunch: true, // 开机静默启动，默认开启
   floatingResetOption: '60min', // 悬浮窗重置选项，默认关闭后60分钟
+  defaultMode: 'quick', // 默认对话模式: 'quick' | 'expert' | 'image'
+  contextMenuEnabled: true, // 右键菜单发送文件，默认开启
   taskbarControlsEnabled: false, // 任务栏控制组件开关，默认关闭
   taskbarControlsPosition: null // 任务栏控制组件位置 {x, y}
 };
@@ -97,9 +102,24 @@ function loadConfig(): Config {
         validatedConfig.autoLaunch = config.autoLaunch;
       }
 
+      // 验证开机静默启动
+      if (typeof config.silentAutoLaunch === 'boolean') {
+        validatedConfig.silentAutoLaunch = config.silentAutoLaunch;
+      }
+
       // 验证悬浮窗重置选项
       if (config.floatingResetOption && typeof config.floatingResetOption === 'string') {
         validatedConfig.floatingResetOption = config.floatingResetOption;
+      }
+
+      // 验证默认对话模式
+      if (config.defaultMode && ['quick', 'expert', 'image'].includes(config.defaultMode)) {
+        validatedConfig.defaultMode = config.defaultMode;
+      }
+
+      // 验证右键菜单开关
+      if (typeof config.contextMenuEnabled === 'boolean') {
+        validatedConfig.contextMenuEnabled = config.contextMenuEnabled;
       }
 
       // 验证任务栏控制组件开关
@@ -172,7 +192,7 @@ function updateConfig(key: keyof Config, value: unknown): boolean {
     if (config && Object.prototype.hasOwnProperty.call(config, key) && config[key] === value) {
       return true;
     }
-    (config as Record<string, unknown>)[key] = value;
+    (config as unknown as Record<string, unknown>)[key] = value;
     return saveConfig(config);
   } catch (error) {
     return false;
@@ -194,7 +214,7 @@ function updateConfigNoRead(key: keyof Config, value: unknown, currentState: Con
     
     // 从传入的内存状态构造配置对象
     const config: Config = { ...currentState };
-    (config as Record<string, unknown>)[key] = value;
+    (config as unknown as Record<string, unknown>)[key] = value;
     
     const result = saveConfig(config);
     

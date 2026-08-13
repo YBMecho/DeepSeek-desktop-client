@@ -11,6 +11,9 @@
  */
 
 import { ipcMain, BrowserWindow, nativeTheme, IpcMainInvokeEvent } from 'electron';
+import fs from 'fs';
+import path from 'path';
+import { Config } from '../config/config-manager';
 
 interface HandlerDeps {
   state: {
@@ -24,13 +27,15 @@ interface HandlerDeps {
     setReplyNotifyEnabled: (v: boolean) => void;
     getAutoLaunch: () => boolean;
     setAutoLaunch: (v: boolean) => void;
+    getSilentAutoLaunch: () => boolean;
+    setSilentAutoLaunch: (v: boolean) => void;
     getIsTaskbarControlsAdsorbed: () => boolean;
     setIsTaskbarControlsAdsorbed: (v: boolean) => void;
     getMainWindow: () => Electron.BrowserWindow | null;
   };
   configManager: {
     loadConfig: () => Config;
-    updateConfig: (key: string, value: unknown) => boolean;
+    updateConfig: (key: keyof Config, value: unknown) => boolean;
   };
   themeManager: {
     applyWindowTheme: (win: Electron.BrowserWindow, isDark: boolean) => void;
@@ -67,20 +72,12 @@ interface HandlerDeps {
   };
   registerHotkey: (hotkey: string, toggleWindow: () => void, state: HandlerDeps['state']) => void;
   toggleWindow: () => void;
-  updateConfigNoRead: (key: string, value: unknown) => boolean;
-}
-
-interface Config {
-  hotkey: string;
-  floatingWindowHotkey: string;
-  theme: 'light' | 'dark' | 'system';
-  closeBehavior: 'close' | 'minimize';
-  replyNotifyEnabled: boolean;
-  isFloatingWindowPinned: boolean;
-  autoLaunch: boolean;
-  floatingResetOption: string;
-  taskbarControlsEnabled: boolean;
-  taskbarControlsPosition: { x: number; y: number } | null;
+  updateConfigNoRead: (key: keyof Config, value: unknown) => boolean;
+  contextMenuMgr: {
+    registerContextMenu: () => boolean;
+    unregisterContextMenu: () => boolean;
+    isContextMenuRegistered: () => boolean;
+  };
 }
 
 function registerHandlers(deps: HandlerDeps) {
@@ -228,6 +225,21 @@ function registerHandlers(deps: HandlerDeps) {
     }
   });
 
+  // 获取静默自启动状态
+  ipcMain.handle('get-silent-auto-launch', () => state.getSilentAutoLaunch());
+
+  // 设置静默自启动
+  ipcMain.handle('set-silent-auto-launch', (event: IpcMainInvokeEvent, enabled: boolean) => {
+    try {
+      if (typeof enabled !== 'boolean') return { success: false, error: '参数必须是布尔值' };
+      state.setSilentAutoLaunch(enabled);
+      configManager.updateConfig('silentAutoLaunch', enabled);
+      return { success: true, silentAutoLaunch: enabled };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   // 获取悬浮窗重置选项
   ipcMain.handle('get-floating-reset-option', () => floatingMgr.getFloatingResetOption());
 
@@ -238,6 +250,74 @@ function registerHandlers(deps: HandlerDeps) {
       floatingMgr.setFloatingResetOption(option);
       configManager.updateConfig('floatingResetOption', option);
       return { success: true, floatingResetOption: option };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // 获取默认对话模式
+  ipcMain.handle('get-default-mode', () => {
+    return configManager.loadConfig().defaultMode || 'quick';
+  });
+
+  // 设置默认对话模式
+  ipcMain.handle('set-default-mode', (event: IpcMainInvokeEvent, mode: string) => {
+    try {
+      if (!['quick', 'expert', 'image'].includes(String(mode))) {
+        return { success: false, error: '无效的模式设置' };
+      }
+      configManager.updateConfig('defaultMode', mode as Config['defaultMode']);
+      return { success: true, defaultMode: mode };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // 获取右键菜单开关状态
+  ipcMain.handle('get-context-menu-enabled', () => {
+    return configManager.loadConfig().contextMenuEnabled !== false;
+  });
+
+  // 设置右键菜单开关
+  ipcMain.handle('set-context-menu-enabled', (event: IpcMainInvokeEvent, enabled: boolean) => {
+    try {
+      if (typeof enabled !== 'boolean') return { success: false, error: '参数必须是布尔值' };
+      configManager.updateConfig('contextMenuEnabled', enabled);
+      if (enabled) {
+        deps.contextMenuMgr.registerContextMenu();
+      } else {
+        deps.contextMenuMgr.unregisterContextMenu();
+      }
+      return { success: true, contextMenuEnabled: enabled };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // 读取文件并转为 base64
+  ipcMain.handle('read-file-base64', (event: IpcMainInvokeEvent, filePath: string) => {
+    try {
+      if (!fs.existsSync(filePath)) {
+        return { success: false, error: '文件不存在' };
+      }
+      const stats = fs.statSync(filePath);
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (stats.size > maxSize) {
+        return { success: false, error: '文件超过10MB限制' };
+      }
+      const data = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeMap: Record<string, string> = {
+        '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp',
+        '.svg': 'image/svg+xml', '.pdf': 'application/pdf',
+        '.txt': 'text/plain', '.md': 'text/markdown',
+        '.json': 'application/json', '.js': 'text/javascript',
+        '.py': 'text/x-python', '.html': 'text/html', '.css': 'text/css'
+      };
+      const mimeType = mimeMap[ext] || 'application/octet-stream';
+      const fileName = path.basename(filePath);
+      return { success: true, data: data.toString('base64'), mimeType, fileName };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }

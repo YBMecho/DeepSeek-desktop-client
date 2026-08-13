@@ -15,13 +15,23 @@ import { app } from 'electron';
 function applyAutoLaunchSetting(autoLaunch: boolean) {
   try {
     app.setLoginItemSettings({
-      openAtLogin: autoLaunch
+      openAtLogin: autoLaunch,
+      args: autoLaunch ? ['--silent-start'] : []
     });
   } catch (error) {}
 }
 
+/**
+ * 检测是否通过开机自启动参数启动
+ * @returns {boolean}
+ */
+function wasLaunchedByAutoStart(): boolean {
+  return process.argv.includes('--silent-start');
+}
+
 const autoLaunchManager = {
-  applyAutoLaunchSetting
+  applyAutoLaunchSetting,
+  wasLaunchedByAutoStart
 };
 
 export default autoLaunchManager;

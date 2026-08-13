@@ -10,8 +10,10 @@
  * 层级：渲染进程 - UI 组件
  */
 
+import type { DefaultModeValue } from './types';
+
 interface ModeOption {
-  value: 'quick' | 'expert' | 'image';
+  value: DefaultModeValue;
   label: string;
   dataType: string;
 }
@@ -19,7 +21,7 @@ interface ModeOption {
 (function () {
   'use strict';
 
-  let currentDefaultMode: 'quick' | 'expert' | 'image' = 'quick';
+  let currentDefaultMode: DefaultModeValue = 'quick';
   let defaultModeSelectContainer: HTMLDivElement | null = null;
   let defaultModeDisplay: HTMLDivElement | null = null;
   let defaultModeMenuWrapper: HTMLDivElement | null = null;
@@ -166,7 +168,7 @@ interface ModeOption {
     window.removeEventListener('scroll', closeModeMenu, true);
   }
 
-  function selectDefaultMode(value: 'quick' | 'expert' | 'image'): void {
+  function selectDefaultMode(value: DefaultModeValue): void {
     if (!MODE_OPTIONS.find(m => m.value === value)) return;
     currentDefaultMode = value;
     if (defaultModeDisplay) defaultModeDisplay.textContent = MODE_OPTIONS.find(m => m.value === value)?.label || '快速';
@@ -174,10 +176,10 @@ interface ModeOption {
     closeModeMenu();
   }
 
-  async function saveDefaultModeSetting(mode: string): Promise<void> {
+  async function saveDefaultModeSetting(mode: DefaultModeValue): Promise<void> {
     try {
       if (window.electronAPI && 'setDefaultMode' in window.electronAPI) {
-        await (window.electronAPI as any).setDefaultMode(mode);
+        await window.electronAPI.setDefaultMode(mode);
       }
     } catch (e) {
       console.error('保存默认模式设置时出错:', e);
@@ -187,7 +189,7 @@ interface ModeOption {
   async function loadCurrentDefaultMode(): Promise<void> {
     try {
       if (window.electronAPI && 'getDefaultMode' in window.electronAPI) {
-        currentDefaultMode = await (window.electronAPI as any).getDefaultMode() as 'quick' | 'expert' | 'image';
+        currentDefaultMode = await window.electronAPI.getDefaultMode() as DefaultModeValue;
         if (defaultModeDisplay) defaultModeDisplay.textContent = MODE_OPTIONS.find(m => m.value === currentDefaultMode)?.label || '快速';
       }
     } catch (e) {

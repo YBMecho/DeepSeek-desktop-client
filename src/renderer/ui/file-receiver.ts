@@ -16,7 +16,6 @@ import type { FileInfo } from './types';
 (function () {
   'use strict';
 
-  let pendingFileInfo: FileInfo | null = null;
   let notificationEl: HTMLDivElement | null = null;
   let notificationTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -73,7 +72,7 @@ import type { FileInfo } from './types';
         return false;
       }
 
-      const result = await (window.electronAPI as any).readFileAsBase64(filePath);
+      const result = await window.electronAPI.readFileAsBase64(filePath);
       if (!result.success) {
         showNotification('读取文件失败: ' + result.error, 'error');
         return false;
@@ -200,7 +199,7 @@ import type { FileInfo } from './types';
     window.__DS_FILE_RECEIVER_LOADED__ = true;
 
     if (window.electronAPI && 'onFileReceived' in window.electronAPI) {
-      (window.electronAPI as any).onFileReceived((fileInfo: FileInfo) => {
+      window.electronAPI.onFileReceived((fileInfo: FileInfo) => {
         handleReceivedFile(fileInfo);
       });
     }

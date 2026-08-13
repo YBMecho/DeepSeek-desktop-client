@@ -13,7 +13,7 @@ interface ToggleButtonInfo {
 (function () {
   'use strict';
 
-  let toggleButtonElements: ToggleButtonInfo[] = [];
+  const toggleButtonElements: ToggleButtonInfo[] = [];
   let checkInterval: ReturnType<typeof setInterval> | null = null;
   let currentTooltip: HTMLElement | null = null;
 

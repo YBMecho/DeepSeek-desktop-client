@@ -8,6 +8,9 @@
  * 层级：跨进程共享（preload 与 renderer 注入脚本共用）
  */
 
+// 对话模式统一类型（跨进程共享，单一来源）
+type ModeValue = 'quick' | 'expert' | 'image';
+
 interface ElectronAPI {
   getCurrentHotkey: () => Promise<string>;
   setHotkey: (hotkey: string) => Promise<{ success: boolean; error?: string }>;
@@ -27,8 +30,24 @@ interface ElectronAPI {
   onFloatingWindowPinStateChanged: (callback: (pinned: boolean) => void) => () => void;
   getAutoLaunch: () => Promise<boolean>;
   setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; error?: string; autoLaunch?: boolean }>;
+  getSilentAutoLaunch: () => Promise<boolean>;
+  setSilentAutoLaunch: (
+    enabled: boolean
+  ) => Promise<{ success: boolean; error?: string; silentAutoLaunch?: boolean }>;
   getFloatingResetOption: () => Promise<string>;
   setFloatingResetOption: (option: string) => Promise<{ success: boolean; error?: string }>;
+  getDefaultMode: () => Promise<ModeValue>;
+  setDefaultMode: (mode: ModeValue) => Promise<{ success: boolean; error?: string }>;
+  getContextMenuEnabled: () => Promise<boolean>;
+  setContextMenuEnabled: (enabled: boolean) => Promise<{ success: boolean; error?: string; contextMenuEnabled?: boolean }>;
+  readFileAsBase64: (filePath: string) => Promise<{
+    success: boolean;
+    data?: string;
+    mimeType?: string;
+    fileName?: string;
+    error?: string;
+  }>;
+  onFileReceived: (callback: (fileInfo: { filePath: string; mode?: ModeValue }) => void) => () => void;
   toggleFloatingWindow: (currentUrl: string) => Promise<void>;
   getTaskbarControlsState: () => Promise<boolean>;
   toggleTaskbarControls: () => Promise<{ success: boolean; enabled?: boolean; error?: string }>;

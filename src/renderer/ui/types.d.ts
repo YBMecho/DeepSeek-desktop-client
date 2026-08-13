@@ -5,22 +5,11 @@
  * 层级：渲染进程 - 类型声明
  */
 
+export type DefaultModeValue = ModeValue;
+
 export interface FileInfo {
   filePath: string;
-  mode?: string;
-}
-
-export interface ElectronAPI {
-  setDefaultMode: (mode: string) => Promise<void>;
-  getDefaultMode: () => Promise<string>;
-  onFileReceived: (callback: (fileInfo: FileInfo) => void) => void;
-  readFileAsBase64: (filePath: string) => Promise<{
-    success: boolean;
-    data?: string;
-    mimeType?: string;
-    fileName?: string;
-    error?: string;
-  }>;
+  mode?: DefaultModeValue;
 }
 
 export interface DefaultModeModule {
@@ -39,7 +28,6 @@ export interface FileReceiverModule {
 
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
     __defaultModeModule?: DefaultModeModule;
     __DS_DEFAULT_MODE_LOADED__?: boolean;
     __DS_FILE_RECEIVER_LOADED__?: boolean;

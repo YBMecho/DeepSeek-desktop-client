@@ -39,7 +39,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync, spawn } = require('child_process');
+const { execSync } = require('child_process');
 
 // ---------- 路径与常量 ----------
 const PROJECT_ROOT = __dirname;
@@ -168,7 +168,7 @@ function log(msg, type = 'info') {
     warn: '[WARN]   ',
     error: '[ERROR]  ',
   };
-  // eslint-disable-next-line no-console
+   
   console.log(colors[type] || colors.info, `${prefix[type]}${msg}`);
 }
 
@@ -538,7 +538,7 @@ function prepareEnv(proxyUrl, extraEnv = {}) {
  * @param {string|null} proxyUrl  已规范化的代理地址
  * @param {object}      runtimeOpts 运行时配置（含构建偏好）
  */
-function doPackage(proxyUrl, runtimeOpts) {
+function doPackage(proxyUrl, _runtimeOpts) {
   log('开始执行 electron-forge package ...');
   const env = prepareEnv(proxyUrl);
   run('npx electron-forge package', { env });
@@ -550,7 +550,7 @@ function doPackage(proxyUrl, runtimeOpts) {
  * @param {string|null} proxyUrl    已规范化的代理地址
  * @param {object}      runtimeOpts 运行时配置
  */
-function buildSquirrel(proxyUrl, runtimeOpts) {
+function buildSquirrel(proxyUrl, _runtimeOpts) {
   log('开始构建 Squirrel 安装包 (electron-forge make) ...');
   const env = prepareEnv(proxyUrl);
   run('npx electron-forge make', { env });
@@ -692,7 +692,7 @@ iss / config 示例:
   --clear-proxy               清空代理（若同时指定 --save 则清除持久化代理）
   -h, --help                  显示帮助
 `;
-  // eslint-disable-next-line no-console
+   
   console.log(helpText);
 }
 
@@ -821,15 +821,15 @@ function readLineSync(prompt) {
  * 返回 { command, opts } 与命令行解析结果结构保持一致
  */
 function runInteractivePanel() {
-  // eslint-disable-next-line no-console
+   
   console.log('');
-  // eslint-disable-next-line no-console
+   
   console.log('\x1b[36m%s\x1b[0m', '┌──────────────────────────────────────────────┐');
-  // eslint-disable-next-line no-console
+   
   console.log('\x1b[36m%s\x1b[0m', '│     DeepSeek 桌面客户端 · 交互式构建面板      │');
-  // eslint-disable-next-line no-console
+   
   console.log('\x1b[36m%s\x1b[0m', '└──────────────────────────────────────────────┘');
-  // eslint-disable-next-line no-console
+   
   console.log('');
 
   // —— 步骤 1：选择构建命令 ——
@@ -842,10 +842,10 @@ function runInteractivePanel() {
     { key: '6', value: 'config:show', label: '查看持久化构建偏好' },
     { key: '0', value: 'quit',     label: '退出脚本' },
   ];
-  // eslint-disable-next-line no-console
+   
   console.log('请选择要执行的命令：');
   cmdMenu.forEach((m) => {
-    // eslint-disable-next-line no-console
+     
     console.log(`  \x1b[33m${m.key})\x1b[0m ${m.label}`);
   });
 
@@ -888,7 +888,6 @@ function runInteractivePanel() {
   }
 
   // —— 步骤 4：是否保存偏好 ——
-  const saveHint = savedCfg.proxy || savedCfg.noAdmin || savedCfg.noDesktopIcon || savedCfg.noAutoLaunch ? ' (覆盖已保存的值)' : '';
   const ynSave = readLineSync(`\x1b[36m是否保存以上代理和偏好供下次直接使用? (y/N): \x1b[0m`.replace('YN', 'yn'));
   const shouldSave = /^y/i.test(ynSave);
   if (shouldSave) opts.save = true;
@@ -897,7 +896,7 @@ function runInteractivePanel() {
   const ynDry = readLineSync(`\x1b[36m仅修改配置不执行真实构建 (dry-run)? (y/N): \x1b[0m`);
   if (/^y/i.test(ynDry)) opts.dryRun = true;
 
-  // eslint-disable-next-line no-console
+   
   console.log('');
   log(`交互式面板选择 → 命令: ${command}, 代理: ${proxy || '(直连)'}, 保存偏好: ${shouldSave ? '是' : '否'}`);
 

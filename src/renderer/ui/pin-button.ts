@@ -3,7 +3,7 @@
   'use strict';
 
   let isPinned = false;
-  let pinButtonElements: Array<{ button: HTMLDivElement; iconContainer: HTMLDivElement }> = [];
+  const pinButtonElements: Array<{ button: HTMLDivElement; iconContainer: HTMLDivElement }> = [];
   let checkInterval: ReturnType<typeof setInterval> | null = null;
 
   // SVG图标路径

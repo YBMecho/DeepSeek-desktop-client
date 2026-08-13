@@ -90,6 +90,7 @@ interface CreateWindowDeps {
   };
   registerHotkey: (hotkey: string, callback: () => void, state: StateForHotkey) => void;
   toggleWindow: () => void;
+  startHidden?: boolean;
 }
 
 /**
@@ -223,13 +224,24 @@ export function createWindow(deps: CreateWindowDeps): BrowserWindow {
   });
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    if (!deps.startHidden) {
+      mainWindow.show();
+    }
     mainWindow.setTitle(APP_NAME);
     try {
       deps.themeManager.applyWindowTheme(mainWindow, nativeTheme ? nativeTheme.shouldUseDarkColors : false);
     } catch (e) {}
     deps.assetInjector.injectCustomAssets(mainWindow, deps.floatingMgr.getFloatingWindow());
   });
+
+  if (deps.startHidden) {
+    deps.trayManager.createTray({
+      getIsQuitting: state.getIsQuitting,
+      setIsQuitting: state.setIsQuitting,
+      toggleWindow: deps.toggleWindow,
+      toggleFloatingWindow: deps.floatingMgr.toggleFloatingWindow
+    });
+  }
 
   try {
     mainWindow.webContents.on('dom-ready', () => {

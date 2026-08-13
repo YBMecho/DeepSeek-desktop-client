@@ -33,7 +33,7 @@ export interface DefaultConfig {
   replyNotifyEnabled: boolean;
   isFloatingWindowPinned: boolean;
   autoLaunch: boolean;
-  silentAutoLaunch?: boolean;
+  silentAutoLaunch: boolean;
   floatingResetOption: string;
 }
 
@@ -73,6 +73,7 @@ export const DEFAULT_CONFIG: DefaultConfig = {
   replyNotifyEnabled: true,
   isFloatingWindowPinned: false,
   autoLaunch: true,
+  silentAutoLaunch: true,
   floatingResetOption: '60min'
 };
 

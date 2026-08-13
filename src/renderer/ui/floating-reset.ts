@@ -71,7 +71,7 @@ c-4.7-4.7-7-10.9-7-17c0-6.1,2.3-12.3,7-17c9.4-9.4,24.6-9.4,33.9,0L256,294.1z" fi
 
     // 点击切换菜单
     const toggleMenu = (e: MouseEvent): void => {
-      e && e.stopPropagation();
+      if (e) e.stopPropagation();
       if (isResetMenuOpen) {
         closeResetMenu();
       } else {

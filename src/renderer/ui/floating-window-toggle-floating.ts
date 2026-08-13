@@ -13,7 +13,7 @@ interface ToggleButtonInfo {
 (function () {
   'use strict';
 
-  let toggleButtonElements: ToggleButtonInfo[] = [];
+  const toggleButtonElements: ToggleButtonInfo[] = [];
   let checkInterval: ReturnType<typeof setInterval> | null = null;
   let currentTooltip: HTMLElement | null = null;
 
@@ -139,7 +139,7 @@ interface ToggleButtonInfo {
       const svg = btn.querySelector('svg path[d*="M9.99994 1.22943C5.15598"]');
       if (svg) {
         let targetPosition: HTMLElement = btn as HTMLElement;
-        let prevSibling = btn.previousElementSibling;
+        const prevSibling = btn.previousElementSibling;
 
         // 如果前面有置顶按钮，插入到置顶按钮之前
         if (prevSibling && prevSibling.classList.contains('ds-pin-button')) {

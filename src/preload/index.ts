@@ -63,11 +63,41 @@ const api = {
   // 设置开机自启动
   setAutoLaunch: (enabled: boolean) => ipcRenderer.invoke('set-auto-launch', enabled),
 
+  // 获取开机静默自启动状态
+  getSilentAutoLaunch: () => ipcRenderer.invoke('get-silent-auto-launch'),
+
+  // 设置开机静默自启动
+  setSilentAutoLaunch: (enabled: boolean) => ipcRenderer.invoke('set-silent-auto-launch', enabled),
+
   // 获取悬浮窗重置选项
   getFloatingResetOption: () => ipcRenderer.invoke('get-floating-reset-option'),
 
   // 设置悬浮窗重置选项
   setFloatingResetOption: (option: string) => ipcRenderer.invoke('set-floating-reset-option', option),
+
+  // 获取默认对话模式
+  getDefaultMode: () => ipcRenderer.invoke('get-default-mode'),
+
+  // 设置默认对话模式
+  setDefaultMode: (mode: ModeValue) => ipcRenderer.invoke('set-default-mode', mode),
+
+  // 获取右键菜单开关状态
+  getContextMenuEnabled: () => ipcRenderer.invoke('get-context-menu-enabled'),
+
+  // 设置右键菜单开关
+  setContextMenuEnabled: (enabled: boolean) => ipcRenderer.invoke('set-context-menu-enabled', enabled),
+
+  // 读取文件并转为 base64
+  readFileAsBase64: (filePath: string) => ipcRenderer.invoke('read-file-base64', filePath),
+
+  // 监听主进程发送的文件路径（右键菜单触发）
+  onFileReceived: (callback: (fileInfo: { filePath: string; mode?: ModeValue }) => void) => {
+    const listener = (_event: IpcRendererEvent, fileInfo: { filePath: string; mode?: ModeValue }) => {
+      try { callback(fileInfo); } catch (e) {}
+    };
+    ipcRenderer.on('file-received', listener);
+    return () => ipcRenderer.removeListener('file-received', listener);
+  },
 
   // 切换悬浮窗
   toggleFloatingWindow: (currentUrl: string) => ipcRenderer.invoke('toggle-floating-window', currentUrl),

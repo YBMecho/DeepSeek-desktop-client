@@ -7,7 +7,7 @@
  *   - 只暴露 getter/setter，避免各模块直接持有裸变量引用导致状态回溯困难
  */
 
-import { constants } from '../common/constants';
+import constants from '../common/constants';
 
 let mainWindow: Electron.BrowserWindow | null = null;
 let isWindowHidden = false;

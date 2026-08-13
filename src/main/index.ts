@@ -10,7 +10,6 @@
  */
 
 import { app, BrowserWindow, nativeTheme, dialog } from 'electron';
-import path from 'path';
 
 // ---- 调试日志 ----
 const isDebugLog = process.env.DS_DEBUG === '1';
@@ -23,8 +22,14 @@ function logDebug(...args: unknown[]) {
 // ---- 右键菜单 ----
 let contextMenu: ((options: Record<string, unknown>) => void) | null = null;
 try {
-  const mod = require('electron-context-menu');
-  contextMenu = mod.default || mod;
+  // electron-context-menu 为 ESM 模块，用运行时 require 包裹以便加载失败时优雅降级
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const contextMenuModule = require('electron-context-menu');
+  if (contextMenuModule && typeof contextMenuModule.default === 'function') {
+    contextMenu = contextMenuModule.default;
+  } else {
+    contextMenu = contextMenuModule;
+  }
 } catch (error) {
   contextMenu = null;
 }
@@ -36,21 +41,33 @@ import configManager, { Config } from './config/config-manager';
 import themeManager from './system/theme-manager';
 import * as assetInjector from '../renderer/injectors/asset-injector';
 import floatingMgr from './window/floating-window-manager';
-import taskbarMgr from './window/Taskbar-Live-Controls';
+import taskbarMgr from './window/taskbar-live-controls';
 import adsorptionMgr from './window/adsorption';
 import adsorptionCoordinator from './system/adsorption-coordinator';
 import trayManager from './system/tray-manager';
 import notifyManager from './system/notification-manager';
 import deepseekContentListener from './system/deepseek-content-listener';
 import autoLaunchMgr from './system/auto-launch-manager';
+import * as contextMenuMgr from './system/context-menu-manager';
 import { registerHotkey, unregisterAll } from './system/hotkey';
 import { toggleWindow } from './window/window-toggle';
 import { createWindow, createNewWindow } from './window/main-window';
 import { registerHandlers } from './ipc/handlers';
 
+// ---- 吸附协调器初始化（依赖注入，避免重复代码）----
+function initAdsorptionCoordinator(): void {
+  adsorptionCoordinator.init({
+    getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
+    getMiniWindow: taskbarMgr.getMiniWindow,
+    startDragRegionHoverWatcher: taskbarMgr.startHoverWatcher,
+    stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher,
+    raiseMiniWindow: taskbarMgr.raiseToTop,
+    raiseAdsorptionWindow: adsorptionMgr.raiseToTop
+  });
+}
+
 // ---- 配置内存快照（供 updateConfigNoRead 使用）----
-function getCurrentConfigState(): Config {
-  const config = configManager.loadConfig();
+function getCurrentConfigState(): Config {  const config = configManager.loadConfig();
   return {
     hotkey: state.getCurrentHotkey(),
     floatingWindowHotkey: floatingMgr.getFloatingWindowHotkey(),
@@ -59,14 +76,17 @@ function getCurrentConfigState(): Config {
     replyNotifyEnabled: state.getReplyNotifyEnabled(),
     isFloatingWindowPinned: floatingMgr.isPinned(),
     autoLaunch: state.getAutoLaunch(),
+    silentAutoLaunch: state.getSilentAutoLaunch(),
     floatingResetOption: floatingMgr.getFloatingResetOption(),
+    defaultMode: config.defaultMode,
+    contextMenuEnabled: config.contextMenuEnabled,
     taskbarControlsEnabled: config.taskbarControlsEnabled,
     taskbarControlsPosition: config.taskbarControlsPosition
   };
 }
 
 // 无读更新配置
-function updateConfigNoRead(key: string, value: unknown) {
+function updateConfigNoRead(key: keyof Config, value: unknown) {
   const currentState = getCurrentConfigState();
   return configManager.updateConfigNoRead(
     key, value, currentState,
@@ -111,12 +131,53 @@ function toggleWindowWrapper() {
   });
 }
 
+// ---- 解析命令行参数（右键菜单传入的文件路径和模式）----
+function parseFileArgs(argv: string[]): { filePath: string; mode: string } | null {
+  let filePath: string | null = null;
+  let mode: string | null = null;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--mode' && argv[i + 1]) {
+      mode = argv[i + 1];
+    } else if (arg.startsWith('--mode=')) {
+      mode = arg.substring('--mode='.length);
+    } else if (!arg.startsWith('--') && !arg.includes('electron') && !arg.includes('node')) {
+      if (filePath === null && arg.length > 2 && (arg[1] === ':' || arg.startsWith('\\\\'))) {
+        filePath = arg;
+      }
+    }
+  }
+  if (filePath) {
+    return { filePath, mode: mode || 'quick' };
+  }
+  return null;
+}
+
+// ---- 转发文件到渲染进程 ----
+function sendFileToRenderer(fileInfo: { filePath: string; mode: string }) {
+  const mainWindow = state.getMainWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.webContents.isLoading()) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        mainWindow.webContents.send('file-received', fileInfo);
+      });
+    } else {
+      mainWindow.webContents.send('file-received', fileInfo);
+    }
+  }
+}
+
 // ---- 单例锁 ----
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (event, argv) => {
+    const fileInfo = parseFileArgs(argv);
+    if (fileInfo) {
+      sendFileToRenderer(fileInfo);
+    }
+
     const mainWindow = state.getMainWindow();
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
@@ -241,6 +302,11 @@ app.whenReady().then(() => {
     }
   } catch (error) {}
 
+  // 判断是否由操作系统开机自启动启动，且开启了静默启动
+  const wasLaunchedByOS = autoLaunchMgr.wasLaunchedByAutoStart();
+  const configSilentAutoLaunch = configManager.loadConfig().silentAutoLaunch;
+  const startHidden = wasLaunchedByOS && configSilentAutoLaunch;
+
   // 创建主窗口
   createWindow({
     state,
@@ -250,7 +316,8 @@ app.whenReady().then(() => {
     floatingMgr,
     trayManager,
     registerHotkey,
-    toggleWindow: toggleWindowWrapper
+    toggleWindow: toggleWindowWrapper,
+    startHidden
   });
 
   // 注册所有 IPC 处理器（必须在创建任何窗口之前）
@@ -266,7 +333,8 @@ app.whenReady().then(() => {
     adsorptionCoordinator,
     registerHotkey,
     toggleWindow: toggleWindowWrapper,
-    updateConfigNoRead
+    updateConfigNoRead,
+    contextMenuMgr
   });
 
   // 应用自启动设置
@@ -315,14 +383,7 @@ app.whenReady().then(() => {
     taskbarMgr.createMiniWindow(miniWindowOptions);
 
     // 初始化吸附协调器
-    adsorptionCoordinator.init({
-      getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
-      getMiniWindow: taskbarMgr.getMiniWindow,
-      startDragRegionHoverWatcher: taskbarMgr.startHoverWatcher,
-      stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher,
-      raiseMiniWindow: taskbarMgr.raiseToTop,
-      raiseAdsorptionWindow: adsorptionMgr.raiseToTop
-    });
+    initAdsorptionCoordinator();
 
     // 如果窗口应该在吸附位置，应用固定样式
     if (shouldApplyAdsorbedStyle) {
@@ -351,14 +412,7 @@ app.whenReady().then(() => {
     adsorptionCoordinator.startMonitoring();
   } else {
     // 即使不创建窗口，也需要初始化吸附协调器以备后续使用
-    adsorptionCoordinator.init({
-      getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
-      getMiniWindow: taskbarMgr.getMiniWindow,
-      startDragRegionHoverWatcher: taskbarMgr.startHoverWatcher,
-      stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher,
-      raiseMiniWindow: taskbarMgr.raiseToTop,
-      raiseAdsorptionWindow: adsorptionMgr.raiseToTop
-    });
+    initAdsorptionCoordinator();
   }
 
   // 启动配置文件监听
@@ -388,6 +442,24 @@ app.whenReady().then(() => {
       });
     }
   } catch (e) {}
+
+  // 处理首次启动时右键菜单传入的文件
+  const initialFileInfo = parseFileArgs(process.argv);
+  if (initialFileInfo) {
+    const mainWindow = state.getMainWindow();
+    if (mainWindow) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        mainWindow.webContents.send('file-received', initialFileInfo);
+      });
+    }
+  }
+
+  // 根据配置同步右键菜单注册状态
+  if (config.contextMenuEnabled !== false) {
+    if (!contextMenuMgr.isContextMenuRegistered()) {
+      contextMenuMgr.registerContextMenu();
+    }
+  }
 });
 
 // ---- 生命周期事件 ----

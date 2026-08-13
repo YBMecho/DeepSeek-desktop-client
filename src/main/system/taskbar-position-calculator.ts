@@ -15,13 +15,10 @@
 
 import { screen } from 'electron';
 import { exec, execSync } from 'child_process';
-import path from 'path';
-import fs from 'fs';
 
 // Windows 11 任务栏默认参数（像素）
 const TASKBAR_HEIGHT = 48;  // Windows 11 默认任务栏高度
 const LEFT_WIDGETS_WIDTH = 180;  // 左侧组件群估算宽度（天气、新闻等）- 仅用于回退方案
-const START_BUTTON_WIDTH = 48;  // 开始按钮宽度 - 仅用于回退方案
 
 // 水平定位约束（DIP）
 const GAP_EDGE_MARGIN = 8;  // 与左侧组件右边缘的呼吸间距

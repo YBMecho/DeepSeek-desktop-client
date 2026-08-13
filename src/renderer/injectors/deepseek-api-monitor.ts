@@ -61,7 +61,7 @@
       last = Date.now();
       const args = pending;
       pending = null;
-      if (args) fn.apply(null, args);
+      if (args) fn(...args);
     };
     return function (...args: A): void {
       pending = args;
@@ -273,7 +273,7 @@
         let offset = 0;
 
         this.addEventListener('progress', () => {
-          let text = '';
+          let text: string;
           try {
             text = this.responseText || '';
           } catch (e) {

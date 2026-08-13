@@ -10,8 +10,8 @@
  * 本模块不直接持有主窗口状态，只负责托盘 UI 本身。
  */
 
-import path from 'path';
 import { app, Menu, Tray } from 'electron';
+import constants from '../../common/constants';
 
 let tray: Tray | null = null;
 
@@ -33,7 +33,6 @@ interface TrayDeps {
 function createTray(deps: TrayDeps) {
   if (tray || deps.getIsQuitting()) return; // 如果托盘已存在或正在退出，不创建
   
-  const constants = require('../../common/constants');
   const iconPath = constants.TRAY_ICON_PATH;
   tray = new Tray(iconPath);
   

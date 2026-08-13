@@ -13,13 +13,11 @@
  * 避免直接引用 main.js 的全局变量，保持模块独立可测试。
  */
 
-import path from 'path';
-import { BrowserWindow, shell, nativeTheme, globalShortcut } from 'electron';
+import { BrowserWindow, shell, nativeTheme, globalShortcut, screen } from 'electron';
 import constants from '../../common/constants';
 
 // 模块内部状态（悬浮窗子系统专属，不与主窗口共享）
 let floatingWindow: BrowserWindow | null = null;
-let floatingWindowBounds: { x: number; y: number; width: number; height: number } | null = null; // 临时保存悬浮窗位置尺寸（仅会话期间）
 let floatingWindowRelativePosition: { relativeX: number; relativeY: number; width: number; height: number } | null = null; // 保存悬浮窗在屏幕中的相对位置
 let floatingWindowCloseTime: number | null = null; // 悬浮窗关闭时间戳
 let floatingWindowHotkey = 'Alt+Space'; // 默认悬浮窗快捷键
@@ -55,22 +53,10 @@ function init(injectedDeps: Partial<FloatingMgrDeps>) {
 }
 
 /**
- * 获取鼠标所在屏幕的中心位置
- */
-function getMouseScreenCenter() {
-  const { screen } = require('electron');
-  const point = screen.getCursorScreenPoint();
-  const display = screen.getDisplayNearestPoint(point);
-  const { x, y, width, height } = display.workArea;
-  return { x, y, width, height };
-}
-
-/**
  * 保证窗口位置在屏幕内且距离顶部至少30px
  * @param {Object} bounds - 窗口位置尺寸 { x, y, width, height }
  */
 function ensureWindowInScreen(bounds: { x: number; y: number; width: number; height: number }) {
-  const { screen } = require('electron');
   const point = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
   const display = screen.getDisplayNearestPoint(point);
   const workArea = display.workArea;
@@ -116,7 +102,6 @@ function createFloatingWindow() {
   let bounds;
   
   // 获取鼠标所在屏幕信息
-  const { screen } = require('electron');
   const cursorPoint = screen.getCursorScreenPoint();
   const mouseDisplay = screen.getDisplayNearestPoint(cursorPoint);
   const mouseScreen = mouseDisplay.workArea;
@@ -234,7 +219,6 @@ function createFloatingWindow() {
   const saveBoundsTemporarily = () => {
     if (floatingWindow && !floatingWindow.isDestroyed()) {
       const currentBounds = floatingWindow.getBounds();
-      const { screen } = require('electron');
       const point = { x: currentBounds.x + currentBounds.width / 2, y: currentBounds.y + currentBounds.height / 2 };
       const display = screen.getDisplayNearestPoint(point);
       const screenBounds = display.bounds;
@@ -249,7 +233,6 @@ function createFloatingWindow() {
           height: currentBounds.height
         });
         const correctedBounds = floatingWindow.getBounds();
-        floatingWindowBounds = correctedBounds;
         
         // 保存相对位置（相对于工作区的百分比位置）
         floatingWindowRelativePosition = {
@@ -259,7 +242,6 @@ function createFloatingWindow() {
           height: correctedBounds.height
         };
       } else {
-        floatingWindowBounds = currentBounds;
         
         // 保存相对位置（相对于工作区的百分比位置）
         floatingWindowRelativePosition = {
@@ -349,7 +331,6 @@ function toggleFloatingWindow() {
     checkAndResetFloatingWindow();
     
     // 获取鼠标所在屏幕信息
-    const { screen } = require('electron');
     const cursorPoint = screen.getCursorScreenPoint();
     const mouseDisplay = screen.getDisplayNearestPoint(cursorPoint);
     const mouseScreen = mouseDisplay.workArea;

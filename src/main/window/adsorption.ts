@@ -9,7 +9,7 @@
  * 层级：主进程 - 窗口管理
  */
 
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow } from 'electron';
 import path from 'path';
 import constants from '../../common/constants';
 import taskbarCalculator from '../system/taskbar-position-calculator';

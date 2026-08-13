@@ -10,9 +10,8 @@
  */
 
 import fs from 'fs';
-import path from 'path';
 import { BrowserWindow } from 'electron';
-import * as constants from '../../common/constants';
+import constants from '../../common/constants';
 
 // 将 logo 转换为 base64（启动时只读取一次）
 let logoBase64: string | null = null;
