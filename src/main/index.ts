@@ -279,7 +279,7 @@ app.whenReady().then(() => {
 
           return menuItems;
         },
-        append: (defaultActions: Electron.MenuItemConstructorOptions[], parameters: Electron.ContextMenuParams, browserWindow: Electron.BrowserWindow) => []
+        append: () => []
       });
     }
   } catch (error) {}
