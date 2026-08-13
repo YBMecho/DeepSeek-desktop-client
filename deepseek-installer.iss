@@ -27,7 +27,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 PrivilegesRequired=admin
 
 [Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "chinesesimp"; MessagesFile: "resources\languages\ChineseSimplified.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"

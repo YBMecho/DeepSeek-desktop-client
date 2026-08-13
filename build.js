@@ -371,7 +371,7 @@ function applyConfig(opts) {
   if (opts.lang) {
     const map = {
       english: 'compiler:Default.isl',
-      chinesesimp: 'compiler:Languages\\ChineseSimplified.isl',
+      chinesesimp: 'resources\\languages\\ChineseSimplified.isl',
     };
     const msgFile = map[opts.lang] || map.english;
     iss = iss.replace(
