@@ -5,7 +5,8 @@
  * 职责：
  *   - 在设置面板菜单末尾添加"关于"入口
  *   - SVG图标自适应浅色/深色主题（使用 currentColor）
- *   - 处理按钮点击事件，弹出关于信息对话框
+ *   - 点击"关于"后在设置面板右侧内容区展示关于信息页（与"快捷键设置"同模式），
+ *     不再使用弹窗
  *
  * 参考快捷键设置的注入方式（settings-menu-hotkey.ts）
  */
@@ -26,63 +27,158 @@
     <path d="M512 432c-19.2 0-32 12.8-32 32v224c0 19.2 12.8 32 32 32s32-12.8 32-32V464c0-19.2-12.8-32-32-32z" fill="currentColor"></path>
   </svg>`;
 
+  const ABOUT_SECTION_ID = 'ds-about-section';
+  const CONCEAL_STYLE_ID = 'about-tab-conceal-style';
+  // 应用图标 base64 数据 URL（asset-injector 注入脚本时替换占位符为真实图标内容）
+  const APP_ICON_DATA_URL = 'data:image/png;base64,__DS_APP_ICON_BASE64__';
+
   let aboutMenuButton: HTMLElement | null = null;
+  let isAboutTabActive = false;
+  // 程序化点击原生"通用设置"按钮时置位，避免我们绑在原生按钮上的
+  // "取消激活"监听器把刚点亮的"关于"按钮又灭掉
+  let suppressNativeDeactivate = false;
+
+  // 切换 tab 期间遮蔽右侧内容区的状态。用 CSS 属性开关而不是直接改节点
+  // 样式：React 重渲染/替换节点时遮蔽依然生效，不会露出通用设置的内容
+  let contentConcealed = false;
+  let concealSafetyTimer: number | null = null;
+
+  /** 关于页是否已就绪：注入的关于内容块已存在于 DOM */
+  function isAboutPanelReady(): boolean {
+    const section = document.getElementById(ABOUT_SECTION_ID);
+    return !!(section && section.isConnected);
+  }
+
+  function ensureConcealStyle(): void {
+    if (document.getElementById(CONCEAL_STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = CONCEAL_STYLE_ID;
+    style.textContent = 'html[data-about-conceal="1"] .ds-modal-content .ds-scroll-area { visibility: hidden; }';
+    document.head.appendChild(style);
+  }
+
+  /** 遮蔽右侧内容区，直到关于页就绪或兜底超时 */
+  function concealContentArea(): void {
+    ensureConcealStyle();
+    document.documentElement.setAttribute('data-about-conceal', '1');
+    contentConcealed = true;
+    if (concealSafetyTimer !== null) clearTimeout(concealSafetyTimer);
+    // 兜底：注入行若迟迟未就位（如原网页改版），最多遮蔽 600ms，避免面板永久空白
+    concealSafetyTimer = window.setTimeout(revealContentArea, 600);
+  }
+
+  function revealContentArea(): void {
+    if (concealSafetyTimer !== null) {
+      clearTimeout(concealSafetyTimer);
+      concealSafetyTimer = null;
+    }
+    if (!contentConcealed) return;
+    contentConcealed = false;
+    document.documentElement.removeAttribute('data-about-conceal');
+  }
 
   /**
-   * 创建关于信息弹窗
+   * 查找原生"通用设置"页的内容行（主题按钮组 + 语言选择行）
+   * 以语言行为锚点，主题行取同一父容器内文本含"主题"的兄弟节点
    */
-  function showAboutDialog(): void {
-    // 如果已存在弹窗，先移除
-    const existing = document.getElementById('ds-about-dialog-overlay');
-    if (existing) existing.remove();
+  function findNativeGeneralRows(): { langRow: HTMLElement; themeRow: HTMLElement | undefined } | null {
+    const langRow = Array.from(document.querySelectorAll<HTMLElement>('.ds-flex._50b3d9e'))
+      .find(el => (el.textContent || '').includes('语言'));
+    if (!langRow || !langRow.parentElement) return null;
 
-    // 遮罩层
-    const overlay = document.createElement('div');
-    overlay.id = 'ds-about-dialog-overlay';
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.45);
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: ds-about-fade-in 0.15s ease;
-    `;
+    const themeRow = Array.from(langRow.parentElement.children)
+      .find((el): el is HTMLElement => el !== langRow
+        && !el.classList.contains('hotkey-section-wrapper')
+        && !el.classList.contains('about-section')
+        && (el.textContent || '').includes('主题'));
 
-    // 注入动画样式（仅一次）
-    if (!document.getElementById('ds-about-dialog-styles')) {
-      const style = document.createElement('style');
-      style.id = 'ds-about-dialog-styles';
-      style.textContent = `
-        @keyframes ds-about-fade-in { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes ds-about-zoom-in { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
-      `;
-      document.head.appendChild(style);
+    return { langRow, themeRow };
+  }
+
+  /**
+   * 隐藏/恢复原生"通用设置"内容行
+   * 用 dataset 标记是我们藏的，恢复时只动自己标记过的节点，不碰 React 的布局
+   */
+  function setNativeGeneralContentHidden(hidden: boolean): void {
+    const rows = findNativeGeneralRows();
+    if (!rows) return;
+    [rows.langRow, rows.themeRow].forEach(row => {
+      if (!row) return;
+      if (hidden) {
+        row.dataset.aboutHidden = '1';
+        row.style.display = 'none';
+      } else if (row.dataset.aboutHidden) {
+        delete row.dataset.aboutHidden;
+        row.style.display = '';
+      }
+    });
+  }
+
+  /**
+   * 隐藏/恢复注入的其他设置行（快捷键 wrapper + 默认模式行）。
+   * 恢复时依赖各自的 visibility sync 重新计算，不在此处硬置
+   */
+  function hideInjectedRows(hidden: boolean): void {
+    const wrapper = document.querySelector<HTMLElement>('.hotkey-section-wrapper');
+    if (wrapper) wrapper.style.display = hidden ? 'none' : '';
+    const defaultModeRow = document.querySelector<HTMLElement>('.default-mode-setting-flex');
+    if (defaultModeRow) defaultModeRow.style.display = hidden ? 'none' : 'flex';
+  }
+
+  /**
+   * 设置原生菜单按钮的激活态（与原生选中样式保持一致）
+   */
+  function setNativeButtonActive(btn: HTMLElement, active: boolean): void {
+    if (active) {
+      btn.classList.add('_699d482');
+      btn.style.setProperty('--dsl-button-color', 'var(--dsw-alias-interactive-bg-hover)');
+    } else {
+      btn.classList.remove('_699d482');
+      btn.style.removeProperty('--dsl-button-color');
     }
+  }
 
-    // 对话框主体
-    const dialog = document.createElement('div');
-    dialog.className = 'ds-modal-content ds-theme';
-    dialog.style.cssText = `
-      background: var(--dsw-alias-bg-primary, #fff);
-      border-radius: 16px;
-      padding: 32px 40px;
-      max-width: 420px;
-      width: 90%;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-      animation: ds-about-zoom-in 0.2s ease;
+  /**
+   * 更新"关于"菜单按钮的激活状态
+   */
+  function updateMenuButtonState(): void {
+    if (!aboutMenuButton) return;
+
+    if (isAboutTabActive) {
+      aboutMenuButton.style.setProperty('--dsl-button-color', 'var(--dsw-alias-interactive-bg-hover)');
+      aboutMenuButton.classList.add('_699d482');
+    } else {
+      aboutMenuButton.style.removeProperty('--dsl-button-color');
+      aboutMenuButton.classList.remove('_699d482');
+    }
+  }
+
+  /**
+   * 创建关于信息内容块（内嵌于设置面板内容区）
+   */
+  function createAboutContent(): HTMLElement {
+    const section = document.createElement('div');
+    section.id = ABOUT_SECTION_ID;
+    section.className = 'ds-theme about-section';
+    section.style.cssText = `
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 16px;
+      padding: 48px 24px;
       color: var(--dsw-alias-label-primary, #1a1a1a);
     `;
 
-    // Logo 图标
+    // 应用图标
     const logoWrap = document.createElement('div');
     logoWrap.style.cssText = 'width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;';
-    logoWrap.innerHTML = ABOUT_ICON_SVG.replace('width="18" height="18"', 'width="64" height="64"');
+    const appIcon = document.createElement('img');
+    appIcon.src = APP_ICON_DATA_URL;
+    appIcon.alt = 'DeepSeek 桌面应用';
+    appIcon.width = 64;
+    appIcon.height = 64;
+    appIcon.style.cssText = 'width: 64px; height: 64px; border-radius: 12px;';
+    logoWrap.appendChild(appIcon);
 
     // 标题
     const title = document.createElement('div');
@@ -99,10 +195,32 @@
     desc.textContent = '一个简洁的 DeepSeek 聊天客户端';
     desc.style.cssText = 'font-size: 14px; opacity: 0.8;';
 
-    // 作者
+    // 作者（两位，分别超链接到各自的 GitHub 主页）
     const author = document.createElement('div');
-    author.textContent = '作者: YBMecho';
-    author.style.cssText = 'font-size: 13px; opacity: 0.6;';
+    author.style.cssText = 'display: flex; align-items: center; gap: 4px; font-size: 13px; opacity: 0.6;';
+
+    const authorLabel = document.createElement('span');
+    authorLabel.textContent = '作者: ';
+
+    const ybmechoLink = document.createElement('a');
+    ybmechoLink.href = 'https://github.com/YBMecho';
+    ybmechoLink.target = '_blank';
+    ybmechoLink.textContent = 'YBMecho';
+    ybmechoLink.style.cssText = 'color: var(--dsw-alias-color-accent, #4d6bfe); text-decoration: none;';
+
+    const authorSep = document.createElement('span');
+    authorSep.textContent = ' · ';
+
+    const zisekonglingLink = document.createElement('a');
+    zisekonglingLink.href = 'https://github.com/zisekongling';
+    zisekonglingLink.target = '_blank';
+    zisekonglingLink.textContent = 'zisekongling';
+    zisekonglingLink.style.cssText = 'color: var(--dsw-alias-color-accent, #4d6bfe); text-decoration: none;';
+
+    author.appendChild(authorLabel);
+    author.appendChild(ybmechoLink);
+    author.appendChild(authorSep);
+    author.appendChild(zisekonglingLink);
 
     // 链接容器
     const linksWrap = document.createElement('div');
@@ -123,55 +241,131 @@
     linksWrap.appendChild(officialLink);
     linksWrap.appendChild(apiLink);
 
-    // 确定按钮
-    const okBtn = document.createElement('button');
-    okBtn.textContent = '确定';
-    okBtn.className = 'ds-button ds-button--primary ds-button--m';
-    okBtn.style.cssText = `
-      margin-top: 12px;
-      padding: 8px 32px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      background: var(--dsw-alias-color-accent, #4d6bfe);
-      color: #fff;
-      font-size: 14px;
-      font-weight: 500;
-    `;
-    okBtn.addEventListener('mouseenter', () => {
-      okBtn.style.opacity = '0.9';
-    });
-    okBtn.addEventListener('mouseleave', () => {
-      okBtn.style.opacity = '1';
-    });
-
     // 组装
-    dialog.appendChild(logoWrap);
-    dialog.appendChild(title);
-    dialog.appendChild(version);
-    dialog.appendChild(desc);
-    dialog.appendChild(author);
-    dialog.appendChild(linksWrap);
-    dialog.appendChild(okBtn);
-    overlay.appendChild(dialog);
-    document.body.appendChild(overlay);
+    section.appendChild(logoWrap);
+    section.appendChild(title);
+    section.appendChild(version);
+    section.appendChild(desc);
+    section.appendChild(author);
+    section.appendChild(linksWrap);
 
-    // 点击遮罩或确定按钮关闭
-    const closeDialog = () => {
-      overlay.remove();
-    };
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeDialog();
+    return section;
+  }
+
+  /**
+   * 注入关于信息内容块到通用设置宿主页
+   */
+  function injectAboutContent(): boolean {
+    let section = document.getElementById(ABOUT_SECTION_ID) as HTMLElement | null;
+    if (section && section.isConnected) return true;
+
+    section = createAboutContent();
+    const langRow = findNativeGeneralRows()?.langRow;
+    if (langRow && langRow.parentNode) {
+      langRow.parentNode.insertBefore(section, langRow.nextSibling);
+      return true;
+    }
+
+    const scrollArea = document.querySelector<HTMLElement>('.ds-modal-content .ds-scroll-area');
+    if (scrollArea) {
+      scrollArea.appendChild(section);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * 激活关于页：复用"通用设置"宿主页，隐藏原生行与其他注入行，展示关于内容
+   */
+  function activateAboutTab(): void {
+    // 先解除快捷键设置页（若有），恢复其行
+    if (window.__hotkeyMenuDeactivate) window.__hotkeyMenuDeactivate();
+
+    const menuContainer = aboutMenuButton && aboutMenuButton.parentElement;
+    if (!menuContainer) return;
+
+    // 只在"右侧内容即将被 React 异步重渲染"时才需要遮蔽
+    const nativeRows = findNativeGeneralRows();
+    const onGeneralPage = nativeRows && nativeRows.langRow
+      && nativeRows.langRow.offsetParent !== null;
+    if (!onGeneralPage || !isAboutPanelReady()) {
+      concealContentArea();
+    }
+
+    isAboutTabActive = true;
+    window.__aboutTabActive = true;
+    updateMenuButtonState();
+
+    // 找到原生"通用设置"按钮（排除注入的自身），程序化点击让 React 渲染宿主内容区
+    const generalSettingsBtn = Array.from(menuContainer.children)
+      .find(btn => btn !== aboutMenuButton && btn.textContent && btn.textContent.includes('通用设置'));
+
+    suppressNativeDeactivate = true;
+    if (generalSettingsBtn) {
+      (generalSettingsBtn as HTMLElement).click();
+      // 取消原生按钮的激活态，保证左侧菜单只有"关于"一个高亮项
+      setNativeButtonActive(generalSettingsBtn as HTMLElement, false);
+    }
+    suppressNativeDeactivate = false;
+
+    // 藏掉原生"主题/语言"行与其他注入行。React 稍后若重渲染把行重建出来，
+    // syncAboutTabState() 每帧会再压制一次
+    setNativeGeneralContentHidden(true);
+    hideInjectedRows(true);
+    if (window.__hotkeySettingsSync) window.__hotkeySettingsSync();
+    if (window.__defaultModeModule && window.__defaultModeModule.syncModeSectionVisibility) {
+      window.__defaultModeModule.syncModeSectionVisibility();
+    }
+
+    injectAboutContent();
+
+    // 内容本就已就绪时不会有 DOM 变化，下一帧直接恢复显示
+    requestAnimationFrame(() => {
+      if (contentConcealed && isAboutPanelReady()) revealContentArea();
     });
-    okBtn.addEventListener('click', closeDialog);
-    // ESC 关闭
-    const escHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeDialog();
-        document.removeEventListener('keydown', escHandler, true);
-      }
-    };
-    document.addEventListener('keydown', escHandler, true);
+  }
+
+  /**
+   * 解除关于页：移除内容块，恢复原生行与其他注入行，取消高亮
+   */
+  function deactivateAboutTab(): void {
+    if (!isAboutTabActive) return;
+    isAboutTabActive = false;
+    window.__aboutTabActive = false;
+
+    const section = document.getElementById(ABOUT_SECTION_ID);
+    if (section) section.remove();
+
+    setNativeGeneralContentHidden(false);
+    if (window.__hotkeySettingsSync) window.__hotkeySettingsSync();
+    if (window.__defaultModeModule && window.__defaultModeModule.syncModeSectionVisibility) {
+      window.__defaultModeModule.syncModeSectionVisibility();
+    }
+    updateMenuButtonState();
+    revealContentArea();
+  }
+
+  // 暴露给其他脚本（settings-menu-hotkey.ts）调用来解除关于页
+  window.__aboutMenuDeactivate = deactivateAboutTab;
+
+  /**
+   * 重置 tab 状态（设置弹窗销毁重建后调用，
+   * 避免上一次会话的高亮/隐藏标记残留到全新 DOM 上）
+   */
+  function resetTabState(): void {
+    isAboutTabActive = false;
+    window.__aboutTabActive = false;
+
+    const section = document.getElementById(ABOUT_SECTION_ID);
+    if (section) section.remove();
+
+    setNativeGeneralContentHidden(false);
+    if (window.__hotkeySettingsSync) window.__hotkeySettingsSync();
+    if (window.__defaultModeModule && window.__defaultModeModule.syncModeSectionVisibility) {
+      window.__defaultModeModule.syncModeSectionVisibility();
+    }
+    revealContentArea();
   }
 
   /**
@@ -210,13 +404,13 @@
     button.appendChild(textContent);
 
     // 点击事件
-    button.addEventListener('click', showAboutDialog);
+    button.addEventListener('click', activateAboutTab);
 
     // 键盘事件
     button.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        showAboutDialog();
+        activateAboutTab();
       }
     });
 
@@ -245,6 +439,31 @@
   }
 
   /**
+   * 为原生菜单按钮绑定点击事件，切换设置项时解除关于页
+   */
+  function bindNativeButtonListeners(menuContainer: HTMLElement): void {
+    const nativeButtons = Array.from(menuContainer.children)
+      .filter(btn => {
+        const text = btn.textContent || '';
+        return /通用设置|账号管理|数据管理|服务协议/.test(text);
+      });
+
+    nativeButtons.forEach(btn => {
+      // 关于页激活期间，若 React 重渲染把原生按钮高亮加回来，则再剥掉一次
+      if (isAboutTabActive) setNativeButtonActive(btn as HTMLElement, false);
+
+      if ((btn as HTMLElement & { __aboutMenuListenerBound?: boolean }).__aboutMenuListenerBound) return;
+      (btn as HTMLElement & { __aboutMenuListenerBound?: boolean }).__aboutMenuListenerBound = true;
+
+      btn.addEventListener('click', () => {
+        // 程序化点击通用设置触发的点击，不视为用户切换 tab
+        if (suppressNativeDeactivate) return;
+        deactivateAboutTab();
+      });
+    });
+  }
+
+  /**
    * 注入关于菜单按钮
    */
   function injectAboutMenuButton(): boolean {
@@ -256,8 +475,10 @@
       .find(btn => btn.textContent && btn.textContent.includes('关于'));
 
     if (existingButton) {
+      // 设置弹窗重建后 DOM 是全新的，旧 tab 状态（高亮/隐藏）不应残留
       if (existingButton !== aboutMenuButton) {
         aboutMenuButton = existingButton as HTMLElement;
+        resetTabState();
       }
       return true;
     }
@@ -280,6 +501,34 @@
   }
 
   /**
+   * 关于页激活期间，每帧强制执行目标状态：
+   * 原生行隐藏、其他注入行隐藏、关于内容块存在、原生按钮无高亮
+   */
+  function syncAboutTabState(): void {
+    const menuContainer = findSettingsMenuContainer();
+    if (!menuContainer) return;
+
+    injectAboutMenuButton();
+    bindNativeButtonListeners(menuContainer);
+
+    if (!isAboutTabActive) return;
+
+    const nativeButtons = Array.from(menuContainer.children)
+      .filter(btn => {
+        const text = btn.textContent || '';
+        return /通用设置|账号管理|数据管理|服务协议/.test(text);
+      });
+    nativeButtons.forEach(btn => setNativeButtonActive(btn as HTMLElement, false));
+
+    setNativeGeneralContentHidden(true);
+    hideInjectedRows(true);
+
+    if (injectAboutContent()) {
+      if (contentConcealed) revealContentArea();
+    }
+  }
+
+  /**
    * 初始化
    */
   function init(): void {
@@ -291,7 +540,7 @@
     const observer = new MutationObserver(() => {
       if (rafId !== null) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        injectAboutMenuButton();
+        syncAboutTabState();
       });
     });
 
@@ -304,7 +553,7 @@
     const fallbackTimer = setInterval(() => {
       const menuContainer = findSettingsMenuContainer();
       if (menuContainer) {
-        injectAboutMenuButton();
+        syncAboutTabState();
       }
     }, 500);
 

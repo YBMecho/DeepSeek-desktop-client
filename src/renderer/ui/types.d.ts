@@ -44,9 +44,13 @@ declare global {
     __hotkeyTabActive?: boolean;
     __hotkeyMenuReveal?: () => void;
     __hotkeySettingsSync?: () => void;
+    __hotkeyMenuDeactivate?: () => void;
+    __aboutTabActive?: boolean;
+    __aboutMenuDeactivate?: () => void;
   }
 
   interface HTMLElement {
     __hotkeyMenuListenerBound?: boolean;
+    __aboutMenuListenerBound?: boolean;
   }
 }

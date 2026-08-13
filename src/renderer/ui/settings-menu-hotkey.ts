@@ -145,6 +145,23 @@
   }
 
   /**
+   * 解除快捷键设置页：恢复原生"主题/语言"行，解除内容区遮蔽，取消高亮
+   */
+  function deactivateHotkeyTab(): void {
+    if (!isHotkeyTabActive) return;
+    isHotkeyTabActive = false;
+    window.__hotkeyTabActive = false;
+    updateMenuButtonState();
+    // 恢复被隐藏的原生"主题/语言"行，并解除内容区遮蔽
+    setNativeGeneralContentHidden(false);
+    revealContentArea();
+    if (window.__hotkeySettingsSync) window.__hotkeySettingsSync();
+  }
+
+  // 暴露给其他脚本（about-button.ts）调用来解除快捷键设置页
+  window.__hotkeyMenuDeactivate = deactivateHotkeyTab;
+
+  /**
    * 处理快捷键菜单按钮点击
    *
    * 右侧内容区由 React 托管，无法安全地自造一个面板，因此仍通过程序化点击
@@ -152,6 +169,9 @@
    * 只留下 hotkey-settings.js 注入的快捷键相关设置行，形成独立的快捷键页。
    */
   function handleHotkeyMenuClick(): void {
+    // 先解除关于页（若有）
+    if (window.__aboutMenuDeactivate) window.__aboutMenuDeactivate();
+
     // 标记当前tab为激活状态
     isHotkeyTabActive = true;
     window.__hotkeyTabActive = true;
@@ -409,13 +429,7 @@
             // 快捷键设置按钮触发的程序化点击，不视为用户切换 tab
             if (suppressNativeDeactivate) return;
             if (isHotkeyTabActive) {
-              isHotkeyTabActive = false;
-              window.__hotkeyTabActive = false;
-              updateMenuButtonState();
-              // 恢复被隐藏的原生"主题/语言"行，并解除内容区遮蔽
-              setNativeGeneralContentHidden(false);
-              revealContentArea();
-              if (window.__hotkeySettingsSync) window.__hotkeySettingsSync();
+              deactivateHotkeyTab();
               // 通用设置原本就是 React 的选中 tab，再点一次不会触发重渲染，
               // 被我们剥掉的高亮需要手动补回
               if (btn.textContent && btn.textContent.includes('通用设置')) {

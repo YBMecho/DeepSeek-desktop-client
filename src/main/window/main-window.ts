@@ -85,8 +85,6 @@ interface CreateWindowDeps {
       toggleWindow: () => void;
       toggleFloatingWindow: () => void;
     }) => void;
-    getTray: () => Electron.Tray | null;
-    destroyTray: () => void;
   };
   registerHotkey: (hotkey: string, callback: () => void, state: StateForHotkey) => void;
   toggleWindow: () => void;
@@ -266,9 +264,6 @@ export function createWindow(deps: CreateWindowDeps): BrowserWindow {
 
   mainWindow.on('closed', () => {
     state.setMainWindow(null);
-    if (deps.trayManager.getTray() && !state.getIsQuitting()) {
-      deps.trayManager.destroyTray();
-    }
   });
 
   // 加载配置并应用

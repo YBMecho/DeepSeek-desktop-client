@@ -20,7 +20,6 @@ interface WindowToggleDeps {
   getAdsorptionWindow: () => BrowserWindow | null;
   getMiniWindow: () => BrowserWindow | null;
   createTray: (deps: { getIsQuitting: () => boolean; setIsQuitting: (v: boolean) => void; toggleWindow: () => void; toggleFloatingWindow: () => void }) => void;
-  destroyTray: () => void;
   toggleFloatingWindow: () => void;
   setIsQuitting: (v: boolean) => void;
 }
@@ -70,7 +69,6 @@ function toggleWindow(deps: WindowToggleDeps) {
     });
     previousIds.clear();
     deps.setAreAllWindowsHidden(false);
-    deps.destroyTray();
     deps.setIsWindowHidden(false);
     return;
   }

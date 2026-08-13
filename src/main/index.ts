@@ -125,7 +125,6 @@ function toggleWindowWrapper() {
     getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
     getMiniWindow: taskbarMgr.getMiniWindow,
     createTray: trayManager.createTray,
-    destroyTray: trayManager.destroyTray,
     toggleFloatingWindow: floatingMgr.toggleFloatingWindow,
     setIsQuitting: state.setIsQuitting
   });
@@ -184,7 +183,6 @@ if (!gotTheLock) {
       mainWindow.show();
       mainWindow.focus();
       state.setIsWindowHidden(false);
-      trayManager.destroyTray();
     }
   });
 }
@@ -215,8 +213,7 @@ app.whenReady().then(() => {
     getReplyNotifyEnabled: state.getReplyNotifyEnabled,
     logDebug,
     getMainWindow: state.getMainWindow,
-    setIsWindowHidden: state.setIsWindowHidden,
-    destroyTray: trayManager.destroyTray
+    setIsWindowHidden: state.setIsWindowHidden
   });
 
   // 配置右键菜单
@@ -282,7 +279,7 @@ app.whenReady().then(() => {
 
           return menuItems;
         },
-        append: (defaultActions: Electron.MenuItemConstructorOptions[], parameters: Electron.ContextMenuParam, browserWindow: Electron.BrowserWindow) => []
+        append: (defaultActions: Electron.MenuItemConstructorOptions[], parameters: Electron.ContextMenuParams, browserWindow: Electron.BrowserWindow) => []
       });
     }
   } catch (error) {}
@@ -291,6 +288,14 @@ app.whenReady().then(() => {
   const wasLaunchedByOS = autoLaunchMgr.wasLaunchedByAutoStart();
   const configSilentAutoLaunch = configManager.loadConfig().silentAutoLaunch;
   const startHidden = wasLaunchedByOS && configSilentAutoLaunch;
+
+  // 托盘始终显示：启动即创建，不随窗口显隐变化
+  trayManager.createTray({
+    getIsQuitting: state.getIsQuitting,
+    setIsQuitting: state.setIsQuitting,
+    toggleWindow: toggleWindowWrapper,
+    toggleFloatingWindow: floatingMgr.toggleFloatingWindow
+  });
 
   // 创建主窗口
   createWindow({

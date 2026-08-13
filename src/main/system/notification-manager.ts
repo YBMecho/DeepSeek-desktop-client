@@ -21,7 +21,6 @@ import { subscribeChatStream } from './deepseek-content-listener';
 interface NotificationDeps {
   getMainWindow: () => Electron.BrowserWindow | null;
   setIsWindowHidden: (v: boolean) => void;
-  destroyTray: () => void;
   logDebug: (...args: unknown[]) => void;
 }
 
@@ -60,7 +59,6 @@ function showReplyFinishedNotification(deps: NotificationDeps) {
         win.focus();
         // 恢复托盘隐藏状态
         deps.setIsWindowHidden(false);
-        deps.destroyTray();
       } catch (e) {
         deps.logDebug('[通知管理器] 处理点击事件失败:', e);
       }

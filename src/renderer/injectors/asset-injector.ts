@@ -13,7 +13,8 @@ import path from 'path';
 import { BrowserWindow } from 'electron';
 import {
   MAIN_CSS_PATH,
-  RENDERER_UI_DIR
+  RENDERER_UI_DIR,
+  APP_ICON_PATH
 } from '../../common/constants';
 
 /**
@@ -98,7 +99,14 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
   // 注入关于按钮JavaScript（参考 settings-menu-hotkey.js 的注入方式）
   const aboutButtonJsPath = path.join(RENDERER_UI_DIR, 'about-button.js');
   try {
-    const aboutButtonJs = fs.readFileSync(aboutButtonJsPath, 'utf8');
+    let aboutButtonJs = fs.readFileSync(aboutButtonJsPath, 'utf8');
+    // 将应用图标内联为 base64 数据 URL，供关于页展示应用图标
+    try {
+      const iconBase64 = fs.readFileSync(APP_ICON_PATH, 'base64');
+      aboutButtonJs = aboutButtonJs.replaceAll('__DS_APP_ICON_BASE64__', iconBase64);
+    } catch (e) {
+      console.error('[资源注入] 读取应用图标失败:', e);
+    }
     targetWindow.webContents.executeJavaScript(aboutButtonJs).catch(() => {});
     console.log('[资源注入] about-button.js 注入成功');
   } catch (e) {

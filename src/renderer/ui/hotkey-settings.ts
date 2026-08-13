@@ -457,13 +457,17 @@
   function syncHotkeySectionVisibility(): void {
     if (!hotkeySectionWrapper) return;
     const hotkeyTab = !!window.__hotkeyTabActive;
+    // ponytail: 关于页激活时整体隐藏注入行，避免与关于内容混排
+    const aboutActive = !!window.__aboutTabActive;
     // ponytail: 用"语言行现在是否能查到且可见"来判定通用的 tab 状态，
     // 比判断左侧按钮高亮类更稳定——切瞬态时唯一可靠的信号是结构变化。
     // 注意：快捷键 tab 激活时语言行被 settings-menu-hotkey.js 主动隐藏，不能用作依据。
     const lc = findLanguageContainer();
     const generalVisible = !!(lc && isElementVisible(lc));
 
-    hotkeySectionWrapper.style.display = (hotkeyTab || generalVisible) ? '' : 'none';
+    hotkeySectionWrapper.style.display = aboutActive
+      ? 'none'
+      : ((hotkeyTab || generalVisible) ? '' : 'none');
     hotkeySectionWrapper.querySelectorAll<HTMLElement>('.hotkey-tab-row')
       .forEach(row => { row.style.display = hotkeyTab ? 'flex' : 'none'; });
     hotkeySectionWrapper.querySelectorAll<HTMLElement>('.general-tab-row')
