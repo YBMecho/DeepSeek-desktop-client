@@ -187,7 +187,7 @@
 
     // 版本
     const version = document.createElement('div');
-    version.textContent = '版本: 2.5.0';
+    version.textContent = '版本: __DS_APP_VERSION__';
     version.style.cssText = 'font-size: 14px; opacity: 0.7;';
 
     // 描述

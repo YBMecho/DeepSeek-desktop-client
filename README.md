@@ -6,7 +6,7 @@
   <h3>Put DeepSeek on your desktop — always a hotkey away</h3>
   <p align="center">English | <a href="README.zh.md">中文</a>
 
-  ![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-2.5.1-blue.svg)
   ![License](https://img.shields.io/badge/license-MIT-green.svg)
   ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
   ![Electron](https://img.shields.io/badge/Electron-37.2.6-9feaf9.svg)
@@ -281,7 +281,11 @@ The project supports code signing to enhance security:
 
 ## 📝 Version Changelog
 
-### 🎉 Version 2.5.0 (Current Version)
+### 🎉 Version 2.5.1
+
+- 🔢 **Unified Version Management** - The version number is now controlled by a single source (`package.json`), the About page shows the actually installed version, and installer filenames / AppId stay in sync automatically
+
+### 🎉 Version 2.5.0
 
 - 🛠️ **TypeScript Refactor** - The entire codebase is rewritten in strict-mode TypeScript, split into a modular architecture (`src/main`, `src/preload`, `src/renderer`, `src/common`)
 - 🌊 **Floating Conversation Window** - Independent always-on-top conversation panel with pin, drag, resize and auto reset

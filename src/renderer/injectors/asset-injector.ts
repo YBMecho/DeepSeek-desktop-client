@@ -10,7 +10,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { BrowserWindow } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import {
   MAIN_CSS_PATH,
   RENDERER_UI_DIR,
@@ -107,6 +107,8 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
     } catch (e) {
       console.error('[资源注入] 读取应用图标失败:', e);
     }
+    // 将版本号替换为实际安装版本，供关于页展示
+    aboutButtonJs = aboutButtonJs.replaceAll('__DS_APP_VERSION__', app.getVersion());
     targetWindow.webContents.executeJavaScript(aboutButtonJs).catch(() => {});
     console.log('[资源注入] about-button.js 注入成功');
   } catch (e) {

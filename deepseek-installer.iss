@@ -1,14 +1,14 @@
 ; DeepSeek Desktop Client - Inno Setup Script
-; 版本: 2.5.0
+; 版本: 2.5.1
 
 #define MyAppName "DeepSeek"
-#define MyAppVersion "2.5.0"
+#define MyAppVersion "2.5.1"
 #define MyAppPublisher "YBMecho"
 #define MyAppExeName "DeepSeek.exe"
 #define MyAppIcon "resources\assets\icons\lp25u-mafhn-001.ico"
 
 [Setup]
-AppId={{DEEPSEEK-DESKTOP-CLIENT-2.5.0}
+AppId={{DEEPSEEK-DESKTOP-CLIENT-{#MyAppVersion}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -16,7 +16,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=out\make\inno-setup
-OutputBaseFilename=DeepSeek-2.5.0-setup
+OutputBaseFilename=DeepSeek-{#MyAppVersion}-setup
 SetupIconFile={#MyAppIcon}
 Compression=lzma2/ultra64
 SolidCompression=yes

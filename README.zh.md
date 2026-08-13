@@ -6,7 +6,7 @@
   <h3>把 DeepSeek 装进桌面，随叫随到</h3>
   <p align="center"><a href="README.md">English</a> | 中文
 
-  ![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-2.5.1-blue.svg)
   ![License](https://img.shields.io/badge/license-MIT-green.svg)
   ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
   ![Electron](https://img.shields.io/badge/Electron-37.2.6-9feaf9.svg)
@@ -281,7 +281,11 @@ build.bat
 
 ## 📝 版本更新日志
 
-### 🎉 版本 2.5.0（当前版本）
+### 🎉 版本 2.5.1
+
+- 🔢 **统一版本号管理** - 版本号由单一来源（`package.json`）控制，关于页显示实际安装版本，安装包文件名与 AppId 自动同步
+
+### 🎉 版本 2.5.0
 
 - 🛠️ **TypeScript 重构** - 全量改为严格模式 TypeScript，拆分为模块化架构（`src/main`、`src/preload`、`src/renderer`、`src/common`）
 - 🌊 **悬浮对话窗** - 独立置顶对话面板，支持置顶、拖拽、调整大小与自动重置
