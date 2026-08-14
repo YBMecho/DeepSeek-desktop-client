@@ -10,10 +10,10 @@
   "type": "commonjs",
   "main": "dist/main/index.js",
   "scripts": {
-    "build": "node node_modules/typescript-7/bin/tsc",
+    "build": "node node_modules/typescript-7/bin/tsc && node node_modules/typescript-7/bin/tsc -p tsconfig.scripts.json",
     "start": "npm run build && electron .",
     "start:trace": "set NODE_OPTIONS=--trace-deprecation && npm run build && electron .",
-    "dev": "node node_modules/typescript-7/bin/tsc && electron .",
+    "dev": "node node_modules/typescript-7/bin/tsc && node node_modules/typescript-7/bin/tsc -p tsconfig.scripts.json && electron .",
     "dev:watch": "node node_modules/typescript-7/bin/tsc --watch",
     "dev:start": "nodemon --watch dist --exec \"electron .\"",
     "dev:auto": "concurrently \"npm:dev:watch\" \"npm:dev:start\"",

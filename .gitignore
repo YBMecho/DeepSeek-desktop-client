@@ -5,6 +5,9 @@
 out/*
 dist/
 
+# resources/scripts 的 TS 编译产物（由 tsconfig.scripts.json 生成）
+resources/scripts/*.js
+
 # IDE 和编辑器配置
 .cursor/*
 
