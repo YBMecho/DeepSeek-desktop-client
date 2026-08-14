@@ -318,21 +318,13 @@ function applyConfig(opts) {
   let changed = false;
 
   // 版本号：package.json 为单一来源，.iss 只更新 MyAppVersion 宏
-  // （AppId / OutputBaseFilename 引用 {#MyAppVersion}，自动同步）
+  // （OutputBaseFilename 引用 {#MyAppVersion}，自动同步）
   if (opts.version) {
     if (pkg.version !== opts.version) {
       pkg.version = opts.version;
       log(`[package.json] version: ${pkg.version} -> ${opts.version}`);
     }
     iss = setISSMacro(iss, 'MyAppVersion', opts.version);
-    const oldAppId = getISSSetup(iss, 'AppId');
-    iss = setISSSetup(
-      iss,
-      'AppId',
-      oldAppId && !oldAppId.includes('{#MyAppVersion}')
-        ? oldAppId.replace(/-[0-9]+\.[0-9]+\.[0-9]+\}$/, `-{#MyAppVersion}}`)
-        : `{{DEEPSEEK-DESKTOP-CLIENT-{#MyAppVersion}}`
-    );
     const oldName = getISSSetup(iss, 'OutputBaseFilename');
     const newName = oldName
       ? oldName.includes('{#MyAppVersion}')
@@ -340,7 +332,7 @@ function applyConfig(opts) {
         : oldName.replace(/-\d+\.\d+\.\d+/, `-{#MyAppVersion}`)
       : `DeepSeek-{#MyAppVersion}-setup`;
     iss = setISSSetup(iss, 'OutputBaseFilename', newName);
-    log(`[.iss] MyAppVersion -> ${opts.version}（AppId/OutputBaseFilename 引用宏自动同步）`);
+    log(`[.iss] MyAppVersion -> ${opts.version}（OutputBaseFilename 引用宏自动同步）`);
     changed = true;
   }
 

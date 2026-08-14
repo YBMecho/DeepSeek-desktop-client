@@ -43,7 +43,7 @@ const defaultConfig: Config = {
   silentAutoLaunch: true, // 开机静默启动，默认开启
   floatingResetOption: '60min', // 悬浮窗重置选项，默认关闭后60分钟
   defaultMode: 'quick', // 默认对话模式: 'quick' | 'expert' | 'image'
-  contextMenuEnabled: true, // 右键菜单发送文件，默认开启
+  contextMenuEnabled: false, // 右键菜单发送文件，默认关闭（用户可手动开启）
   taskbarControlsEnabled: false, // 任务栏控制组件开关，默认关闭
   taskbarControlsPosition: null // 任务栏控制组件位置 {x, y}
 };
