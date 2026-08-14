@@ -283,7 +283,7 @@ The project supports code signing to enhance security:
 
 ### 🎉 Version 2.5.1
 
-- 🔢 **Unified Version Management** - The version number is now controlled by a single source (`package.json`), the About page shows the actually installed version, and installer filenames / AppId stay in sync automatically
+- 🔢 **Unified Version Management** - The version number is now controlled by a single source (`package.json`), the About page shows the actually installed version, and the installer filename stays in sync automatically. The installer AppId is a fixed GUID, so new versions overwrite previous installs cleanly
 
 ### 🎉 Version 2.5.0
 
