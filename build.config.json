@@ -4,6 +4,6 @@
   "noAdmin": false,
   "noDesktopIcon": false,
   "noAutoLaunch": false,
-  "lang": "chinesesimp",
+  "lang": "both",
   "lastCommand": "config:show"
 }
