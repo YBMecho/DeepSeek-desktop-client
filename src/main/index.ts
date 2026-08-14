@@ -336,9 +336,9 @@ app.whenReady().then(() => {
   // 应用自启动设置
   autoLaunchMgr.applyAutoLaunchSetting(state.getAutoLaunch());
 
-  // 读取配置，根据任务栏控制组件开关决定是否创建窗口
+  // 任务栏控制组件已永久禁用，不再创建相关窗口
   const config = configManager.loadConfig();
-  const taskbarControlsEnabled = config.taskbarControlsEnabled || false;
+  const taskbarControlsEnabled = false;
 
   if (taskbarControlsEnabled) {
     // 获取保存的位置或吸附窗口位置
