@@ -17,7 +17,8 @@
     "dev:watch": "node node_modules/typescript-7/bin/tsc --watch",
     "dev:start": "nodemon --watch dist --exec \"electron .\"",
     "dev:auto": "concurrently \"npm:dev:watch\" \"npm:dev:start\"",
-    "test": "npm start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint .",
     "package": "npm run build && electron-forge package",
     "make": "npm run build && electron-forge make"
@@ -38,12 +39,14 @@
     "electron": "^37.2.6",
     "eslint": "^10.8.1",
     "globals": "^17.11.0",
+    "jsdom": "^30.0.1",
     "nodemon": "^3.1.14",
     "ts-loader": "^9.6.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "typescript-7": "npm:typescript@^7.0.2",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "electron-context-menu": "^4.1.0",

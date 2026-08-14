@@ -142,22 +142,18 @@ function createAdsorptionWindow(show = false) {
 }
 
 /**
- * 异步重新校准吸附窗口位置
- * 任务栏布局会动态变化（小组件按钮宽度随天气文案伸缩），
- * 每次显示后基于最新布局校正一次，避免沿用创建时的旧位置
+ * 重新校准吸附窗口位置
+ * 任务栏布局会动态变化（托盘图标位置随系统设置变化），
+ * 每次显示后基于最新托盘边界校正一次，避免沿用创建时的旧位置
  */
 function refreshAdsorptionPosition() {
   const win = adsorptionWindow;
   if (!win || win.isDestroyed()) return;
 
-  taskbarCalculator
-    .calculateAdsorptionPositionFromCursorAsync(ADSORPTION_WIDTH, ADSORPTION_HEIGHT)
-    .then(({ x, y }) => {
-      if (!win.isDestroyed() && win.isVisible()) {
-        win.setPosition(x, y);
-      }
-    })
-    .catch(() => {});
+  const { x, y } = taskbarCalculator.calculateAdsorptionPositionFromCursor(ADSORPTION_WIDTH, ADSORPTION_HEIGHT);
+  if (!win.isDestroyed() && win.isVisible()) {
+    win.setPosition(x, y);
+  }
 }
 
 /**

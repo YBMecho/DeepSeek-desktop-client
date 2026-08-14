@@ -59,7 +59,6 @@ interface HandlerDeps {
   taskbarMgr: {
     getMiniWindow: () => Electron.BrowserWindow | null;
     createMiniWindow: (options: { x?: number; y?: number }) => void;
-    stopHoverWatcher: () => void;
   };
   adsorptionMgr: {
     createAdsorptionWindow: (show?: boolean) => void;
@@ -68,7 +67,6 @@ interface HandlerDeps {
   adsorptionCoordinator: {
     startMonitoring: () => void;
     stopMonitoring: () => void;
-    startAdsorbedHoverWatcher: () => void;
   };
   registerHotkey: (hotkey: string, toggleWindow: () => void, state: HandlerDeps['state']) => void;
   toggleWindow: () => void;
@@ -460,22 +458,11 @@ function registerHandlers(deps: HandlerDeps) {
                 (() => {
                   document.body.classList.add('adsorbed');
                   document.body.classList.remove('hover');
-                  // 清除拖拽区域的悬停状态
-                  const region = document.querySelector('.drag-region');
-                  if (region) region.classList.remove('is-hover');
                 })();
               `).catch(() => {});
             }
             // 设置全局状态
             state.setIsTaskbarControlsAdsorbed(true);
-            // 停止拖拽区域悬停检测
-            if (deps.taskbarMgr && deps.taskbarMgr.stopHoverWatcher) {
-              deps.taskbarMgr.stopHoverWatcher();
-            }
-            // 启动固定状态悬停检测
-            if (deps.adsorptionCoordinator && deps.adsorptionCoordinator.startAdsorbedHoverWatcher) {
-              deps.adsorptionCoordinator.startAdsorbedHoverWatcher();
-            }
           }, 500); // 等待窗口加载完成
         }
         

@@ -65,8 +65,6 @@ function initAdsorptionCoordinator(): void {
   adsorptionCoordinator.init({
     getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
     getMiniWindow: taskbarMgr.getMiniWindow,
-    startDragRegionHoverWatcher: taskbarMgr.startHoverWatcher,
-    stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher,
     raiseMiniWindow: taskbarMgr.raiseToTop,
     raiseAdsorptionWindow: adsorptionMgr.raiseToTop
   });
@@ -110,7 +108,9 @@ floatingMgr.init({
 
 // ---- Taskbar Live Controls 模块依赖注入 ----
 taskbarMgr.init({
-  getIsQuitting: state.getIsQuitting
+  getIsQuitting: state.getIsQuitting,
+  onManualDragStart: () => adsorptionCoordinator.startManualDrag(),
+  onManualDragEnd: () => adsorptionCoordinator.endManualDrag()
 });
 
 // ---- 吸附窗口模块依赖注入 ----
@@ -391,16 +391,11 @@ app.whenReady().then(() => {
             (() => {
               document.body.classList.add('adsorbed');
               document.body.classList.remove('hover');
-              // 清除拖拽区域的悬停状态
-              const region = document.querySelector('.drag-region');
-              if (region) region.classList.remove('is-hover');
             })();
           `).catch(() => {});
         }
         // 设置全局状态
         state.setIsTaskbarControlsAdsorbed(true);
-        // 启动固定状态悬停检测
-        adsorptionCoordinator.startAdsorbedHoverWatcher();
       }, 500); // 等待窗口加载完成
     }
 

@@ -7,12 +7,10 @@
  *   - 计算两窗口之间的距离
  *   - 控制吸附窗口的显示、隐藏、高亮状态
  *   - 管理固定状态及其样式切换
- *   - 处理固定状态下的悬停交互
  * 
  * 层级：主进程 - 系统集成
  */
 
-import { screen } from 'electron';
 import state from '../state';
 import { createDragSession } from './drag-session';
 
@@ -20,8 +18,6 @@ import { createDragSession } from './drag-session';
 interface CoordinatorDeps {
   getAdsorptionWindow: () => Electron.BrowserWindow | null;
   getMiniWindow: () => Electron.BrowserWindow | null;
-  startDragRegionHoverWatcher: () => void;
-  stopDragRegionHoverWatcher: () => void;
   raiseMiniWindow: () => void;
   raiseAdsorptionWindow: () => void;
 }
@@ -29,23 +25,18 @@ interface CoordinatorDeps {
 let deps: CoordinatorDeps = {
   getAdsorptionWindow: () => null,
   getMiniWindow: () => null,
-  startDragRegionHoverWatcher: () => {},
-  stopDragRegionHoverWatcher: () => {},
   raiseMiniWindow: () => {},
   raiseAdsorptionWindow: () => {}
 };
 
 // 模块内部状态
 let isInProximity = false;
-let hoverWatcherTimer: NodeJS.Timeout | null = null;
 let dragSession: ReturnType<typeof createDragSession> | null = null;
 let moveTick = 0;  // 拖拽中 handleMove 调用计数，用于 z-order 守卫
 
 // 常量
 const PROXIMITY_THRESHOLD = 20;  // 吸附距离阈值（像素）
-const HOVER_POLL_INTERVAL = 80;   // 悬停检测轮询间隔（毫秒）
-const TOP_GUARD_TICKS = 12;       // 每隔多少次轮询执行一次 z-order 守卫（≈1s）
-const DRAG_TOP_GUARD_TICKS = 20;  // 拖拽中 z-order 守卫间隔延长，避免频繁调用导致闪烁
+const DRAG_TOP_GUARD_TICKS = 20;  // 拖拽中 z-order 守卫间隔，避免频繁调用导致闪烁
 
 
 /**
@@ -159,9 +150,6 @@ function applyAdsorbedStyle() {
     (() => {
       document.body.classList.add('adsorbed');
       document.body.classList.remove('hover');
-      // 清除拖拽区域的悬停状态
-      const region = document.querySelector('.drag-region');
-      if (region) region.classList.remove('is-hover');
     })();
   `).catch(() => {});
 }
@@ -178,78 +166,6 @@ function removeAdsorbedStyle() {
       document.body.classList.remove('adsorbed', 'hover');
     })();
   `).catch(() => {});
-}
-
-/**
- * 设置悬停样式
- * @param {boolean} isHover - 是否悬停
- */
-function setHoverStyle(isHover: boolean) {
-  const miniWin = deps.getMiniWindow();
-  if (!miniWin || miniWin.isDestroyed()) return;
-
-  miniWin.webContents.executeJavaScript(`
-    (() => {
-      // 防御性检查：只有在固定状态（body 已有 adsorbed class）时才切换 hover
-      if (!document.body.classList.contains('adsorbed')) return;
-      document.body.classList.toggle('hover', ${isHover});
-    })();
-  `).catch(() => {});
-}
-
-/**
- * 开始固定状态悬停检测
- */
-function startAdsorbedHoverWatcher() {
-  if (hoverWatcherTimer) return;
-  
-  let lastHoverState = false;
-  let tick = 0;
-  
-  hoverWatcherTimer = setInterval(() => {
-    const miniWin = deps.getMiniWindow();
-    if (!miniWin || miniWin.isDestroyed() || !miniWin.isVisible()) return;
-    if (!state.getIsTaskbarControlsAdsorbed()) return;
-
-    // 固定态下拖拽区域轮询已停止，z-order 守卫改由本轮询承担：
-    // 窗口贴在任务栏上时最容易被全屏程序切换踢出 topmost
-    tick += 1;
-    if (tick % TOP_GUARD_TICKS === 0) deps.raiseMiniWindow();
-
-    const cursor = screen.getCursorScreenPoint();
-    const bounds = miniWin.getBounds();
-
-    const isHover =
-      cursor.x >= bounds.x &&
-      cursor.x < bounds.x + bounds.width &&
-      cursor.y >= bounds.y &&
-      cursor.y < bounds.y + bounds.height;
-
-    if (isHover !== lastHoverState) {
-      lastHoverState = isHover;
-      setHoverStyle(isHover);
-    }
-  }, HOVER_POLL_INTERVAL);
-  
-  state.setAdsorbedHoverWatcher(hoverWatcherTimer);
-}
-
-/**
- * 停止固定状态悬停检测
- */
-function stopAdsorbedHoverWatcher() {
-  if (hoverWatcherTimer) {
-    clearInterval(hoverWatcherTimer);
-    hoverWatcherTimer = null;
-    state.setAdsorbedHoverWatcher(null);
-  }
-}
-
-/**
- * 启动固定状态悬停检测（供外部调用）
- */
-function startAdsorbedHoverWatcherExternal() {
-  startAdsorbedHoverWatcher();
 }
 
 /**
@@ -291,7 +207,7 @@ function handleMove() {
 }
 
 /**
- * 解除固定状态，把悬停检测交还给拖拽区域轮询
+ * 解除固定状态
  * 无论拖拽如何结束都必须能走到这里，否则 adsorbed 样式残留会让窗口在桌面上保持全透明
  */
 function releaseAdsorbedState() {
@@ -299,8 +215,6 @@ function releaseAdsorbedState() {
 
   state.setIsTaskbarControlsAdsorbed(false);
   removeAdsorbedStyle();
-  stopAdsorbedHoverWatcher();
-  deps.startDragRegionHoverWatcher();
   deps.raiseMiniWindow();
 }
 
@@ -335,10 +249,6 @@ function handleDragEnd() {
     deps.raiseMiniWindow();
     applyAdsorbedStyle();
     state.setIsTaskbarControlsAdsorbed(true);
-
-    // 固定态悬停检测覆盖整个窗口，与拖拽区域轮询职责重叠，先交出控制权
-    deps.stopDragRegionHoverWatcher();
-    startAdsorbedHoverWatcher();
   }
 
   isInProximity = shouldAdsorb;
@@ -383,8 +293,6 @@ function startMonitoring() {
  * 停止监听
  */
 function stopMonitoring() {
-  stopAdsorbedHoverWatcher();
-
   if (dragSession) {
     dragSession.detach();
     dragSession = null;
@@ -394,11 +302,38 @@ function stopMonitoring() {
   console.log('[AdsorptionCoordinator] 监听已停止');
 }
 
+/**
+ * 进入手动拖拽模式
+ * 渲染进程 mousedown（taskbar-drag-start IPC）时调用：
+ * 立即启动会话（触发 handleDragStart：解除吸附、显示吸附窗口），
+ * 并禁用 moved 自动结束与静止超时（setPosition 会稳定触发 moved，
+ * 若不禁用则每次移动都会提前结算）
+ */
+function startManualDrag() {
+  if (dragSession) {
+    dragSession.setManualDragMode(true);
+  }
+}
+
+/**
+ * 结束手动拖拽模式
+ * 渲染进程 mouseup（taskbar-drag-end IPC）时调用：
+ * 恢复 moved 自动结束并立即结算
+ */
+function endManualDrag() {
+  if (!dragSession) return;
+  dragSession.setManualDragMode(false);
+  if (dragSession.isActive()) {
+    dragSession.forceEnd();
+  }
+}
+
 const adsorptionCoordinator = {
   init,
   startMonitoring,
   stopMonitoring,
-  startAdsorbedHoverWatcher: startAdsorbedHoverWatcherExternal
+  startManualDrag,
+  endManualDrag
 };
 
 export default adsorptionCoordinator;
