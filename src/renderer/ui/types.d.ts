@@ -31,6 +31,7 @@ declare global {
     __defaultModeModule?: DefaultModeModule;
     __DS_DEFAULT_MODE_LOADED__?: boolean;
     __DS_FILE_RECEIVER_LOADED__?: boolean;
+    __DS_INLINE_CODE_COPY_LOADED__?: boolean;
     __DS_HOTKEY_SCRIPT_LOADED__?: boolean;
     __DS_FLOATING_RESET_LOADED__?: boolean;
     __DS_NEW_CHAT_TOOLTIP_LOADED__?: boolean;

@@ -144,6 +144,16 @@ export function injectCustomAssets(targetWindow: BrowserWindow, floatingWindow: 
     console.error('[资源注入] new-chat-tooltip.js 注入失败:', e);
   }
 
+  // 注入行内代码点击复制JavaScript
+  const inlineCodeCopyJsPath = path.join(RENDERER_UI_DIR, 'inline-code-copy.js');
+  try {
+    const inlineCodeCopyJs = fs.readFileSync(inlineCodeCopyJsPath, 'utf8');
+    targetWindow.webContents.executeJavaScript(inlineCodeCopyJs).catch(() => {});
+    console.log('[资源注入] inline-code-copy.js 注入成功');
+  } catch (e) {
+    console.error('[资源注入] inline-code-copy.js 注入失败:', e);
+  }
+
   // 注入悬浮窗切换按钮JavaScript
   if (targetWindow === floatingWindow) {
     // 悬浮窗：注入悬浮窗专用按钮（侧边栏）+ 置顶按钮

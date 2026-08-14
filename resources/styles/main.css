@@ -380,3 +380,72 @@ html {
 .reply-notify-toggle:after {
   content: none;
 }
+/* 行内代码点击复制 Toast */
+.ds-copy-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: var(--ds-modal-content-color, #ffffff);
+  border: 1px solid rgb(var(--ds-rgb-separator, 0 0 0 / 8%));
+  border-radius: 8px;
+  padding: 12px 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 99999;
+  opacity: 0;
+  transition: all 0.3s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: var(--dsw-alias-label-primary, #333333);
+}
+
+.ds-copy-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.ds-copy-toast__icon {
+  width: 20px;
+  height: 20px;
+  background: #52c41a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ds-copy-toast__icon svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 深色主题下的 Toast（系统深色 + DSDC 手动主题标记双保险） */
+@media (prefers-color-scheme: dark) {
+  .ds-copy-toast {
+    background: #2d2e34;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e0e0e0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+}
+
+body[data-ds-dark-theme="dark"] .ds-copy-toast {
+  background: #2d2e34;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e0e0e0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* 行内代码可点击提示（代码块内代码不显示手型） */
+.ds-markdown code:not(pre code):not(.md-code-block code) {
+  cursor: pointer;
+}
