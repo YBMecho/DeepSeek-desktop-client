@@ -21,7 +21,7 @@ AppCopyright={#MyAppCopyright}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppComments={#MyAppComments}
-DefaultDirName=D:\{#MyAppName}
+DefaultDirName={code:GetDefaultInstallDir}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=out\make\inno-setup
@@ -60,3 +60,21 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
+
+[Code]
+const
+  DRIVE_FIXED = 3;
+  DRIVE_REMOTE = 4;
+
+{ 检查 D 盘是否可用（存在且为固定/网络磁盘） }
+function GetDriveType(lpRootPathName: string): UINT;
+  external 'GetDriveTypeW@kernel32.dll stdcall';
+
+{ 获取默认安装目录：D 盘可用时用 D:\DeepSeek，否则回退到 Program Files }
+function GetDefaultInstallDir(Param: string): string;
+begin
+  if (GetDriveType('D:\') = DRIVE_FIXED) or (GetDriveType('D:\') = DRIVE_REMOTE) then
+    Result := 'D:\{#MyAppName}'
+  else
+    Result := ExpandConstant('{autopf}\{#MyAppName}');
+end;
