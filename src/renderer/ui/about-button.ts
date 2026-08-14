@@ -254,21 +254,31 @@
 
   /**
    * 注入关于信息内容块到通用设置宿主页
+   * langRow 就绪时内容块必须紧跟其后；langRow 缺失（宿主行被 React 卸载、
+   * 尚未重挂）时先兜底挂到 scrollArea，待行重挂后由 syncAboutTabState 重新定位。
+   * 注意不能仅凭"已连接"就提前返回——第二次切入时兜底注入的块可能残留在错误位置。
    */
   function injectAboutContent(): boolean {
-    let section = document.getElementById(ABOUT_SECTION_ID) as HTMLElement | null;
-    if (section && section.isConnected) return true;
-
-    section = createAboutContent();
     const langRow = findNativeGeneralRows()?.langRow;
+
+    // 主路径：langRow 就绪，确保内容块紧跟其后
     if (langRow && langRow.parentNode) {
+      let section = document.getElementById(ABOUT_SECTION_ID) as HTMLElement | null;
+      if (section && section.isConnected && section.previousElementSibling === langRow) {
+        return true; // 已就位
+      }
+      if (!section) section = createAboutContent();
       langRow.parentNode.insertBefore(section, langRow.nextSibling);
       return true;
     }
 
+    // 兜底路径：langRow 未就绪，先挂到 scrollArea（保持可见）
+    const section = document.getElementById(ABOUT_SECTION_ID) as HTMLElement | null;
+    if (section && section.isConnected) return true;
+
     const scrollArea = document.querySelector<HTMLElement>('.ds-modal-content .ds-scroll-area');
     if (scrollArea) {
-      scrollArea.appendChild(section);
+      scrollArea.appendChild(createAboutContent());
       return true;
     }
 
