@@ -706,7 +706,7 @@ iss / config 示例:
   --desktop-icon              默认勾选桌面快捷方式（与 --no-desktop-icon 反向）
   --no-admin                  不要求管理员权限安装
   --admin                     要求管理员权限安装（与 --no-admin 反向）
-  --lang <语言>               安装界面语言 (english, chinesesimp)
+  --lang <语言>               安装界面语言 (both, chinesesimp, english)
   --no-auto-launch            安装完成后不自动启动应用
   --auto-launch               安装完成后自动启动应用（与 --no-auto-launch 反向）
   --dry-run                   仅修改配置不执行构建
