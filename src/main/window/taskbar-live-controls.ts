@@ -149,11 +149,6 @@ function createMiniWindow(options: { x?: number; y?: number } = {}) {
     startHoverWatcher();
   });
 
-  // 开发者模式：以独立窗口打开 DevTools，便于调试 IPC 内容接收情况
-  if (process.env.NODE_ENV !== 'production') {
-    miniWindow.webContents.openDevTools({ mode: 'detach' });
-  }
-
   miniWindow.on('close', (event) => {
     if (!deps.getIsQuitting()) {
       event.preventDefault();
