@@ -5,52 +5,55 @@
  * 职责：
  *   - 创建、显示、隐藏迷你窗口
  *   - 管理窗口位置和状态
- *   - 轮询光标位置，模拟拖拽区域的悬停态
- *     （Windows 上 -webkit-app-region: drag 区域被系统当作标题栏处理，
- *      鼠标事件不会到达渲染进程，CSS :hover 无法触发，只能在主进程模拟）
+ *   - z-order 低频守护：全屏程序切换会把窗口踢出 topmost，用 2.5s 定时器兜底恢复
+ *   - 手动拖拽：渲染进程发送 taskbar-drag-* IPC，主进程用光标位置驱动 setPosition
  * 
  * 层级：主进程 - 窗口管理
  */
 
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, ipcMain, screen } from 'electron';
 import path from 'path';
 import constants from '../../common/constants';
+import { createDragController } from '../system/taskbar-drag-controller';
 
 // 模块内部状态
 let miniWindow: BrowserWindow | null = null;
 
-// 悬停模拟状态
-let hoverTimer: NodeJS.Timeout | null = null;
-let lastHoverState = false;
-
-// 左侧拖拽区域宽度，需与 taskbar-live-controls.css 中 .drag-region 保持一致
-const DRAG_REGION_WIDTH = 25;
-const HOVER_POLL_INTERVAL = 80;
+// z-order 守护状态
+let topmostGuardTimer: NodeJS.Timeout | null = null;
 
 // 置顶层级：需高于系统任务栏与全屏程序
 const TOP_LEVEL = 'screen-saver';
 
-// 每隔多少次悬停轮询执行一次 z-order 守卫（80ms * 12 ≈ 1s）
-const TOP_GUARD_TICKS = 12;
+// z-order 守护周期：切换全屏程序没有可靠事件可捕捉，低频重设即可恢复命中测试
+const TOP_GUARD_INTERVAL = 2500;
 
 // raiseToTop 防抖：避免短时间内重复调用导致窗口闪烁/弹跳
 const RAISE_DEBOUNCE_MS = 300;
 let lastRaiseTime = 0;
 
+// 拖拽控制器：把光标位移转换为窗口位置
+const dragController = createDragController();
 
 // 外部依赖（通过 init 注入）
 interface TaskbarDeps {
   getIsQuitting: () => boolean;
+  onManualDragStart?: () => void;
+  onManualDragEnd?: () => void;
 }
 
 let deps: TaskbarDeps = {
-  getIsQuitting: () => false
+  getIsQuitting: () => false,
+  onManualDragStart: () => {},
+  onManualDragEnd: () => {}
 };
 
 /**
  * 初始化模块依赖
  * @param {Object} injectedDeps
  * @param {Function} injectedDeps.getIsQuitting - 获取应用是否正在退出
+ * @param {Function} injectedDeps.onManualDragStart - 手动拖拽开始回调（mousedown 时通知吸附协调器进入手动模式）
+ * @param {Function} injectedDeps.onManualDragEnd - 手动拖拽结束回调（松手时通知吸附协调器收尾）
  */
 function init(injectedDeps: Partial<TaskbarDeps>) {
   deps = { ...deps, ...injectedDeps };
@@ -87,6 +90,28 @@ function raiseToTop(force = false) {
 }
 
 /**
+ * 开始 z-order 低频守护
+ * 仅当窗口可见时运行；raiseToTop 自带防抖，2.5s 周期不会触发闪烁
+ */
+function startTopmostGuard() {
+  if (topmostGuardTimer) return;
+  topmostGuardTimer = setInterval(() => {
+    if (!miniWindow || miniWindow.isDestroyed() || !miniWindow.isVisible()) return;
+    raiseToTop();
+  }, TOP_GUARD_INTERVAL);
+}
+
+/**
+ * 停止 z-order 低频守护
+ */
+function stopTopmostGuard() {
+  if (topmostGuardTimer) {
+    clearInterval(topmostGuardTimer);
+    topmostGuardTimer = null;
+  }
+}
+
+/**
  * 创建迷你窗口
  * @param {Object} options - 创建选项
  * @param {number} options.x - 窗口 x 坐标（可选，默认屏幕中心）
@@ -95,7 +120,7 @@ function raiseToTop(force = false) {
 function createMiniWindow(options: { x?: number; y?: number } = {}) {
   if (miniWindow && !miniWindow.isDestroyed()) {
     miniWindow.show();
-    startHoverWatcher();
+    startTopmostGuard();
     miniWindow.focus();
     return;
   }
@@ -146,85 +171,21 @@ function createMiniWindow(options: { x?: number; y?: number } = {}) {
 
   miniWindow.once('ready-to-show', () => {
     miniWindow!.show();
-    startHoverWatcher();
+    startTopmostGuard();
   });
-
-  // 开发者模式：以独立窗口打开 DevTools，便于调试 IPC 内容接收情况
-  if (process.env.NODE_ENV !== 'production') {
-    miniWindow.webContents.openDevTools({ mode: 'detach' });
-  }
 
   miniWindow.on('close', (event) => {
     if (!deps.getIsQuitting()) {
       event.preventDefault();
       miniWindow!.hide();
-      stopHoverWatcher();
+      stopTopmostGuard();
     }
   });
 
   miniWindow.on('closed', () => {
-    stopHoverWatcher();
+    stopTopmostGuard();
     miniWindow = null;
   });
-}
-
-/**
- * 统一设置竖条透明度
- * @param {boolean} isHover - 是否悬停
- */
-function setHandleOpacity(isHover: boolean) {
-  miniWindow?.webContents
-    .executeJavaScript(
-      `(() => {
-        const region = document.querySelector('.drag-region');
-        if (region) {
-          region.classList.toggle('is-hover', ${isHover});
-        }
-      })()`
-    )
-    .catch(() => {});
-}
-
-/**
- * 开始轮询光标位置，模拟拖拽区域悬停态
- * 仅在状态变化时通知渲染进程，避免无意义的 executeJavaScript 调用
- */
-function startHoverWatcher() {
-  if (hoverTimer) return;
-  lastHoverState = false;
-  let tick = 0;
-  hoverTimer = setInterval(() => {
-    if (!miniWindow || miniWindow.isDestroyed() || !miniWindow.isVisible()) return;
-
-    // 复用本轮询做 z-order 守卫：切换全屏程序会静默把窗口踢出 topmost，
-    // 没有可靠的事件能捕捉该时机，低频重设即可恢复命中测试
-    tick += 1;
-    if (tick % TOP_GUARD_TICKS === 0) raiseToTop();
-
-    const cursor = screen.getCursorScreenPoint();
-    const bounds = miniWindow.getBounds();
-    const isHover =
-      cursor.x >= bounds.x &&
-      cursor.x < bounds.x + DRAG_REGION_WIDTH &&
-      cursor.y >= bounds.y &&
-      cursor.y < bounds.y + bounds.height;
-
-    if (isHover !== lastHoverState) {
-      lastHoverState = isHover;
-      setHandleOpacity(isHover);
-    }
-  }, HOVER_POLL_INTERVAL);
-}
-
-/**
- * 停止悬停轮询
- */
-function stopHoverWatcher() {
-  if (hoverTimer) {
-    clearInterval(hoverTimer);
-    hoverTimer = null;
-  }
-  lastHoverState = false;
 }
 
 /**
@@ -237,11 +198,11 @@ function toggleMiniWindow() {
     createMiniWindow();
   } else if (miniWindow.isVisible()) {
     miniWindow.hide();
-    stopHoverWatcher();
+    stopTopmostGuard();
   } else {
     miniWindow.show();
     miniWindow.focus();
-    startHoverWatcher();
+    startTopmostGuard();
   }
 }
 
@@ -252,17 +213,64 @@ function getMiniWindow() {
   return miniWindow;
 }
 
+/**
+ * 计算拖拽边界：窗口整体保持在光标所在屏幕范围内
+ * @returns {Object} 钳制边界，窗口缺失时返回 null
+ */
+function getDragClamp() {
+  if (!miniWindow || miniWindow.isDestroyed()) return null;
+  const cursor = screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(cursor);
+  const { width, height } = miniWindow.getBounds();
+  return {
+    minX: display.bounds.x,
+    minY: display.bounds.y,
+    maxX: display.bounds.x + display.bounds.width - width,
+    maxY: display.bounds.y + display.bounds.height - height
+  };
+}
+
+// ---- 手动拖拽 IPC ----
+
+/**
+ * 注册拖拽 IPC 处理器（跟随迷你窗生命周期，仅注册一次）
+ */
+function registerDragIpc() {
+  ipcMain.on('taskbar-drag-start', (_event, _data: { offsetX: number; offsetY: number }) => {
+    if (!miniWindow || miniWindow.isDestroyed()) return;
+    const [winX, winY] = miniWindow.getPosition();
+    const cursor = screen.getCursorScreenPoint();
+    dragController.start({ winX, winY, cursorX: cursor.x, cursorY: cursor.y });
+    if (deps.onManualDragStart) deps.onManualDragStart();
+  });
+
+  ipcMain.on('taskbar-drag-move', () => {
+    if (!miniWindow || miniWindow.isDestroyed()) return;
+    const cursor = screen.getCursorScreenPoint();
+    const position = dragController.move({ x: cursor.x, y: cursor.y }, getDragClamp() ?? undefined);
+    if (position) {
+      miniWindow.setPosition(position.x, position.y);
+    }
+  });
+
+  ipcMain.on('taskbar-drag-end', () => {
+    dragController.end();
+    if (deps.onManualDragEnd) deps.onManualDragEnd();
+  });
+}
+
+registerDragIpc();
+
 const taskbarLiveControls = {
   init,
   createMiniWindow,
   toggleMiniWindow,
   getMiniWindow,
-  // 暴露给吸附协调器：固定状态由协调器统一接管悬停检测，
-  // 需要停止本模块的拖拽区域轮询，避免两个定时器同时运行
-  startHoverWatcher,
-  stopHoverWatcher,
   // 暴露给吸附协调器：固定/拖拽结束后需要强制恢复 topmost 层级
-  raiseToTop
+  raiseToTop,
+  // 暴露 z-order 守护：吸附协调器在固定态停止拖拽轮询后，仍由本守护保持层级
+  startTopmostGuard,
+  stopTopmostGuard
 };
 
 export default taskbarLiveControls;

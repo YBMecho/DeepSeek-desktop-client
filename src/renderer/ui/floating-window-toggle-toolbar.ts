@@ -38,7 +38,7 @@
   function showTooltip(buttonElement: HTMLElement): void {
     hideTooltip();
     const rect = buttonElement.getBoundingClientRect();
-    const text = isEnabled ? '关闭任务栏控制组件' : '开启任务栏控制组件';
+    const text = '任务栏控制组件已禁用';
     currentTooltip = createTooltip(text);
 
     const left = rect.left + rect.width / 2;
@@ -76,17 +76,11 @@
   }
 
   /**
-   * 初始化：加载任务栏控制组件状态
+   * 初始化：模块已永久禁用，强制保持关闭状态
    */
   async function initTaskbarControlsState(): Promise<void> {
-    try {
-      if (window.electronAPI && window.electronAPI.getTaskbarControlsState) {
-        isEnabled = await window.electronAPI.getTaskbarControlsState();
-        updateButtonState();
-      }
-    } catch (error) {
-      console.error('[工具栏-任务栏控制] 加载状态失败:', error);
-    }
+    isEnabled = false;
+    updateButtonState();
   }
 
   /**
@@ -123,32 +117,13 @@
       hideTooltip();
     });
 
-    // 点击切换任务栏控制组件
     button.addEventListener('click', (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       hideTooltip();
-      handleToggle();
     });
 
     return button;
-  }
-
-  /**
-   * 处理切换任务栏控制组件
-   */
-  async function handleToggle(): Promise<void> {
-    try {
-      if (window.electronAPI && window.electronAPI.toggleTaskbarControls) {
-        const result = await window.electronAPI.toggleTaskbarControls();
-        if (result.success && result.enabled !== undefined) {
-          isEnabled = result.enabled;
-          updateButtonState();
-        }
-      }
-    } catch (error) {
-      console.error('[工具栏-任务栏控制] 切换时出错:', error);
-    }
   }
 
   /**
@@ -204,10 +179,10 @@
     }, 5000);
   }
 
-  // 监听任务栏控制组件状态变化（从主进程广播）
+  // 监听任务栏控制组件状态变化（模块已永久禁用，忽略外部状态强制保持关闭）
   if (window.electronAPI && window.electronAPI.onTaskbarControlsStateChanged) {
-    window.electronAPI.onTaskbarControlsStateChanged((enabled: boolean) => {
-      isEnabled = enabled;
+    window.electronAPI.onTaskbarControlsStateChanged(() => {
+      isEnabled = false;
       updateButtonState();
     });
   }

@@ -15,7 +15,7 @@ import path from 'path';
 import { webFrame } from 'electron';
 
 const MONITOR_SCRIPT_PATH = path.join(
-  __dirname, '..', 'renderer', 'injectors', 'deepseek-api-monitor.ts'
+  __dirname, '..', 'renderer', 'injectors', 'deepseek-api-monitor.js'
 );
 
 /**

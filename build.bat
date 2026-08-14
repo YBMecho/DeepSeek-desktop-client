@@ -1,1 +1,1 @@
-node build.js inno --proxy 127.0.0.1:10808
+npm run package && node build.js inno

@@ -33,6 +33,7 @@ interface DragSessionController {
   detach: () => void;
   suppress: (fn: () => void) => void;
   forceEnd: () => void;
+  setManualDragMode: (manual: boolean) => void;
   isActive: () => boolean;
 }
 
@@ -58,6 +59,7 @@ export function createDragSession(options: DragSessionOptions): DragSessionContr
 
   let active = false;
   let suppressed = false;
+  let manualDrag = false;
   let idleTimer: NodeJS.Timeout | null = null;
   let releaseTimer: NodeJS.Timeout | null = null;
   let listeners: Record<string, (...args: unknown[]) => void> | null = null;
@@ -71,6 +73,7 @@ export function createDragSession(options: DragSessionOptions): DragSessionContr
 
   const armIdleTimer = () => {
     clearIdleTimer();
+    if (manualDrag) return;
     idleTimer = setTimeout(end, idleTimeout);
   };
 
@@ -109,8 +112,26 @@ export function createDragSession(options: DragSessionOptions): DragSessionContr
   }
 
   function handleMoved() {
-    if (suppressed) return;
+    if (suppressed || manualDrag) return;
     end();
+  }
+
+  /**
+   * 进入/退出手动拖拽模式（渲染进程驱动窗口移动）。
+   * 手动模式下窗口跟随 setPosition 移动，会稳定触发 moved 事件，
+   * 因此 moved 不再结束会话、静止超时也不触发（等待 mouseup 时 forceEnd 结算），
+   * 但每次 move 仍回调 onMove，近邻检测照常工作。
+   */
+  function setManualDragMode(manual: boolean) {
+    if (manualDrag === manual) return;
+    manualDrag = manual;
+    if (manual) {
+      if (!active) {
+        start();
+      } else {
+        clearIdleTimer();
+      }
+    }
   }
 
   /**
@@ -134,6 +155,8 @@ export function createDragSession(options: DragSessionOptions): DragSessionContr
   function attach(): boolean {
     const win = getWindow();
     if (!win || win.isDestroyed() || listeners) return false;
+
+    listeners = {};
 
     const events: Array<`will-move` | 'move' | 'moved'> = ['will-move', 'move', 'moved'];
     events.forEach(event => {
@@ -170,6 +193,7 @@ export function createDragSession(options: DragSessionOptions): DragSessionContr
     listeners = null;
     active = false;
     suppressed = false;
+    manualDrag = false;
     clearIdleTimer();
     if (releaseTimer) {
       clearTimeout(releaseTimer);
@@ -182,6 +206,7 @@ export function createDragSession(options: DragSessionOptions): DragSessionContr
     detach,
     suppress,
     forceEnd: end,
+    setManualDragMode,
     isActive: () => active
   };
 }

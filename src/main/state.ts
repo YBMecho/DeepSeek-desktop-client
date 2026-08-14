@@ -21,7 +21,6 @@ let isQuitting = false;
 let areAllWindowsHidden = false;
 const previouslyVisibleWindowIds = new Set<number>();
 let isTaskbarControlsAdsorbed = false;
-let adsorbedHoverWatcher: NodeJS.Timeout | null = null;
 
 export const state = {
   getMainWindow: () => mainWindow,
@@ -58,10 +57,7 @@ export const state = {
   getPreviouslyVisibleWindowIds: () => previouslyVisibleWindowIds,
 
   getIsTaskbarControlsAdsorbed: () => isTaskbarControlsAdsorbed,
-  setIsTaskbarControlsAdsorbed: (v: boolean) => { isTaskbarControlsAdsorbed = v; },
-
-  getAdsorbedHoverWatcher: () => adsorbedHoverWatcher,
-  setAdsorbedHoverWatcher: (v: NodeJS.Timeout | null) => { adsorbedHoverWatcher = v; }
+  setIsTaskbarControlsAdsorbed: (v: boolean) => { isTaskbarControlsAdsorbed = v; }
 };
 
 export default state;

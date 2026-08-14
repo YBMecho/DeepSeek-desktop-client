@@ -158,4 +158,54 @@
     element.innerHTML = '';
     element.classList.remove('thinking');
   });
+
+  // ---- 拖拽交互 ----
+  // Windows 上 drag 区域用 -webkit-app-region: drag 会吞掉鼠标事件导致 :hover 失效，
+  // 改为手动拖拽：渲染进程上报 mousedown/mousemove/mouseup，主进程用光标位置驱动窗口移动。
+  const dragRegion = document.querySelector('.drag-region');
+  if (dragRegion) {
+    let dragging = false;
+
+    dragRegion.addEventListener('mousedown', (event) => {
+      const mouseEvent = event as MouseEvent;
+      dragging = true;
+      ipcRenderer.send('taskbar-drag-start', {
+        offsetX: mouseEvent.offsetX,
+        offsetY: mouseEvent.offsetY
+      });
+    });
+
+    document.addEventListener('mousemove', (event) => {
+      if (!dragging) return;
+      // 光标拖出窗口后 mouseup 会丢失（窗口被钳制到屏幕边缘时），
+      // 用 buttons 判断左键是否仍按住，避免 dragging 卡死导致误拖拽
+      const mouseEvent = event as MouseEvent;
+      if (!(mouseEvent.buttons & 1)) {
+        dragging = false;
+        ipcRenderer.send('taskbar-drag-end');
+        return;
+      }
+      // 主进程用 screen.getCursorScreenPoint() 取光标，无需传坐标
+      ipcRenderer.send('taskbar-drag-move');
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      ipcRenderer.send('taskbar-drag-end');
+    });
+  }
+
+  // ---- 吸附态悬停（原生 mouseenter/mouseleave）----
+  // 固定态下窗口整体可交互，原生事件即可驱动 body.hover 切换，
+  // 不再需要主进程 80ms 光标轮询。
+  document.body.addEventListener('mouseenter', () => {
+    if (document.body.classList.contains('adsorbed')) {
+      document.body.classList.add('hover');
+    }
+  });
+
+  document.body.addEventListener('mouseleave', () => {
+    document.body.classList.remove('hover');
+  });
 })();

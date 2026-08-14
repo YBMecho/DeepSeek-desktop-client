@@ -11,6 +11,12 @@
 
 import { app, BrowserWindow, nativeTheme } from 'electron';
 
+// ---- 标准输出/错误管道保护 ----
+// 终端关闭或输出管道断开时，console.log/console.error 写 stdout/stderr 会抛 EPIPE，
+// 未捕获将导致主进程崩溃。挂上空错误处理器防止 uncaught exception。
+process.stdout.on('error', () => {});
+process.stderr.on('error', () => {});
+
 // ---- 调试日志 ----
 const isDebugLog = process.env.DS_DEBUG === '1';
 function logDebug(...args: unknown[]) {
@@ -59,8 +65,6 @@ function initAdsorptionCoordinator(): void {
   adsorptionCoordinator.init({
     getAdsorptionWindow: adsorptionMgr.getAdsorptionWindow,
     getMiniWindow: taskbarMgr.getMiniWindow,
-    startDragRegionHoverWatcher: taskbarMgr.startHoverWatcher,
-    stopDragRegionHoverWatcher: taskbarMgr.stopHoverWatcher,
     raiseMiniWindow: taskbarMgr.raiseToTop,
     raiseAdsorptionWindow: adsorptionMgr.raiseToTop
   });
@@ -104,7 +108,9 @@ floatingMgr.init({
 
 // ---- Taskbar Live Controls 模块依赖注入 ----
 taskbarMgr.init({
-  getIsQuitting: state.getIsQuitting
+  getIsQuitting: state.getIsQuitting,
+  onManualDragStart: () => adsorptionCoordinator.startManualDrag(),
+  onManualDragEnd: () => adsorptionCoordinator.endManualDrag()
 });
 
 // ---- 吸附窗口模块依赖注入 ----
@@ -330,9 +336,9 @@ app.whenReady().then(() => {
   // 应用自启动设置
   autoLaunchMgr.applyAutoLaunchSetting(state.getAutoLaunch());
 
-  // 读取配置，根据任务栏控制组件开关决定是否创建窗口
+  // 任务栏控制组件已永久禁用，不再创建相关窗口
   const config = configManager.loadConfig();
-  const taskbarControlsEnabled = config.taskbarControlsEnabled || false;
+  const taskbarControlsEnabled = false;
 
   if (taskbarControlsEnabled) {
     // 获取保存的位置或吸附窗口位置
@@ -385,16 +391,11 @@ app.whenReady().then(() => {
             (() => {
               document.body.classList.add('adsorbed');
               document.body.classList.remove('hover');
-              // 清除拖拽区域的悬停状态
-              const region = document.querySelector('.drag-region');
-              if (region) region.classList.remove('is-hover');
             })();
           `).catch(() => {});
         }
         // 设置全局状态
         state.setIsTaskbarControlsAdsorbed(true);
-        // 启动固定状态悬停检测
-        adsorptionCoordinator.startAdsorbedHoverWatcher();
       }, 500); // 等待窗口加载完成
     }
 

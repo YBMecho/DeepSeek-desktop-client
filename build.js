@@ -26,7 +26,7 @@
  *  --compression <算法>        修改压缩算法 (lzma2/ultra64, lzma, zip, none)
  *  --no-desktop-icon           不默认勾选桌面快捷方式
  *  --no-admin                  不要求管理员权限安装
- *  --lang <语言>               安装界面语言 (english, chinesesimp)
+ *  --lang <语言>               安装界面语言 (both, chinesesimp, english)
  *  --no-auto-launch            安装完成后不自动启动应用
  *  --dry-run                   仅修改配置不执行构建
  *  --proxy <host:port>         构建过程中使用的代理地址
@@ -64,7 +64,7 @@ const DEFAULT_CONFIG = {
   noAdmin: false,
   noDesktopIcon: false,
   noAutoLaunch: false,
-  lang: 'english',
+  lang: 'both',
 };
 
 // ---------- 持久化配置模块 ----------
@@ -286,6 +286,28 @@ function setISSSetup(text, directive, value) {
   );
 }
 
+const LANG_ISL = {
+  chinesesimp: 'resources\\languages\\ChineseSimplified.isl',
+  english: 'compiler:Default.isl',
+};
+
+const LANG_LICENSE = {
+  chinesesimp: 'resources\\declarations\\ChineseSimplified.txt',
+  english: 'resources\\declarations\\English.txt',
+};
+
+/**
+ * 根据语言设置生成 [Languages] 节内容（支持 both 中英双语言）
+ * @param {string} lang 'both' | 'chinesesimp' | 'english'
+ * @returns {string} [Languages] 节内的行内容
+ */
+function buildLanguagesSection(lang) {
+  const langs = lang === 'chinesesimp' || lang === 'english' ? [lang] : ['chinesesimp', 'english'];
+  return langs
+    .map((l) => `Name: "${l}"; MessagesFile: "${LANG_ISL[l]}"; LicenseFile: "${LANG_LICENSE[l]}"`)
+    .join('\n');
+}
+
 /**
  * 根据 CLI 选项修改 package.json 与 .iss 脚本
  * @param {object} opts 解析后的选项
@@ -296,21 +318,13 @@ function applyConfig(opts) {
   let changed = false;
 
   // 版本号：package.json 为单一来源，.iss 只更新 MyAppVersion 宏
-  // （AppId / OutputBaseFilename 引用 {#MyAppVersion}，自动同步）
+  // （OutputBaseFilename 引用 {#MyAppVersion}，自动同步）
   if (opts.version) {
     if (pkg.version !== opts.version) {
       pkg.version = opts.version;
       log(`[package.json] version: ${pkg.version} -> ${opts.version}`);
     }
     iss = setISSMacro(iss, 'MyAppVersion', opts.version);
-    const oldAppId = getISSSetup(iss, 'AppId');
-    iss = setISSSetup(
-      iss,
-      'AppId',
-      oldAppId && !oldAppId.includes('{#MyAppVersion}')
-        ? oldAppId.replace(/-[0-9]+\.[0-9]+\.[0-9]+\}$/, `-{#MyAppVersion}}`)
-        : `{{DEEPSEEK-DESKTOP-CLIENT-{#MyAppVersion}}`
-    );
     const oldName = getISSSetup(iss, 'OutputBaseFilename');
     const newName = oldName
       ? oldName.includes('{#MyAppVersion}')
@@ -318,7 +332,7 @@ function applyConfig(opts) {
         : oldName.replace(/-\d+\.\d+\.\d+/, `-{#MyAppVersion}`)
       : `DeepSeek-{#MyAppVersion}-setup`;
     iss = setISSSetup(iss, 'OutputBaseFilename', newName);
-    log(`[.iss] MyAppVersion -> ${opts.version}（AppId/OutputBaseFilename 引用宏自动同步）`);
+    log(`[.iss] MyAppVersion -> ${opts.version}（OutputBaseFilename 引用宏自动同步）`);
     changed = true;
   }
 
@@ -373,18 +387,13 @@ function applyConfig(opts) {
     changed = true;
   }
 
-  // 安装界面语言
+  // 安装界面语言（both 中英双语言 / 单语言）
   if (opts.lang) {
-    const map = {
-      english: 'compiler:Default.isl',
-      chinesesimp: 'resources\\languages\\ChineseSimplified.isl',
-    };
-    const msgFile = map[opts.lang] || map.english;
     iss = iss.replace(
-      /^Name:\s*"[^"]*";\s*MessagesFile:\s*"[^"]*"/m,
-      `Name: "${opts.lang}"; MessagesFile: "${msgFile}"`
+      /^\[Languages\][^[]*/m,
+      `[Languages]\n${buildLanguagesSection(opts.lang)}\n`
     );
-    log(`[.iss] Language -> ${opts.lang} (${msgFile})`);
+    log(`[.iss] Languages -> ${opts.lang}`);
     changed = true;
   }
 
@@ -689,7 +698,7 @@ iss / config 示例:
   --desktop-icon              默认勾选桌面快捷方式（与 --no-desktop-icon 反向）
   --no-admin                  不要求管理员权限安装
   --admin                     要求管理员权限安装（与 --no-admin 反向）
-  --lang <语言>               安装界面语言 (english, chinesesimp)
+  --lang <语言>               安装界面语言 (both, chinesesimp, english)
   --no-auto-launch            安装完成后不自动启动应用
   --auto-launch               安装完成后自动启动应用（与 --no-auto-launch 反向）
   --dry-run                   仅修改配置不执行构建

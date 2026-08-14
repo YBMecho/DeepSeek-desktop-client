@@ -59,7 +59,6 @@ interface HandlerDeps {
   taskbarMgr: {
     getMiniWindow: () => Electron.BrowserWindow | null;
     createMiniWindow: (options: { x?: number; y?: number }) => void;
-    stopHoverWatcher: () => void;
   };
   adsorptionMgr: {
     createAdsorptionWindow: (show?: boolean) => void;
@@ -68,7 +67,6 @@ interface HandlerDeps {
   adsorptionCoordinator: {
     startMonitoring: () => void;
     stopMonitoring: () => void;
-    startAdsorbedHoverWatcher: () => void;
   };
   registerHotkey: (hotkey: string, toggleWindow: () => void, state: HandlerDeps['state']) => void;
   toggleWindow: () => void;
@@ -375,138 +373,14 @@ function registerHandlers(deps: HandlerDeps) {
     }
   });
 
-  // 获取任务栏控制组件状态
+  // 获取任务栏控制组件状态（模块已永久禁用，恒为关闭）
   ipcMain.handle('get-taskbar-controls-state', () => {
-    try {
-      const config = configManager.loadConfig();
-      return config.taskbarControlsEnabled || false;
-    } catch (error) {
-      return false;
-    }
+    return false;
   });
 
-  // 切换任务栏控制组件
+  // 切换任务栏控制组件（模块已永久禁用，阻断切换请求）
   ipcMain.handle('toggle-taskbar-controls', () => {
-    try {
-      const config = configManager.loadConfig();
-      const currentState = config.taskbarControlsEnabled || false;
-      const newState = !currentState;
-
-      // 保存配置
-      configManager.updateConfig('taskbarControlsEnabled', newState);
-
-      // 广播状态变化到所有窗口
-      const mainWindow = state.getMainWindow();
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('taskbar-controls-state-changed', newState);
-      }
-
-      const fw = floatingMgr.getFloatingWindow();
-      if (fw && !fw.isDestroyed()) {
-        fw.webContents.send('taskbar-controls-state-changed', newState);
-      }
-
-      // 根据状态显示或隐藏窗口
-      if (newState) {
-        // 开启：获取保存的位置或吸附窗口位置
-        const savedPosition = config.taskbarControlsPosition;
-        
-        // 确保吸附窗口已创建（但不显示）
-        if (deps.adsorptionMgr && deps.adsorptionMgr.createAdsorptionWindow) {
-          deps.adsorptionMgr.createAdsorptionWindow(false); // 传入 false 表示不显示
-        }
-        
-        const adsorptionWindow = deps.adsorptionMgr ? deps.adsorptionMgr.getAdsorptionWindow() : null;
-        
-        // 确保吸附窗口隐藏
-        if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
-          adsorptionWindow.hide();
-        }
-        
-        let miniWindowOptions: { x?: number; y?: number } = {};
-        let shouldApplyAdsorbedStyle = false;
-        
-        // 优先使用保存的位置
-        if (savedPosition && savedPosition.x !== undefined && savedPosition.y !== undefined) {
-          miniWindowOptions = { x: savedPosition.x, y: savedPosition.y };
-          
-          // 检查保存的位置是否与吸附窗口位置一致
-          if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
-            const adsorbBounds = adsorptionWindow.getBounds();
-            if (savedPosition.x === adsorbBounds.x && savedPosition.y === adsorbBounds.y) {
-              shouldApplyAdsorbedStyle = true;
-            }
-          }
-        } 
-        // 如果吸附窗口已存在，使用吸附窗口位置
-        else if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
-          const bounds = adsorptionWindow.getBounds();
-          miniWindowOptions = { x: bounds.x, y: bounds.y };
-          shouldApplyAdsorbedStyle = true; // 使用吸附窗口位置时应用固定样式
-        }
-        
-        // 创建任务栏小组件（传入位置参数）
-        if (deps.taskbarMgr && deps.taskbarMgr.createMiniWindow) {
-          deps.taskbarMgr.createMiniWindow(miniWindowOptions);
-        }
-        
-        // 如果窗口应该在吸附位置，应用固定样式
-        if (shouldApplyAdsorbedStyle) {
-          // 延迟应用样式，等待窗口完全加载
-          setTimeout(() => {
-            const miniWin = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
-            if (miniWin && !miniWin.isDestroyed()) {
-              miniWin.webContents.executeJavaScript(`
-                (() => {
-                  document.body.classList.add('adsorbed');
-                  document.body.classList.remove('hover');
-                  // 清除拖拽区域的悬停状态
-                  const region = document.querySelector('.drag-region');
-                  if (region) region.classList.remove('is-hover');
-                })();
-              `).catch(() => {});
-            }
-            // 设置全局状态
-            state.setIsTaskbarControlsAdsorbed(true);
-            // 停止拖拽区域悬停检测
-            if (deps.taskbarMgr && deps.taskbarMgr.stopHoverWatcher) {
-              deps.taskbarMgr.stopHoverWatcher();
-            }
-            // 启动固定状态悬停检测
-            if (deps.adsorptionCoordinator && deps.adsorptionCoordinator.startAdsorbedHoverWatcher) {
-              deps.adsorptionCoordinator.startAdsorbedHoverWatcher();
-            }
-          }, 500); // 等待窗口加载完成
-        }
-        
-        // 启动吸附协调器（吸附窗口只在拖拽时显示）
-        if (deps.adsorptionCoordinator && deps.adsorptionCoordinator.startMonitoring) {
-          deps.adsorptionCoordinator.startMonitoring();
-        }
-      } else {
-        // 关闭：保存当前位置并隐藏窗口
-        const miniWindow = deps.taskbarMgr ? deps.taskbarMgr.getMiniWindow() : null;
-        if (miniWindow && !miniWindow.isDestroyed()) {
-          const bounds = miniWindow.getBounds();
-          configManager.updateConfig('taskbarControlsPosition', { x: bounds.x, y: bounds.y });
-          miniWindow.hide();
-        }
-        
-        const adsorptionWindow = deps.adsorptionMgr ? deps.adsorptionMgr.getAdsorptionWindow() : null;
-        if (adsorptionWindow && !adsorptionWindow.isDestroyed()) {
-          adsorptionWindow.hide();
-        }
-        
-        // 停止吸附协调器
-        if (deps.adsorptionCoordinator && deps.adsorptionCoordinator.stopMonitoring) {
-          deps.adsorptionCoordinator.stopMonitoring();
-        }
-      }
-
-      return { success: true, enabled: newState };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
-    }
+    return { success: false, enabled: false, error: '任务栏控制组件已禁用' };
   });
 
   // DeepSeek 内容转发：从主窗口/悬浮窗推送到任务栏小组件

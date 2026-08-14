@@ -1,0 +1,25 @@
+DeepSeek Desktop Client
+Software Usage Declaration
+
+1. Ownership
+All copyright, interpretation and modification rights of this software and its related documentation belong to the developer, YBMecho.
+Without the developer's prior written authorization, no individual or organization may reverse-engineer, copy, modify, redistribute or use this software for commercial purposes.
+
+2. Scope of Use
+This software is provided free of charge for personal, non-commercial use only.
+No individual or organization may use it for commercial profit, bundled sales, or any activity that violates applicable laws and regulations.
+
+3. Third-Party Content
+This software is a desktop wrapper of the DeepSeek web client (chat.deepseek.com).
+The copyright and related rights of the conversations, model responses and associated data within the software belong to DeepSeek and its affiliates, and are unrelated to the developer of this software.
+
+4. Disclaimer
+This software is provided on an "as is" basis, without any express or implied warranty as to its suitability, reliability or availability.
+Any consequences arising from the use of this software (including but not limited to data loss, business interruption and indirect damages) shall be borne by the user.
+
+5. Amendments
+The developer reserves the right to modify the software features and this declaration as needed. Amended versions will be published through the software's official channels and supersede previous versions.
+Continued use of this software after such amendments constitutes acceptance of the updated declaration.
+
+6. Final Interpretation
+YBMecho reserves the final right of interpretation of this declaration.
