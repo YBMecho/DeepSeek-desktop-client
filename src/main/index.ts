@@ -11,6 +11,12 @@
 
 import { app, BrowserWindow, nativeTheme } from 'electron';
 
+// ---- 标准输出/错误管道保护 ----
+// 终端关闭或输出管道断开时，console.log/console.error 写 stdout/stderr 会抛 EPIPE，
+// 未捕获将导致主进程崩溃。挂上空错误处理器防止 uncaught exception。
+process.stdout.on('error', () => {});
+process.stderr.on('error', () => {});
+
 // ---- 调试日志 ----
 const isDebugLog = process.env.DS_DEBUG === '1';
 function logDebug(...args: unknown[]) {
